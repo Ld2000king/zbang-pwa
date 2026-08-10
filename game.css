@@ -1948,6 +1948,86 @@
     box-shadow: var(--shadow-depth-sm);
 }
 
+/* ===== Admin word bank ===== */
+.dict-input {
+    display: block;
+    width: 100%;
+    font-family: inherit;
+    font-size: 1.1em;
+    font-weight: 700;
+    color: var(--text-dark);
+    background: var(--surface-2);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-btn);
+    padding: 12px 14px;
+    outline: none;
+}
+
+.dict-input:focus {
+    border-color: var(--neon-cyan);
+    box-shadow: var(--shadow-depth-sm);
+}
+
+.dict-add-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    margin-bottom: 10px;
+}
+
+.dict-add-row .dict-input { flex: 1; }
+.dict-add-row .approve-btn { white-space: nowrap; }
+
+.dict-search { margin-bottom: 12px; }
+
+.dict-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.dict-stats {
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+.dict-toggle {
+    margin: 0;
+    padding: 8px 14px;
+    font-size: 0.95em;
+    width: auto;
+}
+
+/* the list can run to hundreds of rows - keep it scrollable inside the screen
+   instead of stretching the page */
+#dictWordList {
+    max-height: 60vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.dict-row {
+    padding: 8px 12px;
+    margin-bottom: 6px;
+}
+
+.dict-row .sub-word { font-size: 1.05em; }
+.dict-row .sub-actions { align-items: center; }
+
+.dict-row .reject-btn,
+.dict-row .approve-btn {
+    padding: 6px 12px;
+    font-size: 0.95em;
+}
+
+.sub-builtin {
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.08);
+}
+
 .lobby-players-title {
     color: var(--text-dark);
     font-weight: 700;

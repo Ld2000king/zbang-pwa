@@ -222,6 +222,13 @@ const COIN_PACKAGES = [
 // player's local submission list. Populated by a Firebase listener in admin.js.
 const rejectedWordsSet = new Set();
 
+// Words the admin pulled OUT of the dictionary from the admin word-bank screen
+// (public removed_words node). The expansion packs are static files that can't
+// be edited at runtime, so a removal is stored as this shared blocklist and
+// applied on top of them - on every device, not just the admin's. Normalized
+// forms. Populated by a Firebase listener in admin.js.
+const removedWordsSet = new Set();
+
 let currentGame = {
     mode: null, // 'single' or 'battle'
     board: [],
@@ -331,6 +338,7 @@ window.addEventListener('load', () => {
     normalizeDictionary();
     mergeExtraWords();
     loadCustomWords();
+    applyRemovedWords(); // the blocklist may already be filled from a cached snapshot
     updateHomeUI();
     initMusic();
     maybeShowDailyReward(); // pop the daily bonus if it's waiting
@@ -348,11 +356,26 @@ function mergeExtraWords() {
 
     packs.forEach(pack => pack.forEach(w => {
         const word = normalizeFinals(w);
-        if (word.length >= 2 && HEBREW_DICTIONARY[word] === undefined) {
+        if (word.length >= 2 && HEBREW_DICTIONARY[word] === undefined && !removedWordsSet.has(word)) {
             HEBREW_DICTIONARY[word] = pointsForWord(word);
         }
     }));
     invalidateDictionaryCache();
+}
+
+// Drops every admin-removed word from the live dictionary. Called after the
+// packs are merged and again whenever the removed_words listener fires, since
+// that snapshot can land before or after any of the merges.
+function applyRemovedWords() {
+    let changed = false;
+    removedWordsSet.forEach(word => {
+        if (HEBREW_DICTIONARY[word] !== undefined) {
+            delete HEBREW_DICTIONARY[word];
+            changed = true;
+        }
+    });
+    if (changed) invalidateDictionaryCache();
+    return changed;
 }
 
 // Storage
@@ -1059,7 +1082,10 @@ function pointsForWord(word) {
 // dictionary on every launch
 function loadCustomWords() {
     const custom = JSON.parse(localStorage.getItem('zabangCustomWords') || '[]');
-    custom.forEach(w => { const word = normalizeFinals(w); HEBREW_DICTIONARY[word] = pointsForWord(word); });
+    custom.forEach(w => {
+        const word = normalizeFinals(w);
+        if (!removedWordsSet.has(word)) HEBREW_DICTIONARY[word] = pointsForWord(word);
+    });
     invalidateDictionaryCache();
 }
 

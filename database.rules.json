@@ -11,6 +11,11 @@
   //   admin.js). Find it in Console -> Authentication -> Users -> User UID.
   //
   // IDENTITY BINDING (now active):
+  //   /approved_words, /rejected_words and /removed_words are the admin's
+  //   dictionary controls (add / reject / remove): world-readable, because
+  //   every client applies them to its local dictionary, but writable only by
+  //   the admin UID.
+  //
   //   Each room player node carries "uid" = the writer's Firebase Auth UID
   //   (set by myPlayerNode() in multiplayer.js). These rules use it so that:
   //     * a player may only create/delete/edit the node whose uid is their own;
@@ -162,6 +167,17 @@
     },
 
     "rejected_words": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.uid === 'PASTE_ADMIN_UID_HERE'",
+      "$word": { ".validate": "newData.isBoolean()" }
+    },
+
+    // Words the admin pulled out of the dictionary from the word-bank screen.
+    // Every client reads this and drops these words after merging the static
+    // word packs (which can't be edited at runtime), so a removal takes effect
+    // for all players. Admin-UID-only for writes, like the other moderation
+    // nodes; readable by everyone because every client has to apply it.
+    "removed_words": {
       ".read": "auth != null",
       ".write": "auth != null && auth.uid === 'PASTE_ADMIN_UID_HERE'",
       "$word": { ".validate": "newData.isBoolean()" }

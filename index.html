@@ -412,9 +412,34 @@
                     <div id="adminSignedIn" style="display:none;">
                         <p class="mp-hint">בקשות ממתינות מכל השחקנים:</p>
                         <div id="adminPendingList"></div>
+                        <button class="btn-large blue-btn" onclick="openDictionaryScreen()">מאגר המילים - צפייה ועריכה</button>
                         <button class="close-modal-btn" onclick="adminSignOut()">התנתקות מאדמין</button>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Admin word bank: the whole dictionary, searchable, add + remove -->
+        <div id="dictionaryScreen" class="screen">
+            <div class="profile-container">
+                <button class="exit-btn icon" onclick="showScreen('profileScreen')" aria-label="חזרה"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></button>
+                <h2>מאגר המילים</h2>
+                <p class="mp-hint">כל המילים שהמשחק מכיר. הסרה והוספה נשמרות ב-Firebase וחלות על כל השחקנים.</p>
+
+                <div class="dict-add-row">
+                    <input type="text" id="dictAddInput" class="dict-input" maxlength="20" placeholder="הוסף מילה חדשה..." autocomplete="off">
+                    <button class="approve-btn" onclick="adminAddWord()">הוסף</button>
+                </div>
+
+                <input type="text" id="dictSearchInput" class="dict-input dict-search" placeholder="חיפוש מילה..." autocomplete="off" oninput="onDictSearchInput(this.value)">
+
+                <div class="dict-toolbar">
+                    <span id="dictStats" class="dict-stats"></span>
+                    <button id="dictRemovedToggle" class="close-modal-btn dict-toggle" onclick="toggleDictRemovedView()">מילים שהוסרו</button>
+                </div>
+
+                <div id="dictWordList"></div>
+                <button id="dictMoreBtn" class="btn-large blue-btn" style="display:none;" onclick="showMoreDictWords()">הצג עוד</button>
             </div>
         </div>
 
