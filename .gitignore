@@ -2,7 +2,10 @@
 .DS_Store
 Thumbs.db
 node_modules/
-.claude/
+# Local Claude settings stay out of the repo - but skills are part of the
+# project (they describe how to work on it), so they are versioned.
+.claude/*
+!.claude/skills/
 
 # Capacitor: generated web bundle (rebuilt by `npm run build:web`)
 www/
