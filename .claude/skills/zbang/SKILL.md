@@ -1,9 +1,27 @@
 ---
 name: zbang
-description: The visual design system of זבאנג רויאל (Zabang Royale) - its palette, typography, component patterns, RTL/Hebrew conventions and motion language. Use this skill whenever building, restyling or reviewing ANY user interface for this game: a new screen or modal, a button, a card, a list row, a badge, a toast, a board skin, an arena theme, or a mockup/preview of the game - and also when the user says "ZBANG", "בסגנון של המשחק", "כמו במשחק", or asks for something that has to look like it belongs in the app. Consult it before writing CSS or HTML for the game, so new UI reuses the existing tokens instead of inventing colors, radii and shadows that drift from the rest of the app.
+description: >-
+  The user's standing design brief - the visual language of זבאנג רויאל
+  (Zabang Royale), its palette, typography, component patterns, RTL/Hebrew
+  conventions and motion. The word "ZBANG" or "זבאנג" anywhere in a request IS
+  the trigger - it means "build this looking like my game". The design
+  questions are already answered here, so apply it instead of asking how it
+  should look. Also use it whenever building, restyling or reviewing ANY
+  interface for the game - a screen, modal, button, card, list row, badge,
+  toast, board skin, arena theme, mockup or preview - and whenever the user
+  says "בסגנון של המשחק", "כמו במשחק", or wants something that has to look
+  like it belongs in the app. Consult it before writing any CSS or HTML for
+  the game, so new UI reuses the existing tokens instead of inventing colors,
+  radii and shadows that drift from the rest of the app.
 ---
 
 # ZBANG — the Zabang Royale design system
+
+**"ZBANG" is a design instruction.** When it appears in a request, the user is not
+asking a question about style — they are telling you which style to build in. Take
+the direction from this file and get on with the work; don't ask them to describe
+the look again, and don't offer a menu of alternatives. They wrote this down
+precisely so they'd never have to explain it twice.
 
 The game already has a complete, consistent visual identity. Your job when building
 UI for it is **not** to design something new, it is to extend what's there so a new
