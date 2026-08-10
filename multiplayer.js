@@ -21,7 +21,8 @@ const MP = {
     room: null,        // latest room snapshot
     matchType: null,   // 'random' while this room came from random matchmaking
     autoStarting: false, // guards against double-firing the random-match auto-start
-    resultApplied: false // guards against re-awarding coins/trophies on repeat 'finished' snapshots
+    resultApplied: false, // guards against re-awarding coins/trophies on repeat 'finished' snapshots
+    _freezeNotifiedFor: 0 // freezeUntil value already announced, so each freeze alerts once
 };
 
 const ROUND_SECONDS = 60;
@@ -489,16 +490,18 @@ function hostNextMultiplayerRound() {
 function startMultiplayerTimer(room) {
     stopMultiplayerTimer();
     MP.timer = setInterval(() => {
-        const me = (MP.room.players || {})[MP.playerId] || {};
         const timerEl = document.getElementById('battleTimerDisplay');
-
-        // frozen? (an opponent hit me) - show ice, don't advance my perceived clock
         const now = Date.now() + MP.serverOffset;
-        if (me.freezeUntil && now < me.freezeUntil) {
-            timerEl.classList.add('frozen');
-            return;
-        }
-        timerEl.classList.remove('frozen');
+
+        // Frozen by an opponent: paint the ice state and drive the board
+        // lockout overlay. The round clock itself keeps running - it is
+        // server-timed and shared, so the round must still end on schedule
+        // for everyone (the old early-return also meant a player frozen at
+        // the buzzer never reached the remaining<=0 branch, so a frozen host
+        // never wrote the round result).
+        const frozenMs = mpFreezeMsLeft();
+        timerEl.classList.toggle('frozen', frozenMs > 0);
+        renderFreezeOverlay(frozenMs);
 
         const elapsed = (now - (room.roundStartTime || now)) / 1000;
         const remaining = Math.max(0, Math.ceil((room.roundDurationSec || ROUND_SECONDS) - elapsed));
@@ -515,6 +518,7 @@ function startMultiplayerTimer(room) {
 
 function stopMultiplayerTimer() {
     if (MP.timer) { clearInterval(MP.timer); MP.timer = null; }
+    renderFreezeOverlay(0); // never leave the lockout on a screen we left
 }
 
 // ---- host: authoritative round end -----------------------------------------
@@ -645,6 +649,7 @@ function playAgainRandom() {
 
 function submitMultiplayerWord(word, newTotalScore) {
     if (!MP.roomCode || !MP.playerId) return;
+    if (mpFreezeMsLeft() > 0) return; // last line of defence: no scoring while frozen
     const base = 'rooms/' + MP.roomCode + '/players/' + MP.playerId;
     db.ref(base + '/score').set(newTotalScore);
     db.ref(base + '/foundWords/' + word).set(true);
@@ -673,6 +678,7 @@ function updateMultiplayerUI(room) {
 // ---- power-ups (multiplayer variants) --------------------------------------
 
 function useMultiplayerHint() {
+    if (blockedByFreeze()) return;
     if (!canPayForItem('hint')) return;
 
     let indices = findWordOnBoard();
@@ -697,8 +703,48 @@ function useMultiplayerHint() {
     launchSparkles();
 }
 
+// ---- freeze state ----------------------------------------------------------
+
+// Milliseconds left on a freeze an opponent put on ME (0 when not frozen).
+// This is the authority the board input handlers in game.js consult, so a
+// freeze actually locks the victim out instead of only stopping their clock.
+function mpFreezeMsLeft() {
+    if (currentGame.mode !== 'multiplayer' || !MP.room || !MP.playerId) return 0;
+    const me = (MP.room.players || {})[MP.playerId];
+    if (!me || !me.freezeUntil) return 0;
+    return Math.max(0, me.freezeUntil - (Date.now() + MP.serverOffset));
+}
+
+// Full-board "you are frozen" curtain with a live countdown. It also swallows
+// pointer events, so a stray tap can't reach a tile underneath.
+function renderFreezeOverlay(msLeft) {
+    const board = document.getElementById('battleBoard');
+    if (!board) return;
+    let overlay = document.getElementById('battleFreezeOverlay');
+
+    if (msLeft <= 0) {
+        if (overlay) overlay.remove();
+        board.classList.remove('board-frozen');
+        return;
+    }
+
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'battleFreezeOverlay';
+        overlay.className = 'board-freeze-overlay';
+        overlay.innerHTML = '<div class="freeze-label">הוקפאת!</div><div class="freeze-count"></div>';
+        board.appendChild(overlay);
+    } else if (overlay.parentElement !== board) {
+        board.appendChild(overlay); // renderBoard() wipes the board's children
+    }
+    board.classList.add('board-frozen');
+    overlay.querySelector('.freeze-count').textContent = Math.ceil(msLeft / 1000);
+    if (isDragging) cancelDrag(); // a freeze mid-drag drops the selection at once
+}
+
 // freeze the current highest-scoring opponent for 8 seconds (on their device)
 function useMultiplayerFreeze() {
+    if (blockedByFreeze()) return;
     if (!canPayForItem('freezeOpponents')) return;
     const players = (MP.room || {}).players || {};
     const opponents = Object.entries(players)
@@ -716,16 +762,22 @@ function useMultiplayerFreeze() {
     showMessage(`${target.name} הוקפא/ה ל-8 שניות!`, 'info');
 }
 
-// react to a freeze written to MY node by an opponent (visual only; the timer
-// tick in startMultiplayerTimer already checks freezeUntil to pause my clock)
+// react to a freeze written to MY node by an opponent: lock the board right
+// away rather than waiting for the next timer tick, and announce it once
 function applyFreezeFromRoom(room) {
     const me = (room.players || {})[MP.playerId];
     if (!me) return;
-    const now = Date.now() + MP.serverOffset;
-    if (me.freezeUntil && now < me.freezeUntil && !MP._freezeNotified) {
-        MP._freezeNotified = true;
+    const until = me.freezeUntil || 0;
+    const msLeft = Math.max(0, until - (Date.now() + MP.serverOffset));
+
+    renderFreezeOverlay(msLeft);
+
+    // keyed by the freeze's timestamp, so back-to-back freezes from different
+    // opponents each get their own alert - and a re-render of the same freeze
+    // never re-alerts
+    if (msLeft > 0 && MP._freezeNotifiedFor !== until) {
+        MP._freezeNotifiedFor = until;
         showMessage('הוקפאת על ידי יריב!', 'warning');
-        setTimeout(() => { MP._freezeNotified = false; }, 8000);
     }
 }
 
@@ -770,5 +822,6 @@ function leaveMultiplayerRoom() {
     MP.matchType = null;
     MP.autoStarting = false;
     MP.resultApplied = false;
+    MP._freezeNotifiedFor = 0;
     if (currentGame.mode === 'multiplayer') currentGame.mode = null;
 }

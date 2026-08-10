@@ -633,6 +633,7 @@
 }
 
 .board {
+    position: relative; /* anchors the freeze lockout overlay */
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 10px;
@@ -1633,6 +1634,50 @@
     .victory-modal h1 {
         font-size: 2.4em;
     }
+}
+
+/* ===== Freeze lockout ===== */
+/* Covers the whole board while an opponent's freeze is active: the player is
+   really locked out (input is blocked in JS), so the UI has to say so and
+   show how long is left, instead of looking like a dead board. */
+.board-freeze-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: var(--radius-card);
+    background: rgba(10, 26, 48, 0.78);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    border: 2px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    text-align: center;
+    /* swallow taps so nothing reaches the tiles underneath */
+    pointer-events: auto;
+    touch-action: none;
+    animation: freezePulse 1.2s ease-in-out infinite;
+}
+
+.board-freeze-overlay .freeze-label {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.8em;
+    letter-spacing: 1px;
+}
+
+.board-freeze-overlay .freeze-count {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 3.2em;
+    line-height: 1;
+}
+
+.board.board-frozen .letter-tile {
+    filter: grayscale(0.7) brightness(0.7);
 }
 
 /* ===== Frozen timer ===== */

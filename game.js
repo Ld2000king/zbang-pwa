@@ -730,7 +730,7 @@ function renderBoard(boardId = 'board') {
     });
 
     boardEl.onpointerdown = (e) => {
-        if (!currentGame.gameActive) return;
+        if (!currentGame.gameActive || isBoardInputFrozen()) return;
         e.preventDefault();
         isDragging = true;
         dragPath = [];
@@ -755,12 +755,32 @@ document.addEventListener('pointerup', () => {
 });
 
 document.addEventListener('pointercancel', () => {
-    if (isDragging) {
-        isDragging = false;
-        dragPath = [];
-        clearSelection();
-    }
+    if (isDragging) cancelDrag();
 });
+
+// ---- freeze gate -----------------------------------------------------------
+// A freeze has to actually STOP the frozen player. Pausing their timer display
+// (the old behaviour) was purely cosmetic: they could keep dragging words,
+// scoring and firing power-ups, so "הקפא יריבים" did nothing in multiplayer.
+// mpFreezeMsLeft() (multiplayer.js) is the single source of truth; in bots mode
+// it doesn't exist / returns 0, because there only the bots ever get frozen.
+function isBoardInputFrozen() {
+    return typeof mpFreezeMsLeft === 'function' && mpFreezeMsLeft() > 0;
+}
+
+// Guard for every player action. Returns true (and nags) while frozen.
+function blockedByFreeze() {
+    if (!isBoardInputFrozen()) return false;
+    showBoardMessage('אתה מוקפא!', 'warning', 800);
+    return true;
+}
+
+// Aborts an in-flight drag - used when a freeze lands mid-drag.
+function cancelDrag() {
+    isDragging = false;
+    dragPath = [];
+    clearSelection();
+}
 
 function detectTileAt(x, y) {
     const el = document.elementFromPoint(x, y);
@@ -783,6 +803,8 @@ function detectTileAt(x, y) {
 
 function endDrag() {
     isDragging = false;
+    // a freeze that landed mid-drag voids the word instead of scoring it
+    if (isBoardInputFrozen()) { cancelDrag(); return; }
     // board is all-regular forms, but normalize defensively so lookups match
     const word = normalizeFinals(dragPath.map(i => currentGame.board[i]).join(''));
 
@@ -1302,6 +1324,7 @@ function findWordOnBoard() {
 }
 
 function useShuffle() {
+    if (blockedByFreeze()) return;
     if (!canPayForItem('shuffle')) return;
 
     consumeItemPayment('shuffle');

@@ -17,7 +17,11 @@
   //     * only the room HOST may reset other players' scores, mark a player
   //       eliminated, clear foundWords, or set status/winnerId/loserId/board;
   //     * freezeUntil is the one cross-player field (the freeze power-up), and
-  //       it is capped to <= now + 15s so no one can freeze an opponent forever.
+  //       it is capped to <= now + 15s so no one can freeze an opponent forever;
+  //     * while a player's freezeUntil is still in the future, that player's
+  //       score/foundWords writes are rejected and the freeze itself may only
+  //       be extended (never cleared, except by the host on a round reset), so
+  //       a frozen player really is out of the round.
   //
   // REMAINING TRUST NOTES (inherent to host-authoritative P2P, not fixable
   // with Rules alone):
@@ -80,19 +84,25 @@
             "connected":   { ".validate": "newData.isBoolean()" },
 
             // owner (via parent) writes it; host also writes it to reset to 0
-            // each round - so grant host here too
-            "score":       { ".validate": "newData.isNumber() && newData.val() >= 0", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
+            // each round - so grant host here too.
+            // A frozen player may not score: the freeze power-up is enforced
+            // here too, not only by the victim's client. The host's round reset
+            // writes score=0 and freezeUntil=0 in one atomic update, so it
+            // still passes (newData sees the cleared freeze).
+            "score":       { ".validate": "newData.isNumber() && newData.val() >= 0 && (!newData.parent().child('freezeUntil').exists() || newData.parent().child('freezeUntil').val() <= now)", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
 
             // cross-player: any authed player may freeze this player, but only
-            // for a bounded window (<= 15s ahead of server time), and host
-            // clears it to 0 on round reset
-            "freezeUntil": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 15000", ".write": "auth != null" },
+            // for a bounded window (<= 15s ahead of server time). An ACTIVE
+            // freeze can only ever be raised (extended), never cut short - so
+            // the victim can't thaw themselves by rewriting their own node -
+            // except by the host, which clears it to 0 on round reset.
+            "freezeUntil": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 15000 && (!data.exists() || data.val() <= now || newData.val() >= data.val() || root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid)", ".write": "auth != null" },
 
             // owner (via parent) adds words; host clears the whole map to null
-            // on round reset
+            // on round reset. Same freeze gate as score.
             "foundWords": {
               ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid",
-              "$word": { ".validate": "newData.isBoolean()" }
+              "$word": { ".validate": "newData.isBoolean() && (!newData.parent().parent().child('freezeUntil').exists() || newData.parent().parent().child('freezeUntil').val() <= now)" }
             },
 
             // no unexpected fields on a player node
