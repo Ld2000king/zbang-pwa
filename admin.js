@@ -141,6 +141,7 @@ function approvePendingWord(reqId, word, points) {
         .then(() => {
             const norm = typeof normalizeFinals === 'function' ? normalizeFinals(word) : word;
             HEBREW_DICTIONARY[norm] = points;
+            if (typeof invalidateDictionaryCache === 'function') invalidateDictionaryCache();
             showMessage(`"${word}" אושרה ונוספה למאגר!`, 'success');
         })
         .catch(err => showMessage('שגיאה: ' + err.message, 'error'));
@@ -170,6 +171,7 @@ function loadApprovedWordsFromFirebase() {
             const norm = typeof normalizeFinals === 'function' ? normalizeFinals(word) : word;
             HEBREW_DICTIONARY[norm] = points;
         });
+        if (typeof invalidateDictionaryCache === 'function') invalidateDictionaryCache();
     });
 }
 

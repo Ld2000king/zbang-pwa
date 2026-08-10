@@ -89,6 +89,7 @@ function normalizeDictionary() {
         HEBREW_DICTIONARY[norm] = Math.max(HEBREW_DICTIONARY[norm] || 0, HEBREW_DICTIONARY[key]);
         delete HEBREW_DICTIONARY[key];
     }
+    invalidateDictionaryCache();
 }
 
 const SHOP_ITEMS = [
@@ -263,6 +264,34 @@ function botFindDelay(tier) {
     return tier.minDelay + Math.random() * (tier.maxDelay - tier.minDelay);
 }
 
+// ---- dictionary scan helpers ----------------------------------------------
+// The dictionary is big (12k+ words once the expansion packs are merged) and
+// both collectBoardWords() and findWordOnBoard() sweep all of it - and
+// findWordOnBoard() runs after every single word a player finds. Two cheap
+// guards keep that sweep fast: the key list is cached (Object.keys() was
+// allocating a 12k array per call) and a word is skipped outright when the
+// board doesn't even contain one of its letters, which discards the vast
+// majority before the position scan. The letter test ignores repeats, so it
+// can only ever reject words that truly aren't on the board.
+let dictionaryWordsCache = null;
+
+function dictionaryWordList() {
+    if (!dictionaryWordsCache) dictionaryWordsCache = Object.keys(HEBREW_DICTIONARY);
+    return dictionaryWordsCache;
+}
+
+// Must be called by anything that adds/removes dictionary keys.
+function invalidateDictionaryCache() {
+    dictionaryWordsCache = null;
+}
+
+function wordUsesOnlyLetters(word, letters) {
+    for (let i = 0; i < word.length; i++) {
+        if (!letters.has(word[i])) return false;
+    }
+    return true;
+}
+
 // All valid dictionary words currently placed on the board, with their point
 // value. This is the pool bots draw from when they "find" a word, so their
 // score reflects real board words (right length/value distribution) instead of
@@ -272,8 +301,10 @@ function collectBoardWords() {
     const board = currentGame.board;
     const words = [];
     const seen = new Set();
-    for (const word of Object.keys(HEBREW_DICTIONARY)) {
+    const letters = new Set(board);
+    for (const word of dictionaryWordList()) {
         if (word.length < 3 || word.length > size || seen.has(word)) continue;
+        if (!wordUsesOnlyLetters(word, letters)) continue;
         let onBoard = false;
         for (let r = 0; r < size && !onBoard; r++) {
             for (let c = 0; c <= size - word.length && !onBoard; c++) {
@@ -305,17 +336,23 @@ window.addEventListener('load', () => {
     maybeShowDailyReward(); // pop the daily bonus if it's waiting
 });
 
-// Merge the words.js expansion pack (EXTRA_WORDS) into the dictionary. Words
-// are normalized (final letters -> regular) so they're findable on the board,
-// and duplicates against the base dictionary are skipped.
+// Merge the expansion packs into the dictionary: words.js (EXTRA_WORDS, written
+// with natural final letters) and words-bulk.js (EXTRA_WORDS_BULK, already
+// normalized). Every word is normalized again here - a no-op for the bulk pack -
+// so it's findable on the board, and duplicates against the base dictionary
+// (and against each other) are skipped.
 function mergeExtraWords() {
-    if (typeof EXTRA_WORDS === 'undefined') return;
-    EXTRA_WORDS.forEach(w => {
+    const packs = [];
+    if (typeof EXTRA_WORDS !== 'undefined') packs.push(EXTRA_WORDS);
+    if (typeof EXTRA_WORDS_BULK !== 'undefined') packs.push(EXTRA_WORDS_BULK);
+
+    packs.forEach(pack => pack.forEach(w => {
         const word = normalizeFinals(w);
         if (word.length >= 2 && HEBREW_DICTIONARY[word] === undefined) {
             HEBREW_DICTIONARY[word] = pointsForWord(word);
         }
-    });
+    }));
+    invalidateDictionaryCache();
 }
 
 // Storage
@@ -1023,6 +1060,7 @@ function pointsForWord(word) {
 function loadCustomWords() {
     const custom = JSON.parse(localStorage.getItem('zabangCustomWords') || '[]');
     custom.forEach(w => { const word = normalizeFinals(w); HEBREW_DICTIONARY[word] = pointsForWord(word); });
+    invalidateDictionaryCache();
 }
 
 // Single Player
@@ -1291,8 +1329,10 @@ function useHint() {
 // vertical) and hasn't been found yet - same logic as the Flutter version
 function findWordOnBoard() {
     const size = currentGame.gridSize;
-    for (const word of Object.keys(HEBREW_DICTIONARY)) {
+    const letters = new Set(currentGame.board);
+    for (const word of dictionaryWordList()) {
         if (currentGame.foundWords.has(word) || word.length > size || word.length < 3) continue;
+        if (!wordUsesOnlyLetters(word, letters)) continue;
 
         for (let r = 0; r < size; r++) {
             for (let c = 0; c <= size - word.length; c++) {
