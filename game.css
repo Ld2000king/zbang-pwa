@@ -1994,16 +1994,24 @@
     font-weight: 700;
 }
 
+/* neutral toggle - it switches a view, it isn't a destructive action, so it
+   must not inherit the red of .close-modal-btn */
 .dict-toggle {
     margin: 0;
     padding: 8px 14px;
     font-size: 0.95em;
     width: auto;
+    background: var(--surface-3);
+    color: var(--text-dark);
+}
+
+#wordBankAdminTools {
+    margin-bottom: 12px;
 }
 
 /* the list can run to hundreds of rows - keep it scrollable inside the screen
    instead of stretching the page */
-#dictWordList {
+#wordBankList {
     max-height: 60vh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;

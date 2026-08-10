@@ -175,7 +175,7 @@ function loadApprovedWordsFromFirebase() {
             HEBREW_DICTIONARY[norm] = points;
         });
         if (typeof invalidateDictionaryCache === 'function') invalidateDictionaryCache();
-        refreshDictionaryScreen();
+        if (typeof refreshWordBank === 'function') refreshWordBank();
     });
 }
 
@@ -192,7 +192,7 @@ function loadRemovedWordsFromFirebase() {
             if (typeof normalizeFinals === 'function') removedWordsSet.add(normalizeFinals(w));
         });
         if (typeof applyRemovedWords === 'function') applyRemovedWords();
-        refreshDictionaryScreen();
+        if (typeof refreshWordBank === 'function') refreshWordBank();
     }, err => {
         console.warn('removed_words not readable (add a Security Rule to enable word removal):', err.message);
     });
@@ -221,7 +221,8 @@ function loadRejectedWordsFromFirebase() {
 }
 
 // ============================================================================
-// Word bank - the admin's view of the WHOLE dictionary, with add + remove.
+// Word bank edits - the admin side of the dictionary browser (game.js owns the
+// screen itself, which every player can open read-only).
 //
 // The dictionary is assembled from static files (game.js base + words.js +
 // words-bulk.js) that can't be rewritten from a phone, so the two edits are
@@ -235,136 +236,6 @@ function loadRejectedWordsFromFirebase() {
 // ============================================================================
 
 const approvedWordsSet = new Set(); // normalized, mirrors approved_words
-const DICT_PAGE_SIZE = 120;         // 12k+ rows can't all be in the DOM
-
-let dictQuery = '';
-let dictShown = DICT_PAGE_SIZE;
-let dictMode = 'all'; // 'all' | 'removed'
-let dictSortedCache = null;
-let dictSortedFrom = null;
-
-// Alphabetical dictionary keys, memoized against game.js's own key cache so a
-// sort only happens when the dictionary actually changed. Hebrew letters are
-// contiguous in Unicode and in alphabetical order, so a plain compare sorts
-// correctly and much faster than localeCompare over 12k words.
-function sortedDictionaryWords() {
-    const src = typeof dictionaryWordList === 'function'
-        ? dictionaryWordList() : Object.keys(HEBREW_DICTIONARY);
-    if (dictSortedFrom !== src) {
-        dictSortedFrom = src;
-        dictSortedCache = src.slice().sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-    }
-    return dictSortedCache;
-}
-
-function openDictionaryScreen() {
-    if (!isAdminUser()) return;
-    dictQuery = '';
-    dictShown = DICT_PAGE_SIZE;
-    dictMode = 'all';
-    const input = document.getElementById('dictSearchInput');
-    if (input) input.value = '';
-    const addInput = document.getElementById('dictAddInput');
-    if (addInput) addInput.value = '';
-    showScreen('dictionaryScreen');
-    renderDictionaryScreen();
-}
-
-function onDictSearchInput(value) {
-    dictQuery = value || '';
-    dictShown = DICT_PAGE_SIZE; // a new search always starts from the top
-    renderDictionaryScreen();
-}
-
-function setDictMode(mode) {
-    dictMode = mode;
-    dictShown = DICT_PAGE_SIZE;
-    renderDictionaryScreen();
-}
-
-// Switches between the live dictionary and the removed-words blocklist.
-function toggleDictRemovedView() {
-    setDictMode(dictMode === 'removed' ? 'all' : 'removed');
-}
-
-function showMoreDictWords() {
-    dictShown += DICT_PAGE_SIZE;
-    renderDictionaryScreen();
-}
-
-// The rows to show: either the live dictionary or the removed-words blocklist,
-// filtered by the search box.
-function dictionaryMatches() {
-    const q = normalizeFinals(dictQuery.trim());
-    const all = dictMode === 'removed'
-        ? Array.from(removedWordsSet).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
-        : sortedDictionaryWords();
-    return q ? all.filter(w => w.includes(q)) : all;
-}
-
-function renderDictionaryScreen() {
-    const listEl = document.getElementById('dictWordList');
-    if (!listEl) return;
-
-    const matches = dictionaryMatches();
-    const shown = matches.slice(0, dictShown);
-
-    const statsEl = document.getElementById('dictStats');
-    if (statsEl) {
-        const total = sortedDictionaryWords().length;
-        statsEl.textContent = dictMode === 'removed'
-            ? `${matches.length} מילים שהוסרו${dictQuery ? ' (מתוך החיפוש)' : ''}`
-            : `${matches.length.toLocaleString('he-IL')} מילים${dictQuery ? ` מתוך ${total.toLocaleString('he-IL')}` : ' במאגר'}`;
-    }
-
-    const removedBtn = document.getElementById('dictRemovedToggle');
-    if (removedBtn) {
-        removedBtn.textContent = dictMode === 'removed'
-            ? 'חזרה למאגר המלא'
-            : `מילים שהוסרו (${removedWordsSet.size})`;
-    }
-
-    listEl.innerHTML = '';
-    if (shown.length === 0) {
-        listEl.innerHTML = '<p class="no-subs">לא נמצאו מילים</p>';
-    } else {
-        shown.forEach(word => listEl.appendChild(dictionaryRow(word)));
-    }
-
-    const moreBtn = document.getElementById('dictMoreBtn');
-    if (moreBtn) {
-        const rest = matches.length - shown.length;
-        moreBtn.style.display = rest > 0 ? 'block' : 'none';
-        moreBtn.textContent = `הצג עוד ${Math.min(rest, DICT_PAGE_SIZE)} (נותרו ${rest.toLocaleString('he-IL')})`;
-    }
-}
-
-function dictionaryRow(word) {
-    const row = document.createElement('div');
-    row.className = 'submission-row dict-row';
-
-    if (dictMode === 'removed') {
-        row.innerHTML = `
-            <span class="sub-word">${escapeHtml(word)}</span>
-            <span class="sub-actions">
-                <span class="sub-status sub-pending">הוסרה</span>
-                <button class="approve-btn">${icon('check')} החזר</button>
-            </span>`;
-        row.querySelector('.approve-btn').onclick = () => adminRestoreWord(word);
-        return row;
-    }
-
-    const points = HEBREW_DICTIONARY[word];
-    const source = approvedWordsSet.has(word) ? 'מאושרת' : 'מובנית';
-    row.innerHTML = `
-        <span class="sub-word">${escapeHtml(word)} <small>(+${points})</small></span>
-        <span class="sub-actions">
-            <span class="sub-status ${approvedWordsSet.has(word) ? 'sub-approved' : 'sub-builtin'}">${source}</span>
-            <button class="reject-btn">${icon('close')} הסר</button>
-        </span>`;
-    row.querySelector('.reject-btn').onclick = () => adminRemoveWord(word);
-    return row;
-}
 
 // Both edits are real writes to the shared database - refuse early (with a
 // clear reason) instead of letting Firebase reject them.
@@ -381,7 +252,7 @@ function adminCanWrite() {
 }
 
 function adminAddWord() {
-    const input = document.getElementById('dictAddInput');
+    const input = document.getElementById('wordBankAddInput');
     const raw = (input ? input.value : '').trim();
     if (!raw) return;
 
@@ -409,7 +280,7 @@ function adminAddWord() {
             if (typeof invalidateDictionaryCache === 'function') invalidateDictionaryCache();
             if (input) input.value = '';
             showMessage(`"${word}" נוספה למאגר (+${points})`, 'success');
-            renderDictionaryScreen();
+            renderWordBank();
         })
         .catch(err => showMessage('שגיאה: ' + err.message, 'error'));
 }
@@ -429,7 +300,7 @@ function adminRemoveWord(word) {
             approvedWordsSet.delete(word);
             if (typeof applyRemovedWords === 'function') applyRemovedWords();
             showMessage(`"${word}" הוסרה מהמאגר`, 'warning');
-            renderDictionaryScreen();
+            renderWordBank();
         })
         .catch(err => showMessage('שגיאה: ' + err.message, 'error'));
 }
@@ -447,16 +318,9 @@ function adminRestoreWord(word) {
                 if (typeof invalidateDictionaryCache === 'function') invalidateDictionaryCache();
             }
             showMessage(`"${word}" הוחזרה למאגר`, 'success');
-            renderDictionaryScreen();
+            renderWordBank();
         })
         .catch(err => showMessage('שגיאה: ' + err.message, 'error'));
-}
-
-// Re-render only when the word bank is the visible screen (the Firebase
-// listeners fire on every device, most of the time with nothing on screen).
-function refreshDictionaryScreen() {
-    const screen = document.getElementById('dictionaryScreen');
-    if (screen && screen.classList.contains('active')) renderDictionaryScreen();
 }
 
 if (typeof authReady !== 'undefined') {

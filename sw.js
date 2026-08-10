@@ -16,7 +16,7 @@
 // Bump VERSION on every release; activate() purges all older caches.
 // ============================================================================
 
-const VERSION = 'v11';
+const VERSION = 'v12';
 const APP_CACHE = 'zabang-app-' + VERSION;       // same-origin shell + code
 const RUNTIME_CACHE = 'zabang-runtime-' + VERSION; // fonts + CDN statics
 

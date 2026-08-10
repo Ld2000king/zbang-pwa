@@ -378,6 +378,168 @@ function applyRemovedWords() {
     return changed;
 }
 
+// ---- word bank (dictionary browser) ----------------------------------------
+// Browsing the words the game knows needs no permissions - that's the whole
+// point of the screen, and it's reachable from the menu for every player. The
+// add/remove controls only render for a signed-in admin; those actions live in
+// admin.js and the Security Rules are what actually enforce them.
+
+const WORD_BANK_PAGE = 120; // 12k+ rows can't all live in the DOM at once
+
+let wordBankQuery = '';
+let wordBankShown = WORD_BANK_PAGE;
+let wordBankMode = 'all';        // 'all' | 'removed'
+let wordBankReturn = 'homeScreen'; // where the back button goes
+let wordBankSorted = null;
+let wordBankSortedFrom = null;
+
+// Alphabetical dictionary keys, memoized against the key cache above so the
+// sort only runs when the dictionary actually changed. Hebrew letters are
+// contiguous and in alphabetical order in Unicode, so a plain compare sorts
+// correctly and far faster than localeCompare over 12k words.
+function sortedDictionaryWords() {
+    const src = dictionaryWordList();
+    if (wordBankSortedFrom !== src) {
+        wordBankSortedFrom = src;
+        wordBankSorted = src.slice().sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    }
+    return wordBankSorted;
+}
+
+function wordBankIsEditable() {
+    return typeof isAdminUser === 'function' && isAdminUser()
+        && typeof isSignedInAsAdmin === 'function' && isSignedInAsAdmin();
+}
+
+function openWordBank(from) {
+    wordBankReturn = from || 'homeScreen';
+    wordBankQuery = '';
+    wordBankShown = WORD_BANK_PAGE;
+    wordBankMode = 'all';
+    const search = document.getElementById('wordBankSearch');
+    if (search) search.value = '';
+    const add = document.getElementById('wordBankAddInput');
+    if (add) add.value = '';
+    showScreen('wordBankScreen');
+    renderWordBank();
+}
+
+function closeWordBank() {
+    showScreen(wordBankReturn);
+}
+
+function onWordBankSearch(value) {
+    wordBankQuery = value || '';
+    wordBankShown = WORD_BANK_PAGE; // a new search always starts from the top
+    renderWordBank();
+}
+
+function showMoreWordBankWords() {
+    wordBankShown += WORD_BANK_PAGE;
+    renderWordBank();
+}
+
+// Admin-only: flip between the live dictionary and the removed-words blocklist.
+function toggleWordBankRemoved() {
+    wordBankMode = wordBankMode === 'removed' ? 'all' : 'removed';
+    wordBankShown = WORD_BANK_PAGE;
+    renderWordBank();
+}
+
+// The rows to show, filtered by the search box. The query is normalized so
+// typing a word with its natural final letter ("שלום") finds the stored form.
+function wordBankMatches() {
+    const q = normalizeFinals(wordBankQuery.trim());
+    const all = wordBankMode === 'removed'
+        ? Array.from(removedWordsSet).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+        : sortedDictionaryWords();
+    return q ? all.filter(w => w.includes(q)) : all;
+}
+
+function renderWordBank() {
+    const listEl = document.getElementById('wordBankList');
+    if (!listEl) return;
+
+    // This screen is the only place the full dictionary is visible, so a
+    // failure here must say so rather than leave a blank screen behind.
+    try {
+        const editable = wordBankIsEditable();
+        const matches = wordBankMatches();
+        const shown = matches.slice(0, wordBankShown);
+
+        const editTools = document.getElementById('wordBankAdminTools');
+        if (editTools) editTools.style.display = editable ? '' : 'none';
+
+        const statsEl = document.getElementById('wordBankStats');
+        if (statsEl) {
+            const total = sortedDictionaryWords().length;
+            statsEl.textContent = wordBankMode === 'removed'
+                ? `${matches.length} מילים שהוסרו`
+                : `${matches.length.toLocaleString('he-IL')} מילים${wordBankQuery ? ` מתוך ${total.toLocaleString('he-IL')}` : ' במאגר'}`;
+        }
+
+        const removedBtn = document.getElementById('wordBankRemovedToggle');
+        if (removedBtn) {
+            removedBtn.textContent = wordBankMode === 'removed'
+                ? 'חזרה למאגר המלא'
+                : `מילים שהוסרו (${removedWordsSet.size})`;
+        }
+
+        listEl.innerHTML = '';
+        if (shown.length === 0) {
+            listEl.innerHTML = '<p class="no-subs">לא נמצאו מילים</p>';
+        } else {
+            shown.forEach(word => listEl.appendChild(wordBankRow(word, editable)));
+        }
+
+        const moreBtn = document.getElementById('wordBankMoreBtn');
+        if (moreBtn) {
+            const rest = matches.length - shown.length;
+            moreBtn.style.display = rest > 0 ? 'block' : 'none';
+            moreBtn.textContent = `הצג עוד ${Math.min(rest, WORD_BANK_PAGE)} (נותרו ${rest.toLocaleString('he-IL')})`;
+        }
+    } catch (err) {
+        console.error('Word bank render failed:', err);
+        listEl.innerHTML = `<p class="no-subs">שגיאה בטעינת המאגר: ${escapeHtml(err.message)}</p>`;
+    }
+}
+
+function wordBankRow(word, editable) {
+    const row = document.createElement('div');
+    row.className = 'submission-row dict-row';
+
+    if (wordBankMode === 'removed') {
+        row.innerHTML = `
+            <span class="sub-word">${escapeHtml(word)}</span>
+            <span class="sub-actions">
+                <span class="sub-status sub-pending">הוסרה</span>
+                ${editable ? `<button class="approve-btn">${icon('check')} החזר</button>` : ''}
+            </span>`;
+        const btn = row.querySelector('.approve-btn');
+        if (btn) btn.onclick = () => adminRestoreWord(word);
+        return row;
+    }
+
+    const points = HEBREW_DICTIONARY[word];
+    const approved = typeof approvedWordsSet !== 'undefined' && approvedWordsSet.has(word);
+    row.innerHTML = `
+        <span class="sub-word">${escapeHtml(word)} <small>(+${points})</small></span>
+        <span class="sub-actions">
+            <span class="sub-status ${approved ? 'sub-approved' : 'sub-builtin'}">${approved ? 'מאושרת' : 'מובנית'}</span>
+            ${editable ? `<button class="reject-btn">${icon('close')} הסר</button>` : ''}
+        </span>`;
+    const btn = row.querySelector('.reject-btn');
+    if (btn) btn.onclick = () => adminRemoveWord(word);
+    return row;
+}
+
+// Re-render only when the word bank is the visible screen (the Firebase
+// listeners in admin.js fire on every device, usually with nothing on screen).
+function refreshWordBank() {
+    const screen = document.getElementById('wordBankScreen');
+    if (screen && screen.classList.contains('active')) renderWordBank();
+}
+
 // Storage
 function loadGameState() {
     const saved = localStorage.getItem('zabangState');
