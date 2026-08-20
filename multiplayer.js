@@ -69,7 +69,7 @@ function myPlayerNode() {
     // must equal auth.uid (Rules reject any other value). Callers (createRoom /
     // joinRoom) always waitForAuth() first, so auth.currentUser is set here.
     const uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-    return { uid: uid, name: gameState.playerName, avatarId: gameState.avatarId, score: 0, eliminated: false, connected: true, freezeUntil: 0 };
+    return { uid: uid, name: gameState.playerName, avatarId: networkSafeAvatarId(), score: 0, eliminated: false, connected: true, freezeUntil: 0 };
 }
 
 // ---- navigation entry points ----------------------------------------------

@@ -128,6 +128,18 @@ const ICON = {
         <path d="M41 46 Q45 58 34 56 Q29 46 41 46 Z" fill="#1B1B1B"/>
         <path d="M59 46 Q55 58 66 56 Q71 46 59 46 Z" fill="#1B1B1B"/></g>`,
 
+    // אריאל -> cute original mermaid emblem (flowing hair + tail fin, not
+    // based on any specific licensed character's design/colors)
+    mermaid: `<g>
+        <g fill="#5FD3C4">
+            <path d="M28 30 Q19 46 30 63 Q35 50 41 45 Z"/>
+            <path d="M72 30 Q81 46 70 63 Q65 50 59 45 Z"/>
+            <path d="M50 19 Q29 25 32 44 Q41 36 50 35 Q59 36 68 44 Q71 25 50 19 Z"/></g>
+        <circle cx="43" cy="47" r="2.6" fill="#134B45"/><circle cx="57" cy="47" r="2.6" fill="#134B45"/>
+        <path d="M45 55 Q50 58.5 55 55" stroke="#134B45" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <path d="M50 66 Q38 70 36 79 Q50 74 50 74 Q50 74 64 79 Q62 70 50 66 Z" fill="#2FBFAE"/>
+        <path d="M46 25 L50 18 L54 25 L50 22 Z" fill="#FFD24D"/></g>`,
+
     // ---- premium ----
     // מלך -> golden crown
     crown: `<defs><linearGradient id="king-ic" x1="0" y1="0" x2="0" y2="1">
@@ -179,6 +191,7 @@ const AVATARS = [
     { id: 'dog',     name: 'חומי',   bg: ['#B97A56', '#6D4C34'], icon: ICON.dog },
     { id: 'alien',   name: 'חייזר',  bg: ['#7C4DFF', '#4527A0'], icon: ICON.alien },
     { id: 'wolf',    name: 'זאב',    bg: ['#7C8B9E', '#3E4A5C'], icon: ICON.wolf },
+    { id: 'ariel',   name: 'אריאל',  bg: ['#3ED6C4', '#0E7A6E'], icon: ICON.mermaid },
 
     // ===== Premium ("cooler") avatars - bought in the shop (premium: true) =====
     { id: 'king',   name: 'מלך',   premium: true, bg: ['#3B4CC0', '#1A237E'], icon: ICON.crown },

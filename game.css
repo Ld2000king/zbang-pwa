@@ -1243,9 +1243,11 @@
     box-shadow: var(--shadow-depth-sm);
 }
 
-.current-avatar svg {
+.current-avatar svg,
+.current-avatar img {
     width: 100%;
     height: 100%;
+    object-fit: cover;
     display: block;
 }
 
@@ -1326,6 +1328,47 @@
     line-height: 1;
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
 }
+
+/* Custom photo tile - a personal picture from the player's own device,
+   local-only (see handleCustomAvatarFile/getOwnAvatarMarkup in game.js) */
+.custom-avatar-img {
+    width: 100%;
+    max-width: 70px;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+}
+
+.avatar-custom-placeholder {
+    width: 100%;
+    max-width: 70px;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 2px dashed rgba(255, 255, 255, 0.25);
+    color: var(--text-secondary);
+}
+.avatar-custom-placeholder svg { width: 26px; height: 26px; }
+
+.avatar-custom-replace {
+    position: absolute;
+    top: 4px;
+    inset-inline-end: 4px;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-3);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    color: var(--neon-cyan-deep);
+    cursor: pointer;
+}
+.avatar-custom-replace svg { width: 13px; height: 13px; }
 
 /* Shop: premium profile pictures */
 .shop-section-title {
@@ -1443,9 +1486,11 @@
     padding: 0;
 }
 
-.player-avatar svg {
+.player-avatar svg,
+.player-avatar img {
     width: 100%;
     height: 100%;
+    object-fit: cover;
     display: block;
 }
 
@@ -1458,9 +1503,11 @@
     border: 2px solid rgba(255, 255, 255, 0.4);
 }
 
-.status-avatar svg {
+.status-avatar svg,
+.status-avatar img {
     width: 100%;
     height: 100%;
+    object-fit: cover;
     display: block;
 }
 

@@ -780,7 +780,7 @@ function updateHomeUI() {
     if (homeDiamondsEl) homeDiamondsEl.textContent = diamondsTxt;
     const shopDiamondsEl = document.getElementById('shopDiamonds');
     if (shopDiamondsEl) shopDiamondsEl.textContent = diamondsTxt;
-    document.getElementById('homeAvatar').innerHTML = getAvatarById(gameState.avatarId).svg;
+    document.getElementById('homeAvatar').innerHTML = getOwnAvatarMarkup();
     const arena = currentArena();
     const arenaEl = document.getElementById('homeArena');
     if (arenaEl) arenaEl.textContent = arena.name;
@@ -1487,7 +1487,7 @@ function submitScoreToLeaderboard() {
     const entry = {
         name: gameState.playerName,
         score: gameState.bestSingleScore,
-        avatarId: gameState.avatarId,
+        avatarId: networkSafeAvatarId(),
         updatedAt: firebase.database.ServerValue.TIMESTAMP
     };
     const btn = document.getElementById('srLeaderboardBtn');
@@ -1771,7 +1771,7 @@ function updateBattleUI() {
     statusEl.innerHTML = '';
 
     statusEl.innerHTML += `<div class="player-status self">
-        <div class="status-avatar">${getAvatarById(gameState.avatarId).svg}</div>
+        <div class="status-avatar">${getOwnAvatarMarkup()}</div>
         <span>אתה</span><span>${currentGame.playerScore}</span>
     </div>`;
 
@@ -2203,7 +2203,7 @@ function renderSubmissions() {
 }
 
 function renderAvatarPicker() {
-    document.getElementById('currentAvatar').innerHTML = getAvatarById(gameState.avatarId).svg;
+    document.getElementById('currentAvatar').innerHTML = getOwnAvatarMarkup();
 
     const grid = document.getElementById('avatarGrid');
     grid.innerHTML = '';
@@ -2222,13 +2222,95 @@ function renderAvatarPicker() {
         };
         grid.appendChild(option);
     });
+
+    // Custom photo tile - a personal picture from the player's own device,
+    // stored locally only (never synced to other players, see
+    // handleCustomAvatarFile/getOwnAvatarMarkup) - always the last tile
+    const customDataUrl = localStorage.getItem('zabangCustomAvatar');
+    const customTile = document.createElement('div');
+    customTile.className = 'avatar-option avatar-custom-tile'
+        + (gameState.avatarId === 'custom' ? ' avatar-selected' : '');
+    if (customDataUrl) {
+        customTile.innerHTML = `<img src="${customDataUrl}" alt="" class="custom-avatar-img">
+            <span class="avatar-name">התמונה שלי</span>
+            <button class="avatar-custom-replace" onclick="event.stopPropagation(); document.getElementById('customAvatarInput').click();" aria-label="החלף תמונה" title="החלף תמונה">${icon('pencil')}</button>`;
+        customTile.onclick = () => selectAvatar('custom');
+    } else {
+        customTile.innerHTML = `<span class="avatar-custom-placeholder">${icon('camera')}</span>
+            <span class="avatar-name">תמונה אישית</span>`;
+        customTile.onclick = () => document.getElementById('customAvatarInput').click();
+    }
+    grid.appendChild(customTile);
+}
+
+// The player's own picture, resized/compressed client-side and kept only in
+// this device's localStorage - never uploaded or sent to other players (see
+// the avatarId sanitization in myPlayerNode()/submitScoreToLeaderboard()).
+function handleCustomAvatarFile(event) {
+    const file = event.target.files[0];
+    event.target.value = ''; // allow re-selecting the same file later
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { showMessage('יש לבחור קובץ תמונה', 'error'); return; }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            const size = 160;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const scale = Math.max(size / img.width, size / img.height);
+            const w = img.width * scale, h = img.height * scale;
+            ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h); // cover-crop to a square
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+            try {
+                localStorage.setItem('zabangCustomAvatar', dataUrl);
+            } catch (err) {
+                showMessage('שמירת התמונה נכשלה - נסה תמונה אחרת', 'error');
+                return;
+            }
+            gameState.avatarId = 'custom';
+            saveGameState();
+            renderAvatarPicker();
+            updateHomeUI();
+            showMessage('התמונה האישית נשמרה!', 'success');
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
 }
 
 function selectAvatar(id) {
-    if (!isAvatarOwned(id)) { showMessage('תמונה נעולה - ניתן לרכוש בחנות', 'warning'); return; }
+    if (id === 'custom') {
+        if (!localStorage.getItem('zabangCustomAvatar')) { showMessage('לא נבחרה תמונה אישית עדיין', 'warning'); return; }
+    } else if (!isAvatarOwned(id)) {
+        showMessage('תמונה נעולה - ניתן לרכוש בחנות', 'warning');
+        return;
+    }
     gameState.avatarId = id;
     saveGameState();
     renderAvatarPicker();
     updateHomeUI();
-    showMessage(`הדמות הוחלפה ל${getAvatarById(id).name}!`, 'success');
+    showMessage(id === 'custom' ? 'הדמות הוחלפה לתמונה האישית!' : `הדמות הוחלפה ל${getAvatarById(id).name}!`, 'success');
+}
+
+// Own-avatar rendering only (home screen, profile preview, single-player
+// status bar) - a custom photo is local-only and must never be looked up via
+// getAvatarById(), which is what network-sourced avatarIds (opponents,
+// leaderboard rows) always go through.
+function getOwnAvatarMarkup() {
+    if (gameState.avatarId === 'custom') {
+        const dataUrl = localStorage.getItem('zabangCustomAvatar');
+        if (dataUrl) return `<img src="${dataUrl}" alt="" class="custom-avatar-img">`;
+    }
+    return getAvatarById(gameState.avatarId).svg;
+}
+
+// The id to send over Firebase (multiplayer room state, the leaderboard) -
+// a custom photo is a local device image, never uploaded, so anything that
+// would otherwise send 'custom' falls back to the default avatar instead.
+function networkSafeAvatarId() {
+    return gameState.avatarId === 'custom' ? 'dan' : gameState.avatarId;
 }
