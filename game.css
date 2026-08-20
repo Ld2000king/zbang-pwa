@@ -2509,6 +2509,58 @@
     50%      { transform: scale(1.07); box-shadow: 0 8px 26px rgba(255, 138, 30, 0.6); }
 }
 
+/* Fixed bottom tab bar - shown only on the 4 main hub screens (home/shop/
+   profile/leaderboard), toggled via body.has-bottom-nav in showScreen()/
+   updateBottomNav() (game.js). Left/right reuse the same "match the app
+   card's centered width" formula as .daily-fab/.music-toggle-btn above,
+   symmetrized so the bar spans the full card edge-to-edge. */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: calc(max(0px, (100vw - var(--app-max-width)) / 2));
+    right: calc(max(0px, (100vw - var(--app-max-width)) / 2));
+    display: none;
+    justify-content: space-around;
+    min-height: var(--bottom-nav-height);
+    background: var(--panel-light);
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: var(--shadow-depth-lg);
+    padding: 8px calc(4px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(4px + env(safe-area-inset-left));
+    border-radius: var(--radius-frame) var(--radius-frame) 0 0;
+    z-index: 40;
+}
+body.has-bottom-nav .bottom-nav { display: flex; }
+
+.bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    padding: 6px 4px;
+    cursor: pointer;
+    transition: color 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.bottom-nav-item .icon svg { width: 22px; height: 22px; }
+.bottom-nav-item .bottom-nav-label { font-size: 0.68em; font-weight: 700; }
+.bottom-nav-item:active { transform: scale(0.9); }
+
+.bottom-nav-item[data-screen="homeScreen"].active { color: var(--neon-lime-deep); }
+.bottom-nav-item[data-screen="shopScreen"].active { color: var(--neon-gold); }
+.bottom-nav-item[data-screen="profileScreen"].active { color: var(--neon-cyan); }
+.bottom-nav-item[data-screen="leaderboardScreen"].active { color: var(--neon-purple); }
+
+/* The always-visible FABs would otherwise sit underneath/overlap the bottom
+   nav once it's shown - lift them above it, only while it's showing */
+body.has-bottom-nav .daily-fab,
+body.has-bottom-nav .music-toggle-btn {
+    bottom: calc(var(--bottom-nav-height) + 16px + env(safe-area-inset-bottom));
+}
+
 /* Daily reward modal - reuses .menu-overlay/.menu-bubble; overrides for the
    7-day track layout */
 .daily-bubble { height: auto; max-height: 84vh; overflow-y: auto; }

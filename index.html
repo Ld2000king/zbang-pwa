@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#0f1419">
+    <meta name="theme-color" content="#121317">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -18,7 +18,7 @@
 <body>
     <div id="app">
         <!-- Home Screen -->
-        <div id="homeScreen" class="screen active">
+        <div id="homeScreen" class="screen tab-screen active">
             <button class="help-btn icon" onclick="showInstructions()" title="הוראות משחק"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.5 a2.8 2.8 0 1 1 4.3 2.4 c-0.9 0.6 -1.5 1.1 -1.5 2.1"/><circle cx="12" cy="17" r="0.1" fill="currentColor" stroke-width="2.5"/></svg></button>
             <button class="menu-btn icon" onclick="openMenu()" aria-label="תפריט" title="תפריט"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
             <div class="home-content">
@@ -368,9 +368,8 @@
         </div>
 
         <!-- Shop Screen -->
-        <div id="shopScreen" class="screen">
+        <div id="shopScreen" class="screen tab-screen">
             <div class="shop-container">
-                <button class="exit-btn icon" onclick="goHome()"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></button>
                 <h2><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9 L5 21 H19 L17 9 Z"/><path d="M9 9 V6.5 a3 3 0 0 1 6 0 V9"/></svg></span> חנות</h2>
                 <div class="shop-coins">
                     <span class="coin-icon icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" fill="#ffd60a" stroke="#ffb700" stroke-width="2"/><circle cx="12" cy="12" r="5.5" fill="none" stroke="#ffb700" stroke-width="1.5"/></svg></span>
@@ -384,9 +383,8 @@
         </div>
 
         <!-- Profile Screen -->
-        <div id="profileScreen" class="screen">
+        <div id="profileScreen" class="screen tab-screen">
             <div class="profile-container">
-                <button class="exit-btn icon" onclick="goHome()"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></button>
                 <h2><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21 c0 -4.5 3.5 -7 8 -7 s8 2.5 8 7 Z"/></svg></span> הפרופיל שלך</h2>
 
                 <div class="profile-avatar-section">
@@ -447,9 +445,8 @@
         </div>
 
         <!-- Leaderboard Screen (best single-player scores) -->
-        <div id="leaderboardScreen" class="screen">
+        <div id="leaderboardScreen" class="screen tab-screen">
             <div class="profile-container">
-                <button class="exit-btn icon" onclick="goHome()"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></button>
                 <h2><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20 V12 H10 V20"/><path d="M14 20 V4 H18 V20"/><path d="M3 20 H21"/></svg></span> זבאנג רויאל</h2>
                 <p class="mp-hint">טבלת השיאים - הניקוד הגבוה ביותר במשחק יחיד</p>
                 <div class="leaderboard-list" id="leaderboardList"></div>
@@ -521,6 +518,26 @@
     <button id="dailyRewardBtn" class="daily-fab" onclick="showDailyReward()" aria-label="בונוס יומי" title="בונוס יומי">
         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="1.5"/><path d="M3 12 H21"/><path d="M12 8 V21"/><path d="M12 8 C12 8 9 3 6.5 4.2 C4.5 5.2 6 8 12 8 Z"/><path d="M12 8 C12 8 15 3 17.5 4.2 C19.5 5.2 18 8 12 8 Z"/></svg>
     </button>
+
+    <!-- סרגל ניווט תחתון - מוצג רק ב-4 המסכים הראשיים, נשלט ע"י updateBottomNav() ב-game.js -->
+    <nav id="bottomNav" class="bottom-nav" aria-label="ניווט ראשי">
+        <button class="bottom-nav-item" data-screen="homeScreen" onclick="goHome()" aria-label="בית">
+            <span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></span>
+            <span class="bottom-nav-label">בית</span>
+        </button>
+        <button class="bottom-nav-item" data-screen="shopScreen" onclick="goToShop()" aria-label="חנות">
+            <span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9 L5 21 H19 L17 9 Z"/><path d="M9 9 V6.5 a3 3 0 0 1 6 0 V9"/></svg></span>
+            <span class="bottom-nav-label">חנות</span>
+        </button>
+        <button class="bottom-nav-item" data-screen="profileScreen" onclick="goToProfile()" aria-label="פרופיל">
+            <span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21 c0 -4.5 3.5 -7 8 -7 s8 2.5 8 7 Z"/></svg></span>
+            <span class="bottom-nav-label">פרופיל</span>
+        </button>
+        <button class="bottom-nav-item" data-screen="leaderboardScreen" onclick="showLeaderboard()" aria-label="דירוג">
+            <span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4 H17 V9 a5 5 0 0 1 -10 0 Z"/><path d="M7 5 H3 v2 a4 4 0 0 0 4 4"/><path d="M17 5 H21 v2 a4 4 0 0 1 -4 4"/><path d="M12 14 V18"/><path d="M8 21 H16"/><path d="M9 18 H15 L16 21 H8 Z"/></svg></span>
+            <span class="bottom-nav-label">דירוג</span>
+        </button>
+    </nav>
 
     <!-- Daily login reward modal -->
     <div id="dailyRewardOverlay" class="menu-overlay" style="display:none;" onclick="if(event.target===this)closeDailyReward()">

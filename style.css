@@ -73,6 +73,10 @@
     /* App "device" frame - mobile-first, centered on wider screens */
     --app-max-width: 460px;
 
+    /* Fixed bottom tab bar - height only, env(safe-area-inset-bottom) is
+       added on top of this wherever it's used, never baked in */
+    --bottom-nav-height: 62px;
+
     /* Soft neutral depth shadows - realistic, diffused, low-opacity, for
        physical elevation without any neon color cast */
     --shadow-depth-sm: 0 8px 20px rgba(0, 0, 0, 0.18);
@@ -145,18 +149,44 @@ button {
     min-height: 100vh;
     min-height: 100dvh;
     padding: calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
-    animation: fadeIn 0.3s ease-in;
+    /* Native "sheet presentation" pop-in for drill-down screens; .tab-screen
+       below overrides this with a flatter cross-fade for the 4 tab-bar
+       destinations, since those are lateral swaps, not "going deeper" */
+    animation: screenPopIn 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+@keyframes screenPopIn {
+    from { opacity: 0; transform: translateY(18px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Must come after .screen so it wins the specificity tie */
+.tab-screen {
+    animation: tabSwitchIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+@keyframes tabSwitchIn {
+    from { opacity: 0; transform: scale(0.98); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .screen, .tab-screen {
+        animation: none;
+    }
 }
 
 .screen.active {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+/* Extra bottom clearance so tab-screen content never sits under the fixed
+   bottom nav; only applied while it's actually visible (see .bottom-nav /
+   body.has-bottom-nav in game.css) */
+body.has-bottom-nav .screen.active {
+    padding-bottom: calc(20px + var(--bottom-nav-height) + env(safe-area-inset-bottom));
 }
 
 .container {

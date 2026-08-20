@@ -340,6 +340,7 @@ window.addEventListener('load', () => {
     loadCustomWords();
     applyRemovedWords(); // the blocklist may already be filled from a cached snapshot
     updateHomeUI();
+    updateBottomNav('homeScreen'); // homeScreen starts .active in the HTML, showScreen() never runs for it
     initMusic();
     maybeShowDailyReward(); // pop the daily bonus if it's waiting
 });
@@ -812,12 +813,27 @@ function onThemeSelect(value) {
 }
 
 // Navigation
+const TAB_SCREENS = ['homeScreen', 'shopScreen', 'profileScreen', 'leaderboardScreen'];
+
 function showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(screenId).classList.add('active');
     // Long screens (like the profile) may leave the page scrolled down -
     // every screen should open from its top
     window.scrollTo(0, 0);
+    updateBottomNav(screenId);
+}
+
+// Shows/hides the fixed bottom tab bar and syncs its active tab - only the
+// 4 main hub screens get it, every drill-down/modal/in-game screen doesn't
+function updateBottomNav(screenId) {
+    document.body.classList.toggle('has-bottom-nav', TAB_SCREENS.includes(screenId));
+    document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+        const active = btn.dataset.screen === screenId;
+        btn.classList.toggle('active', active);
+        if (active) btn.setAttribute('aria-current', 'page');
+        else btn.removeAttribute('aria-current');
+    });
 }
 
 function goHome() {
