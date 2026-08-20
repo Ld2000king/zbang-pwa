@@ -334,6 +334,7 @@ function collectBoardWords() {
 
 // Initialize
 window.addEventListener('load', () => {
+    const isFirstRun = !localStorage.getItem('zabangState'); // capture before loadGameState() fills in the default state
     loadGameState();
     normalizeDictionary();
     mergeExtraWords();
@@ -343,6 +344,7 @@ window.addEventListener('load', () => {
     updateBottomNav('homeScreen'); // homeScreen starts .active in the HTML, showScreen() never runs for it
     initMusic();
     maybeShowDailyReward(); // pop the daily bonus if it's waiting
+    if (isFirstRun) openNameModal(true); // brand-new player - must pick a name before playing
 });
 
 // Merge the expansion packs into the dictionary: words.js (EXTRA_WORDS, written
@@ -2121,18 +2123,43 @@ function renderProfile() {
 }
 
 function renamePlayer() {
-    const name = prompt('הכנס שם חדש:', gameState.playerName);
-    if (name && name.trim()) {
-        // Strip HTML-significant characters at the source - this name gets
-        // shared with other real players over Firebase in multiplayer mode
-        const cleaned = name.trim().slice(0, 20).replace(/[<>&"']/g, '');
-        if (!cleaned) { showMessage('שם לא תקין', 'error'); return; }
-        gameState.playerName = cleaned;
-        saveGameState();
-        updateHomeUI();
-        renderProfile();
-        showMessage('השם עודכן!', 'success');
-    }
+    openNameModal(false);
+}
+
+// Set/rename player name - one shared modal for the mandatory first-run gate
+// and every optional rename entry point (home screen tap, profile pencil).
+let nameModalMandatory = false;
+
+function openNameModal(mandatory) {
+    nameModalMandatory = mandatory;
+    const overlay = document.getElementById('nameOverlay');
+    const input = document.getElementById('nameInput');
+    document.getElementById('nameModalTitle').textContent =
+        mandatory ? 'ברוכים הבאים! איך קוראים לך?' : 'שינוי שם';
+    input.value = mandatory ? '' : gameState.playerName;
+    document.getElementById('nameCancelBtn').style.display = mandatory ? 'none' : '';
+    overlay.style.display = 'flex';
+    input.focus();
+}
+
+function closeNameModal() {
+    if (nameModalMandatory) return; // no dismissing the first-run gate without a name
+    document.getElementById('nameOverlay').style.display = 'none';
+}
+
+function saveNameFromModal() {
+    const raw = document.getElementById('nameInput').value;
+    // Strip HTML-significant characters at the source - this name gets
+    // shared with other real players over Firebase in multiplayer mode
+    const cleaned = raw.trim().slice(0, 20).replace(/[<>&"']/g, '');
+    if (!cleaned) { showMessage('שם לא תקין', 'error'); return; }
+    gameState.playerName = cleaned;
+    saveGameState();
+    updateHomeUI();
+    renderProfile();
+    document.getElementById('nameOverlay').style.display = 'none';
+    showMessage(nameModalMandatory ? `ברוך הבא, ${cleaned}!` : 'השם עודכן!', 'success');
+    nameModalMandatory = false;
 }
 
 // ===== Word review panel - shows the player's own submission history.

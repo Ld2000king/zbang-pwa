@@ -130,6 +130,23 @@
 .player-name {
     font-size: 1.3em;
     font-weight: 700;
+    /* it's a <button> now (tap-to-rename) - reset the default chrome, keep
+       the same look it always had */
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    color: inherit;
+    font-family: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.player-name .rename-btn {
+    font-size: 0.7em;
+    padding: 0;
 }
 
 .level-badge {
@@ -2067,6 +2084,28 @@
 }
 
 .room-code-input:focus {
+    border-color: var(--neon-cyan);
+    box-shadow: var(--shadow-depth-sm);
+}
+
+/* Name entry - same shell as .room-code-input, but a name, not a room code:
+   normal weight/case, no letter-spacing */
+.name-input {
+    display: block;
+    width: 100%;
+    font-family: var(--font-body, inherit);
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-dark);
+    background: var(--surface-2);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-btn);
+    padding: 14px;
+    margin-bottom: 18px;
+    outline: none;
+}
+
+.name-input:focus {
     border-color: var(--neon-cyan);
     box-shadow: var(--shadow-depth-sm);
 }

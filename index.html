@@ -29,7 +29,7 @@
                     <div class="player-header">
                         <div class="player-avatar" id="homeAvatar"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21 c0 -4.5 3.5 -7 8 -7 s8 2.5 8 7 Z"/></svg></span></div>
                         <div class="player-info">
-                            <p class="player-name" id="playerName">שחקן</p>
+                            <button class="player-name" id="playerName" onclick="openNameModal(false)" aria-label="שינוי שם">שחקן <span class="rename-btn icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 L4.7 16.4 L15.5 5.6 a2 2 0 0 1 2.8 0 L19.4 6.7 a2 2 0 0 1 0 2.8 L8.6 20.3 Z"/><path d="M14 7 L17.5 10.5"/></svg></span></button>
                             <div class="level-badge" id="levelBadge">רמה 1</div>
                         </div>
                     </div>
@@ -502,6 +502,18 @@
         <div class="confirm-box">
             <p id="infoText"></p>
             <button class="btn-large blue-btn" onclick="closeInfoModal()">הבנתי</button>
+        </div>
+    </div>
+
+    <!-- Set/rename player name - used for the first-run gate and every rename entry point -->
+    <div id="nameOverlay" class="confirm-overlay" style="display:none;">
+        <div class="confirm-box">
+            <p id="nameModalTitle">איך קוראים לך?</p>
+            <input type="text" id="nameInput" class="name-input" maxlength="20" autocomplete="off" placeholder="השם שלך">
+            <div class="confirm-actions">
+                <button class="btn-large blue-btn" id="nameSaveBtn" onclick="saveNameFromModal()">שמור</button>
+                <button class="close-modal-btn" id="nameCancelBtn" onclick="closeNameModal()">ביטול</button>
+            </div>
         </div>
     </div>
 
