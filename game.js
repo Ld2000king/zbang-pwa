@@ -789,25 +789,92 @@ function updateHomeUI() {
     // the banner expresses the current city's identity via a soft accent tint
     const bannerEl = document.querySelector('.arena-banner');
     if (bannerEl) bannerEl.style.setProperty('--banner-accent', arena.accent);
-    renderThemeSelector();
 }
 
-// Populate the "preferred board" dropdown. Every arena/theme is listed, but
-// themes above the player's current arena are disabled (locked) until the
-// trophy count reaches them.
-function renderThemeSelector() {
-    const sel = document.getElementById('themeSelect');
-    if (!sel) return;
+// Arena picker screen - swipeable card carousel over ARENAS, replacing the
+// old <select> dropdown. Cards reuse onThemeSelect()'s existing lock-check/
+// save logic; only the picker UI itself is new.
+let arenaObserver = null;
+
+function openArenaScreen() {
+    showScreen('arenaScreen');
+    renderArenaCarousel();
+    // land on the player's current selection instead of always card 0
     const pref = preferredThemeIndex();
-    sel.innerHTML = ARENAS.map((a, i) => {
+    const card = document.querySelector(`.arena-card[data-index="${pref}"]`);
+    if (card) card.scrollIntoView({ inline: 'center', block: 'nearest' });
+}
+
+function closeArenaScreen() {
+    showScreen('homeScreen');
+}
+
+function renderArenaCarousel() {
+    const track = document.getElementById('arenaCarousel');
+    const dots = document.getElementById('arenaDots');
+    if (!track || !dots) return;
+    const pref = preferredThemeIndex();
+
+    track.innerHTML = ARENAS.map((a, i) => {
         const locked = !isThemeUnlocked(i);
-        return `<option value="${i}"${i === pref ? ' selected' : ''}${locked ? ' disabled' : ''}>${a.motif} ${a.name}${locked ? ' 🔒' : ''}</option>`;
+        const current = i === pref;
+        const motifColor = a.textLight ? '#fff' : 'var(--text-dark)';
+        let bodyExtra;
+        if (locked) {
+            const needed = (i * TROPHIES_PER_ARENA) - (gameState.trophies || 0);
+            bodyExtra = `<p class="arena-card-req">${needed.toLocaleString('he-IL')} גביעים נוספים לפתיחה</p>`;
+        } else if (current) {
+            bodyExtra = `<span class="arena-card-badge">✓ בלוח שלך</span>`;
+        } else {
+            bodyExtra = `<button class="arena-card-select-btn" onclick="onArenaCardTap(${i})">בחירה</button>`;
+        }
+        return `
+            <div class="arena-card${locked ? ' arena-locked' : ''}${current ? ' arena-current' : ''}"
+                 style="--arena-tile:${a.tile}; --arena-accent:${a.accent}; --arena-motif-color:${motifColor};"
+                 data-index="${i}"
+                 ${locked ? `onclick="onArenaCardLockedTap(${i})"` : ''}>
+                <div class="arena-card-art">
+                    <span class="arena-card-motif">${a.motif}</span>
+                    ${locked ? '<span class="arena-lock">🔒</span>' : ''}
+                </div>
+                <div class="arena-card-body">
+                    <h3 class="arena-card-name">${a.name}</h3>
+                    <p class="arena-card-tagline">${a.tagline}</p>
+                    ${bodyExtra}
+                </div>
+            </div>`;
     }).join('');
+
+    dots.innerHTML = ARENAS.map((_, i) => `<span class="arena-dot${i === pref ? ' active' : ''}" data-index="${i}"></span>`).join('');
+
+    // dot-sync via IntersectionObserver rather than scrollLeft math, which
+    // has inconsistent sign/zero-point conventions across engines under RTL
+    if (arenaObserver) arenaObserver.disconnect();
+    arenaObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const idx = entry.target.dataset.index;
+                document.querySelectorAll('.arena-dot').forEach(d => d.classList.toggle('active', d.dataset.index === idx));
+            }
+        });
+    }, { root: track, threshold: 0.6 });
+    track.querySelectorAll('.arena-card').forEach(c => arenaObserver.observe(c));
+}
+
+function onArenaCardTap(idx) {
+    onThemeSelect(idx);
+    renderArenaCarousel();
+    showMessage(`נבחר: ${ARENAS[idx].motif} ${ARENAS[idx].name}`, 'success');
+}
+
+function onArenaCardLockedTap(idx) {
+    const needed = (idx * TROPHIES_PER_ARENA) - (gameState.trophies || 0);
+    showMessage(`עיר נעולה - ${needed.toLocaleString('he-IL')} גביעים נוספים לפתיחה`, 'warning');
 }
 
 function onThemeSelect(value) {
     const idx = parseInt(value, 10);
-    if (isNaN(idx) || !isThemeUnlocked(idx)) { renderThemeSelector(); return; }
+    if (isNaN(idx) || !isThemeUnlocked(idx)) { renderArenaCarousel(); return; }
     gameState.preferredTheme = idx;
     saveGameState();
 }

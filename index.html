@@ -49,14 +49,15 @@
                     </div>
                 </div>
 
-                <div class="arena-banner">
+                <button class="arena-banner" onclick="openArenaScreen()" aria-label="בחירת זירה">
                     <span class="arena-banner-motif" id="homeCityMotif">🌾</span>
                     <div class="arena-banner-text">
                         <span class="arena-banner-label">עיר</span>
                         <span class="arena-banner-name" id="homeArena">מזכרת בתיה</span>
                         <span class="arena-banner-tagline" id="homeCityTagline">מושבה חקלאית ותיקה</span>
                     </div>
-                </div>
+                    <span class="arena-banner-chevron" aria-hidden="true">‹</span>
+                </button>
 
                 <div class="button-group">
                     <button class="mega-btn green-btn" onclick="showGameModeSelection()">
@@ -73,10 +74,17 @@
                     </button>
                 </div>
 
-                <div class="theme-selector">
-                    <label for="themeSelect">לוח מועדף:</label>
-                    <select id="themeSelect" onchange="onThemeSelect(this.value)"></select>
-                </div>
+            </div>
+        </div>
+
+        <!-- Arena picker: swipeable carousel over the "preferred board" cities -->
+        <div id="arenaScreen" class="screen">
+            <div class="profile-container arena-screen-container">
+                <button class="exit-btn icon" onclick="closeArenaScreen()" aria-label="חזרה"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></button>
+                <h2>בחירת זירה</h2>
+                <p class="mp-hint">כל 200 גביעים פותחים עיר חדשה - בחרו את לוח הבית שלכם.</p>
+                <div class="arena-carousel" id="arenaCarousel"></div>
+                <div class="arena-dots" id="arenaDots"></div>
             </div>
         </div>
 
