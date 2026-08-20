@@ -111,6 +111,17 @@ const ICON = {
         <ellipse cx="50" cy="60" rx="5" ry="3.6" fill="#3A2416"/>
         <path d="M50 63 Q46 67 43 64 M50 63 Q54 67 57 64" stroke="#3A2416" stroke-width="1.8" fill="none" stroke-linecap="round"/></g>`,
 
+    // זאב -> sleek wolf
+    wolf: `<g>
+        <g fill="#D9DEE5">
+            <path d="M30 32 Q22 50 33 66 L38 47 Z"/>
+            <path d="M70 32 Q78 50 67 66 L62 47 Z"/>
+            <path d="M32 43 Q50 30 68 43 L65 62 Q50 75 35 62 Z"/></g>
+        <path d="M38 43 L44 48 M62 43 L56 48" stroke="#AEB6C2" stroke-width="1.4"/>
+        <circle cx="42" cy="49" r="2.6" fill="#1B1D22"/><circle cx="58" cy="49" r="2.6" fill="#1B1D22"/>
+        <path d="M50 55 L46 60 L54 60 Z" fill="#1B1D22"/>
+        <path d="M50 60 Q46 65 42 62 M50 60 Q54 65 58 62" stroke="#1B1D22" stroke-width="1.8" fill="none" stroke-linecap="round"/></g>`,
+
     // חייזר -> alien head
     alien: `<g>
         <path d="M50 24 C67 24 71 40 66 54 C62 66 55 74 50 76 C45 74 38 66 34 54 C29 40 33 24 50 24 Z" fill="#CFF29A"/>
@@ -167,6 +178,7 @@ const AVATARS = [
     { id: 'cat',     name: 'חתול',   bg: ['#FBB040', '#E4761B'], icon: ICON.cat },
     { id: 'dog',     name: 'חומי',   bg: ['#B97A56', '#6D4C34'], icon: ICON.dog },
     { id: 'alien',   name: 'חייזר',  bg: ['#7C4DFF', '#4527A0'], icon: ICON.alien },
+    { id: 'wolf',    name: 'זאב',    bg: ['#7C8B9E', '#3E4A5C'], icon: ICON.wolf },
 
     // ===== Premium ("cooler") avatars - bought in the shop (premium: true) =====
     { id: 'king',   name: 'מלך',   premium: true, bg: ['#3B4CC0', '#1A237E'], icon: ICON.crown },
