@@ -36,9 +36,12 @@
   //   * The HOST is a trusted role: it computes round results and the winner,
   //     so a cheating host could rig its own match. Only server authority
   //     (Cloud Functions) removes that trust.
-  //   * /leaderboard keys are the game's own playerId (a push key), not the
-  //     auth UID, so leaderboard entries are validated for shape but not
-  //     identity-bound. Bind by switching writes to leaderboard/{auth.uid}.
+  //   * /leaderboard keys are still the game's own playerId (a push key), not
+  //     the auth UID, but each row now carries a "uid" field that binds it to
+  //     its owner, so only that owner - or the admin - may write it. A player
+  //     can still inflate their OWN best score, for the same reason room
+  //     scores are inflatable; what the binding stops is editing anyone
+  //     ELSE's row, renames included.
   // ==========================================================================
 
   "rules": {
@@ -136,7 +139,25 @@
     "leaderboard": {
       ".read": "auth != null",
       "$pid": {
-        ".write": "auth != null",
+        // Rows are keyed by the game's own playerId, so ownership is carried by
+        // a "uid" field instead - the same identity binding the room player
+        // nodes use. Three writers are allowed:
+        //   * the OWNER of the row (its uid is theirs) - normal score submits;
+        //   * the ADMIN, on any row - this is what the in-game rename button
+        //     uses, and it is the only way to edit somebody else's name;
+        //   * whoever next writes a LEGACY row (one that predates this binding
+        //     and still has no uid), who must stamp their own uid on it.
+        // That last clause is the migration path: it keeps players who are
+        // already on the board able to submit new highs, at the cost of leaving
+        // pre-existing rows claimable exactly once. Once claimed - or once the
+        // admin sets a uid on them - they are bound like everything else.
+        ".write": "auth != null && (auth.uid === 'PASTE_ADMIN_UID_HERE' || data.child('uid').val() === auth.uid || (!data.child('uid').exists() && newData.child('uid').val() === auth.uid))",
+
+        // A row's uid can never be set to somebody else's identity. The admin
+        // is exempt because it edits rows WITHOUT taking them over, so it has
+        // to be able to leave the owner's uid in place (and to stamp a uid on
+        // a legacy row to close the claim window above).
+        "uid":       { ".validate": "newData.isString() && (newData.val() === auth.uid || auth.uid === 'PASTE_ADMIN_UID_HERE')" },
         "name":      { ".validate": "newData.isString() && newData.val().length <= 40" },
         "score":     { ".validate": "newData.isNumber() && newData.val() >= 0" },
         "avatarId":  { ".validate": "newData.isString() || newData.isNumber()" },
