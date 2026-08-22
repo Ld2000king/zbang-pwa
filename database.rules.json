@@ -5,10 +5,9 @@
   // Deploy: Firebase Console -> Realtime Database -> Rules -> paste -> Publish
   //   (or `firebase deploy --only database` with firebase.json pointing here).
   //
-  // BEFORE DEPLOYING:
-  //   Replace every  PASTE_ADMIN_UID_HERE  with the real UID of the admin
-  //   Auth account (the email/password account used by adminSignIn() in
-  //   admin.js). Find it in Console -> Authentication -> Users -> User UID.
+  // Admin UID is bound below to the email/password account used by
+  // adminSignIn() in admin.js (liavdimri12@gmail.com). If that account is
+  // ever recreated, its new UID must be swapped in everywhere below.
   //
   // IDENTITY BINDING (now active):
   //   /approved_words, /rejected_words and /removed_words are the admin's
@@ -147,11 +146,11 @@
 
     "pending_requests": {
       // only the admin may LIST/READ the queue or delete from it
-      ".read": "auth != null && auth.uid === 'PASTE_ADMIN_UID_HERE'",
+      ".read": "auth != null && auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2'",
       "$req": {
         // players may CREATE a new request (no overwrite of an existing one);
         // the admin may modify/remove any request
-        ".write": "auth != null && (auth.uid === 'PASTE_ADMIN_UID_HERE' || (!data.exists() && newData.exists()))",
+        ".write": "auth != null && (auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2' || (!data.exists() && newData.exists()))",
         "word":        { ".validate": "newData.isString() && newData.val().length <= 20" },
         "points":      { ".validate": "newData.isNumber()" },
         "submittedBy": { ".validate": "newData.isString() && newData.val().length <= 40" },
@@ -162,13 +161,13 @@
 
     "approved_words": {
       ".read": "auth != null",
-      ".write": "auth != null && auth.uid === 'PASTE_ADMIN_UID_HERE'",
+      ".write": "auth != null && auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2'",
       "$word": { ".validate": "newData.isNumber() && newData.val() >= 0" }
     },
 
     "rejected_words": {
       ".read": "auth != null",
-      ".write": "auth != null && auth.uid === 'PASTE_ADMIN_UID_HERE'",
+      ".write": "auth != null && auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2'",
       "$word": { ".validate": "newData.isBoolean()" }
     },
 
@@ -179,7 +178,7 @@
     // nodes; readable by everyone because every client has to apply it.
     "removed_words": {
       ".read": "auth != null",
-      ".write": "auth != null && auth.uid === 'PASTE_ADMIN_UID_HERE'",
+      ".write": "auth != null && auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2'",
       "$word": { ".validate": "newData.isBoolean()" }
     }
   }
