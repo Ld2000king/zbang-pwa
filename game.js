@@ -1531,13 +1531,13 @@ let leaderboardRows = [];
 // Admin-only rename of any leaderboard row - lets the developer fix a display
 // name (a typo, a player asking to be shown differently) from inside the game
 // instead of hand-editing the Firebase console.
-// As in renderAdminSection() (admin.js), isAdminUser() only gates what the UI
-// OFFERS. Here there is no UID binding behind it either: leaderboard rows are
-// keyed by the game's own playerId, and the Rules let any authed client write
-// them (see the trust note in database.rules.json). So this is a casual
-// moderation convenience, not a security boundary.
+// Gated on isSignedInAsAdmin(), NOT isAdminUser(): the latter is only a local
+// name check, so anyone could call themselves 'ld2000' and get the pencil.
+// Renaming somebody else's row is a real cross-player edit, so it takes the
+// actual admin Auth account - the same identity the Rules check.
 function renameLeaderboardEntry(id) {
     if (typeof FIREBASE_READY === 'undefined' || !FIREBASE_READY || !db) return;
+    if (typeof isSignedInAsAdmin !== 'function' || !isSignedInAsAdmin()) return;
     const row = leaderboardRows.find(r => r.id === id);
     if (!row) return;
 
@@ -1578,7 +1578,8 @@ function renderLeaderboard() {
             listEl.innerHTML = '<p class="no-subs">עדיין אין תוצאות - שחק משחק יחיד כדי להיכנס לטבלה!</p>';
             return;
         }
-        const canEdit = typeof isAdminUser === 'function' && isAdminUser();
+        // the real admin account, not just a player named 'ld2000'
+        const canEdit = typeof isSignedInAsAdmin === 'function' && isSignedInAsAdmin();
         listEl.innerHTML = rows.map((r, i) => {
             const isMe = r.id === gameState.playerId;
             const rank = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
