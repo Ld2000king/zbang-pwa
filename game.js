@@ -102,6 +102,17 @@ const SHOP_ITEMS = [
 
 const BOT_NAMES = ['אושר', 'איתי', 'חן', 'ליאב', 'אריאל'];
 
+// Purchasable app-wide background skins, bought with coins (not diamonds -
+// these are cosmetic, not premium/exclusive like the avatars). 'default' is
+// always owned and never shown a buy/select control in the shop, since it's
+// just the plain app background everyone starts with.
+const BACKGROUNDS = [
+    { id: 'default',   name: 'ברירת מחדל',    desc: 'הרקע השחור הקלאסי של המשחק', cost: 0 },
+    { id: 'fire',      name: 'אש',            desc: 'להבות רוחשות ברקע כל המסכים', cost: 150 },
+    { id: 'buildings', name: 'קו רקיע',       desc: 'עיר לילה עם אורות מנצנצים',   cost: 200 },
+    { id: 'grass',     name: 'מגרש כדורגל',   desc: 'דשא ירוק בסגנון אצטדיון',      cost: 120 }
+];
+
 // Arena progression - one tier per 200 trophies, named after Israeli cities
 // ascending from a small town to the capital. Each arena also defines the
 // board's visual skin (see applyBoardTheme, which writes the city's colors
@@ -185,6 +196,8 @@ let gameState = {
     trophies: 0,
     preferredTheme: 0,
     ownedAvatars: [],
+    ownedBackgrounds: ['default'],
+    equippedBackground: 'default',
     musicEnabled: true,  // actual playback still gated on a user gesture, see initMusic()
     bestSingleScore: 0,  // personal best single-player score (shown on the leaderboard)
     playerId: null,      // stable per-device id for the global leaderboard entry
@@ -342,6 +355,7 @@ window.addEventListener('load', () => {
     applyRemovedWords(); // the blocklist may already be filled from a cached snapshot
     updateHomeUI();
     updateBottomNav('homeScreen'); // homeScreen starts .active in the HTML, showScreen() never runs for it
+    applyEquippedBackground();
     initMusic();
     maybeShowDailyReward(); // pop the daily bonus if it's waiting
     if (isFirstRun) openNameModal(true); // brand-new player - must pick a name before playing
@@ -551,6 +565,8 @@ function loadGameState() {
     if (typeof gameState.trophies !== 'number') gameState.trophies = 0;
     if (typeof gameState.preferredTheme !== 'number') gameState.preferredTheme = 0;
     if (!Array.isArray(gameState.ownedAvatars)) gameState.ownedAvatars = [];
+    if (!Array.isArray(gameState.ownedBackgrounds)) gameState.ownedBackgrounds = ['default'];
+    if (!gameState.equippedBackground) gameState.equippedBackground = 'default';
     if (typeof gameState.musicEnabled !== 'boolean') gameState.musicEnabled = true;
     if (typeof gameState.bestSingleScore !== 'number') gameState.bestSingleScore = 0;
     if (typeof gameState.diamonds !== 'number') gameState.diamonds = 0;
@@ -2000,6 +2016,34 @@ function renderShop() {
         });
     }
 
+    // --- Backgrounds: cosmetic app-wide skins bought with coins ---
+    html += `<h3 class="shop-section-title">רקעים למשחק</h3>`;
+    html += `<p class="shop-note">קונים פעם אחת עם מטבעות - אפשר להחליף בין רקעים שכבר בבעלותכם בכל רגע.</p>`;
+    BACKGROUNDS.filter(bg => bg.id !== 'default').forEach(bg => {
+        const owned = isBackgroundOwned(bg.id);
+        const equipped = gameState.equippedBackground === bg.id;
+        let control;
+        if (equipped) {
+            control = `<span class="shop-owned">${icon('check')} מופעל</span>`;
+        } else if (owned) {
+            control = `<button class="buy-btn green-buy-btn" onclick="selectBackground('${bg.id}')">בחר</button>`;
+        } else {
+            control = `<button class="buy-btn" onclick="buyBackground('${bg.id}')">${icon('coin', 'coin-icon')} ${bg.cost} קנה</button>`;
+        }
+        html += `
+            <div class="shop-item${equipped ? ' shop-item-equipped' : ''}">
+                <div class="item-info item-info-avatar">
+                    <div class="bg-swatch bg-swatch-${bg.id}"></div>
+                    <div>
+                        <h3>${bg.name}</h3>
+                        <p>${bg.desc}</p>
+                    </div>
+                </div>
+                ${control}
+            </div>
+        `;
+    });
+
     shopEl.innerHTML = html;
 }
 
@@ -2101,6 +2145,53 @@ function buyAvatar(id) {
         updateHomeUI();
         renderShop();
         showMessage(`התמונה "${a.name}" נוספה לאוסף!`, 'success');
+    });
+}
+
+// App-wide background skins - bought with coins, applied everywhere via
+// applyEquippedBackground() rather than picked per-screen like avatars.
+function isBackgroundOwned(id) {
+    if (id === 'default' || isAdminAccount()) return true;
+    return (gameState.ownedBackgrounds || []).includes(id);
+}
+
+function getBackgroundById(id) {
+    return BACKGROUNDS.find(b => b.id === id) || BACKGROUNDS[0];
+}
+
+function selectBackground(id) {
+    if (!isBackgroundOwned(id)) { showMessage('רקע נעול - ניתן לרכוש בחנות', 'warning'); return; }
+    gameState.equippedBackground = id;
+    saveGameState();
+    applyEquippedBackground();
+    renderShop();
+}
+
+function buyBackground(id) {
+    const bg = getBackgroundById(id);
+    if (isBackgroundOwned(id)) { selectBackground(id); return; }
+    if (!isAdminAccount() && gameState.coins < bg.cost) {
+        showMessage('אין מספיק מטבעות!', 'error');
+        return;
+    }
+    if (!isAdminAccount()) gameState.coins -= bg.cost;
+    if (!gameState.ownedBackgrounds.includes(id)) gameState.ownedBackgrounds.push(id);
+    gameState.equippedBackground = id;
+    saveGameState();
+    updateHomeUI();
+    applyEquippedBackground();
+    renderShop();
+    showMessage(`רקע "${bg.name}" נרכש והופעל!`, 'success');
+}
+
+// Toggles which pre-built #bgScenes layer is visible behind every screen -
+// see the layered scene divs in index.html (fire/buildings/grass, each its
+// own CSS animation) and the .has-bg-scene scrim in game.css.
+function applyEquippedBackground() {
+    const id = gameState.equippedBackground || 'default';
+    document.body.classList.toggle('has-bg-scene', id !== 'default');
+    document.querySelectorAll('.bg-scene').forEach(el => {
+        el.classList.toggle('active', el.dataset.bg === id);
     });
 }
 

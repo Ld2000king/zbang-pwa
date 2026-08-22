@@ -17,6 +17,39 @@
 </head>
 <body>
     <div id="app">
+        <!-- Purchasable background skins - see BACKGROUNDS/applyEquippedBackground() in game.js -->
+        <div id="bgScenes" aria-hidden="true">
+            <div class="bg-scene bg-scene-fire" data-bg="fire">
+                <div class="ember-glow"></div>
+                <div class="bg-flames">
+                    <div class="bg-flame f1"></div>
+                    <div class="bg-flame f2"></div>
+                    <div class="bg-flame f3"></div>
+                </div>
+                <div class="bg-ember" style="inset-inline-start:22%; animation-delay:0s"></div>
+                <div class="bg-ember" style="inset-inline-start:46%; animation-delay:1.6s"></div>
+                <div class="bg-ember" style="inset-inline-start:64%; animation-delay:3.1s"></div>
+                <div class="bg-ember" style="inset-inline-start:35%; animation-delay:4.4s"></div>
+            </div>
+            <div class="bg-scene bg-scene-buildings" data-bg="buildings">
+                <div class="bg-moon"></div>
+                <div class="bg-skyline">
+                    <div class="bg-bldg" style="width:34px;height:120px"><span class="bg-win" style="top:20px;inset-inline-start:8px"></span><span class="bg-win cyan" style="top:44px;inset-inline-start:20px"></span></div>
+                    <div class="bg-bldg" style="width:26px;height:180px"><span class="bg-win" style="top:30px;inset-inline-start:6px"></span><span class="bg-win" style="top:60px;inset-inline-start:16px;animation-delay:1s"></span><span class="bg-win cyan" style="top:90px;inset-inline-start:6px;animation-delay:2s"></span></div>
+                    <div class="bg-bldg" style="width:42px;height:90px"><span class="bg-win" style="top:16px;inset-inline-start:10px;animation-delay:0.6s"></span></div>
+                    <div class="bg-bldg" style="width:30px;height:230px"><span class="bg-win cyan" style="top:24px;inset-inline-start:8px;animation-delay:1.4s"></span><span class="bg-win" style="top:60px;inset-inline-start:18px"></span><span class="bg-win" style="top:110px;inset-inline-start:8px;animation-delay:2.6s"></span><span class="bg-win cyan" style="top:150px;inset-inline-start:18px"></span></div>
+                    <div class="bg-bldg" style="width:24px;height:140px"><span class="bg-win" style="top:30px;inset-inline-start:6px;animation-delay:0.3s"></span></div>
+                    <div class="bg-bldg" style="width:36px;height:200px"><span class="bg-win cyan" style="top:20px;inset-inline-start:8px"></span><span class="bg-win" style="top:56px;inset-inline-start:20px;animation-delay:1.8s"></span><span class="bg-win" style="top:100px;inset-inline-start:8px"></span></div>
+                    <div class="bg-bldg" style="width:28px;height:110px"><span class="bg-win" style="top:18px;inset-inline-start:8px;animation-delay:2.2s"></span></div>
+                </div>
+            </div>
+            <div class="bg-scene bg-scene-grass" data-bg="grass">
+                <div class="bg-pitch-line"></div>
+                <div class="bg-pitch-arc"></div>
+            </div>
+            <div class="bg-scrim"></div>
+        </div>
+
         <!-- Home Screen -->
         <div id="homeScreen" class="screen tab-screen active">
             <button class="help-btn icon" onclick="showInstructions()" title="הוראות משחק"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.5 a2.8 2.8 0 1 1 4.3 2.4 c-0.9 0.6 -1.5 1.1 -1.5 2.1"/><circle cx="12" cy="17" r="0.1" fill="currentColor" stroke-width="2.5"/></svg></button>
