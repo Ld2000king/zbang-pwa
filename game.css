@@ -1622,11 +1622,27 @@
     color: var(--neon-cyan-deep);
 }
 
-/* admin-only pencil at the end of a row (see renameLeaderboardEntry) */
+/* admin-only pencil at the end of a row (see renameLeaderboardEntry).
+   Muted rather than cyan so it stays subordinate to the score beside it. */
 .lb-edit {
     flex-shrink: 0;
     font-size: 18px;
     padding: 6px;
+    color: var(--text-secondary);
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease;
+}
+
+.lb-edit:hover {
+    color: var(--neon-cyan);
+}
+
+.lb-edit:active {
+    transform: scale(0.93);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lb-edit { transition: color 0.15s ease; }
+    .lb-edit:active { transform: none; }
 }
 
 /* Messages */
