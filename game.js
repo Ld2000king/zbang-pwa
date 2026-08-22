@@ -100,7 +100,7 @@ const SHOP_ITEMS = [
     { key: 'tornado', icon: 'tornado', name: 'ערבב ליריבים', desc: 'באטל רויאל: חותך את ניקוד הבוטים בחצי', cost: 20 }
 ];
 
-const BOT_NAMES = ['דני', 'מיכל', 'אורי', 'נועה', 'יוסי'];
+const BOT_NAMES = ['אושר', 'איתי', 'חן', 'ליאב', 'אריאל'];
 
 // Arena progression - one tier per 200 trophies, named after Israeli cities
 // ascending from a small town to the capital. Each arena also defines the
@@ -1847,9 +1847,9 @@ function endBattleRound() {
     const standings = [
         { name: gameState.playerName, score: currentGame.playerScore },
         ...battleState.players.filter(b => !b.eliminated).map(b => ({ name: b.name, score: b.score }))
-    ].sort((a, b) => a.score - b.score);
+    ].sort((a, b) => b.score - a.score);
 
-    const loser = standings[0].name;
+   const loser = standings[standings.length - 1].name;
 
     if (loser === gameState.playerName) {
         // Player eliminated
