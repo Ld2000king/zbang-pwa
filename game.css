@@ -1622,6 +1622,13 @@
     color: var(--neon-cyan-deep);
 }
 
+/* admin-only pencil at the end of a row (see renameLeaderboardEntry) */
+.lb-edit {
+    flex-shrink: 0;
+    font-size: 18px;
+    padding: 6px;
+}
+
 /* Messages */
 .message {
     position: fixed;

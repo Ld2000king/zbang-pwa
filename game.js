@@ -1524,6 +1524,42 @@ function showLeaderboard() {
     renderLeaderboard();
 }
 
+// The rows currently on screen, so the per-row admin edit button can look a
+// name up by id instead of smuggling it through an inline onclick attribute.
+let leaderboardRows = [];
+
+// Admin-only rename of any leaderboard row - lets the developer fix a display
+// name (a typo, a player asking to be shown differently) from inside the game
+// instead of hand-editing the Firebase console.
+// As in renderAdminSection() (admin.js), isAdminUser() only gates what the UI
+// OFFERS. Here there is no UID binding behind it either: leaderboard rows are
+// keyed by the game's own playerId, and the Rules let any authed client write
+// them (see the trust note in database.rules.json). So this is a casual
+// moderation convenience, not a security boundary.
+function renameLeaderboardEntry(id) {
+    if (typeof FIREBASE_READY === 'undefined' || !FIREBASE_READY || !db) return;
+    const row = leaderboardRows.find(r => r.id === id);
+    if (!row) return;
+
+    const raw = prompt('שם חדש לשחקן:', row.name);
+    if (raw === null) return; // cancelled
+    // Same sanitising as saveNameFromModal(): this name is rendered for every
+    // player, and the Rules cap it at 40 characters.
+    const cleaned = raw.trim().slice(0, 20).replace(/[<>&"']/g, '');
+    if (!cleaned) { showMessage('שם לא תקין', 'error'); return; }
+
+    if (typeof authReady === 'undefined') return;
+    authReady.then(() => db.ref('leaderboard/' + id + '/name').set(cleaned)
+        .then(() => {
+            showMessage('השם עודכן!', 'success');
+            renderLeaderboard();
+        })
+        .catch(err => {
+            console.warn('Leaderboard rename failed:', err.message);
+            showMessage('העדכון נכשל, נסה שוב', 'error');
+        }));
+}
+
 function renderLeaderboard() {
     const listEl = document.getElementById('leaderboardList');
     if (!listEl) return;
@@ -1537,19 +1573,27 @@ function renderLeaderboard() {
             .map(([id, e]) => ({ id, name: e.name || 'שחקן', score: e.score || 0, avatarId: e.avatarId }))
             .sort((a, b) => b.score - a.score)
             .slice(0, 20);
+        leaderboardRows = rows;
         if (rows.length === 0) {
             listEl.innerHTML = '<p class="no-subs">עדיין אין תוצאות - שחק משחק יחיד כדי להיכנס לטבלה!</p>';
             return;
         }
+        const canEdit = typeof isAdminUser === 'function' && isAdminUser();
         listEl.innerHTML = rows.map((r, i) => {
             const isMe = r.id === gameState.playerId;
             const rank = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
             const avatar = (typeof getAvatarById === 'function') ? getAvatarById(r.avatarId).svg : '';
+            // ids are Firebase push keys (or a local- fallback), so they are
+            // attribute-safe without escaping
+            const editBtn = canEdit
+                ? `<button class="rename-btn lb-edit" onclick="renameLeaderboardEntry('${r.id}')" title="ערוך שם" aria-label="ערוך שם">${icon('pencil')}</button>`
+                : '';
             return `<div class="lb-row${isMe ? ' lb-me' : ''}">
                 <span class="lb-rank">${rank}</span>
                 <span class="lb-avatar">${avatar}</span>
                 <span class="lb-name">${escapeHtml(r.name)}${isMe ? ' (אתה)' : ''}</span>
                 <span class="lb-score">${r.score}</span>
+                ${editBtn}
             </div>`;
         }).join('');
     }).catch(err => {
