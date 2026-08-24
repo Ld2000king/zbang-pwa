@@ -37,6 +37,21 @@ const PRECACHE = [
     './vendor/firebase/firebase-app-compat.js',
     './vendor/firebase/firebase-database-compat.js',
     './vendor/firebase/firebase-auth-compat.js',
+    // Webfonts (see the @font-face block at the top of style.css). ~156KB for
+    // all 13, and the Hebrew faces are the ones the game is actually set in.
+    './vendor/fonts/rubik-hebrew-500-normal.woff2',
+    './vendor/fonts/rubik-hebrew-600-normal.woff2',
+    './vendor/fonts/rubik-hebrew-700-normal.woff2',
+    './vendor/fonts/rubik-hebrew-800-normal.woff2',
+    './vendor/fonts/rubik-latin-500-normal.woff2',
+    './vendor/fonts/rubik-latin-600-normal.woff2',
+    './vendor/fonts/rubik-latin-700-normal.woff2',
+    './vendor/fonts/rubik-latin-800-normal.woff2',
+    './vendor/fonts/poppins-latin-300-normal.woff2',
+    './vendor/fonts/poppins-latin-400-normal.woff2',
+    './vendor/fonts/poppins-latin-600-normal.woff2',
+    './vendor/fonts/poppins-latin-700-normal.woff2',
+    './vendor/fonts/poppins-latin-800-normal.woff2',
     './multiplayer.js',
     './admin.js',
     './manifest.json',
@@ -62,13 +77,12 @@ const BYPASS_HOSTS = [
     'googletagmanager.com'
 ];
 
-// Cross-origin STATIC we do want cached. Just Google Fonts now - the Firebase
-// compat SDK used to be pulled from www.gstatic.com and is vendored into
-// vendor/firebase/ (precached above) since it also ships in the native shell.
-const CACHEABLE_CDN = [
-    'fonts.googleapis.com',
-    'fonts.gstatic.com'
-];
+// Cross-origin STATIC we would still want cached if any showed up. Nothing
+// uses it today: the Firebase compat SDK (was www.gstatic.com) and the Rubik
+// and Poppins webfonts (were fonts.googleapis.com / fonts.gstatic.com) are all
+// vendored under vendor/ and precached above, so the app pulls nothing from a
+// CDN at runtime. Kept as the hook for anything added later.
+const CACHEABLE_CDN = [];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
