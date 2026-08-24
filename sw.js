@@ -16,7 +16,7 @@
 // Bump VERSION on every release; activate() purges all older caches.
 // ============================================================================
 
-const VERSION = 'v13';
+const VERSION = 'v14';
 const APP_CACHE = 'zabang-app-' + VERSION;       // same-origin shell + code
 const RUNTIME_CACHE = 'zabang-runtime-' + VERSION; // fonts + CDN statics
 
@@ -34,6 +34,9 @@ const PRECACHE = [
     './avatars.js',
     './icons.js',
     './firebase-config.js',
+    './vendor/firebase/firebase-app-compat.js',
+    './vendor/firebase/firebase-database-compat.js',
+    './vendor/firebase/firebase-auth-compat.js',
     './multiplayer.js',
     './admin.js',
     './manifest.json',
@@ -59,11 +62,12 @@ const BYPASS_HOSTS = [
     'googletagmanager.com'
 ];
 
-// Cross-origin STATIC we do want cached (fonts + Firebase compat SDK).
+// Cross-origin STATIC we do want cached. Just Google Fonts now - the Firebase
+// compat SDK used to be pulled from www.gstatic.com and is vendored into
+// vendor/firebase/ (precached above) since it also ships in the native shell.
 const CACHEABLE_CDN = [
     'fonts.googleapis.com',
-    'fonts.gstatic.com',
-    'www.gstatic.com'
+    'fonts.gstatic.com'
 ];
 
 self.addEventListener('install', (event) => {

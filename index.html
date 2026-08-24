@@ -626,9 +626,15 @@
         </div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+    <!-- Firebase compat SDK 10.13.2, vendored from the npm package (identical
+         UMD bundles to the gstatic CDN, ~330KB). Bundled rather than fetched
+         so the native shell has Firebase on cold start instead of waiting on
+         a CDN round-trip - and so no executable code is pulled at runtime.
+         To upgrade: npm pack firebase@<version>, copy the three
+         firebase-*-compat.js files into vendor/firebase/. -->
+    <script src="vendor/firebase/firebase-app-compat.js"></script>
+    <script src="vendor/firebase/firebase-database-compat.js"></script>
+    <script src="vendor/firebase/firebase-auth-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="avatars.js"></script>
     <script src="icons.js"></script>
