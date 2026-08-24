@@ -638,17 +638,35 @@
     <script src="multiplayer.js"></script>
     <script src="admin.js"></script>
     <script>
+        function isNativeShell() {
+            return !!(window.Capacitor && window.Capacitor.isNativePlatform
+                && window.Capacitor.isNativePlatform());
+        }
+
         // Register service worker for offline play & installability, but NOT
         // inside the Capacitor native shell: there the webview already bundles
         // assets locally, and a SW intercepting capacitor://localhost can cause
         // blank-screen errors. Also skipped on file://.
         (function registerSW() {
-            const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform
-                && window.Capacitor.isNativePlatform());
-            if (isNative) return;
+            if (isNativeShell()) return;
             if ('serviceWorker' in navigator && location.protocol !== 'file:') {
                 navigator.serviceWorker.register('sw.js').catch(() => {});
             }
+        })();
+
+        // In the native shell a target="_blank" link opens a chrome-less
+        // webview with no back button, stranding the player (App Review opens
+        // the privacy policy, so it has to be reachable AND escapable). Both
+        // pages carry their own "back to game" link, so navigating in place is
+        // safe here. On the web _blank stays, keeping the game tab alive.
+        (function keepLocalPagesInShell() {
+            if (!isNativeShell()) return;
+            document.querySelectorAll('a[target="_blank"]').forEach(a => {
+                const href = a.getAttribute('href') || '';
+                if (/^https?:/i.test(href)) return; // real external links keep _blank
+                a.removeAttribute('target');
+                a.removeAttribute('rel');
+            });
         })();
     </script>
 </body>

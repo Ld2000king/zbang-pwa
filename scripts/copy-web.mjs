@@ -29,6 +29,14 @@ const EXCLUDE = new Set([
     'capacitor.config.json',
     'capacitor.config.ts',
     'database.rules.json', // server-side Firebase rules, not a web asset
+    // Icon/splash pipeline artifacts. @capacitor/assets reads assets/ from the
+    // repo root (--assetPath assets) and writes into the native projects, and
+    // store/ is uploaded to App Store Connect / Play Console by hand - none of
+    // it is referenced by the web app, so shipping it would just add ~8MB of
+    // dead weight to the IPA/AAB.
+    'assets',
+    'store',
+    'Logo.png.jpeg',
     '.DS_Store',
     'Thumbs.db'
 ]);
