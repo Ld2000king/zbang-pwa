@@ -28,6 +28,13 @@
   //       be extended (never cleared, except by the host on a round reset), so
   //       a frozen player really is out of the round.
   //
+  //   /leaderboard keys are the game's own playerId (a push key, not the auth
+  //   UID), but each entry also carries "uid" = the writer's Firebase Auth UID
+  //   (set by submitScoreToLeaderboard() in game.js). A brand-new row may be
+  //   created by anyone (self-submission is opt-in), but once it exists, only
+  //   the original writer (matching uid) or the admin UID may modify it - so
+  //   one player can no longer overwrite another player's row.
+  //
   // REMAINING TRUST NOTES (inherent to host-authoritative P2P, not fixable
   // with Rules alone):
   //   * A player can still inflate their OWN score - Rules can't tell a real
@@ -36,9 +43,6 @@
   //   * The HOST is a trusted role: it computes round results and the winner,
   //     so a cheating host could rig its own match. Only server authority
   //     (Cloud Functions) removes that trust.
-  //   * /leaderboard keys are the game's own playerId (a push key), not the
-  //     auth UID, so leaderboard entries are validated for shape but not
-  //     identity-bound. Bind by switching writes to leaderboard/{auth.uid}.
   // ==========================================================================
 
   "rules": {
@@ -136,7 +140,13 @@
     "leaderboard": {
       ".read": "auth != null",
       "$pid": {
-        ".write": "auth != null",
+        // A brand-new row may be created by anyone (self-submission is
+        // opt-in from the result screen). Once a row exists, only the
+        // player who created it (uid match) or the admin may modify it -
+        // this is what makes renameLeaderboardEntry() in game.js actually
+        // admin-only instead of anyone being able to edit any row.
+        ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && (data.child('uid').val() === auth.uid || auth.uid === 'PASTE_ADMIN_UID_HERE')))",
+        "uid":       { ".validate": "newData.isString() && newData.val() === auth.uid" },
         "name":      { ".validate": "newData.isString() && newData.val().length <= 40" },
         "score":     { ".validate": "newData.isNumber() && newData.val() >= 0" },
         "avatarId":  { ".validate": "newData.isString() || newData.isNumber()" },

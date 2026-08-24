@@ -1500,16 +1500,19 @@ function showGameOverDialog() {
 // fine for a casual leaderboard, not a competitive-stakes one.
 function submitScoreToLeaderboard() {
     if (typeof FIREBASE_READY === 'undefined' || !FIREBASE_READY || !db || !gameState.playerId) return;
-    const entry = {
-        name: gameState.playerName,
-        score: gameState.bestSingleScore,
-        avatarId: networkSafeAvatarId(),
-        updatedAt: firebase.database.ServerValue.TIMESTAMP
-    };
     const btn = document.getElementById('srLeaderboardBtn');
     if (btn) { btn.disabled = true; btn.innerHTML = '✓ נוסף לזבאנג רויאל'; }
     if (typeof authReady !== 'undefined') {
-        authReady.then(() => db.ref('leaderboard/' + gameState.playerId).set(entry)
+        // uid binds this row to the writer's Firebase Auth UID (see the
+        // Security Rules): without it, any signed-in visitor could overwrite
+        // another player's row instead of only their own.
+        authReady.then(user => db.ref('leaderboard/' + gameState.playerId).set({
+            uid: user.uid,
+            name: gameState.playerName,
+            score: gameState.bestSingleScore,
+            avatarId: networkSafeAvatarId(),
+            updatedAt: firebase.database.ServerValue.TIMESTAMP
+        })
             .then(() => showMessage('נוסף לזבאנג רויאל!', 'success'))
             .catch(err => {
                 console.warn('Leaderboard write failed:', err.message);
