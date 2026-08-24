@@ -32,6 +32,11 @@ const MASTER = join(root, 'Logo.png.jpeg');
 mkdirSync(join(root, 'assets'), { recursive: true });
 mkdirSync(join(root, 'store'), { recursive: true });
 
+// Lossless, just a harder DEFLATE search than sharp's default (level 6 /
+// effort 7). These are big flat-colour canvases - the 2732px splashes went
+// 1.6MB -> 0.33MB each - and every byte here lands in the shipped IPA/AAB.
+const PNG_OPTS = { compressionLevel: 9, effort: 10 };
+
 // Sample the master's corner pixel for the brand background color (used for
 // splash screens and the Android adaptive background).
 async function brandColor() {
@@ -43,17 +48,17 @@ async function brandColor() {
 
 // A square PNG of the master resized to `size`, opaque (no alpha).
 function squareOpaque(size) {
-    return sharp(MASTER).resize(size, size, { fit: 'cover' }).flatten().png();
+    return sharp(MASTER).resize(size, size, { fit: 'cover' }).flatten().png(PNG_OPTS);
 }
 
 // The logo scaled to `inner` px, centered on a `size` px canvas of `bg`
 // (bg alpha 0 => transparent, used for adaptive foreground).
 async function padded(size, inner, bg) {
     const logo = await sharp(MASTER).resize(inner, inner, { fit: 'contain' })
-        .png().toBuffer();
+        .png(PNG_OPTS).toBuffer();
     return sharp({ create: { width: size, height: size, channels: 4, background: bg } })
         .composite([{ input: logo, gravity: 'centre' }])
-        .png();
+        .png(PNG_OPTS);
 }
 
 async function run() {
@@ -70,7 +75,7 @@ async function run() {
     await (await padded(1024, 640, transparent)).toFile(out('assets/icon-foreground.png'));
     // adaptive background: solid brand blue
     await sharp({ create: { width: 1024, height: 1024, channels: 4, background: solid } })
-        .png().toFile(out('assets/icon-background.png'));
+        .png(PNG_OPTS).toFile(out('assets/icon-background.png'));
     // splash: logo centered (~33%) on brand blue
     await (await padded(2732, 900, solid)).toFile(out('assets/splash.png'));
     await (await padded(2732, 900, dark)).toFile(out('assets/splash-dark.png'));
