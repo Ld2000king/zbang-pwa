@@ -1053,7 +1053,7 @@ function renderBoard(boardId = 'board') {
     });
 
     boardEl.onpointerdown = (e) => {
-        if (!currentGame.gameActive || isBoardInputFrozen()) return;
+        if (!currentGame.gameActive || isBoardInputBlocked()) return;
         e.preventDefault();
         isDragging = true;
         dragPath = [];
@@ -1091,8 +1091,25 @@ function isBoardInputFrozen() {
     return typeof mpFreezeMsLeft === 'function' && mpFreezeMsLeft() > 0;
 }
 
-// Guard for every player action. Returns true (and nags) while frozen.
+// True once the room has eliminated ME in this multiplayer match - an
+// eliminated player can watch, but must not keep finding words or spending
+// power-ups on a match they're already out of.
+function isEliminatedFromMatch() {
+    return typeof amIEliminatedMP === 'function' && amIEliminatedMP();
+}
+
+// Combined "board can't be touched right now" check used by the pointer
+// handlers - covers both an active freeze and being eliminated.
+function isBoardInputBlocked() {
+    return isBoardInputFrozen() || isEliminatedFromMatch();
+}
+
+// Guard for every player action. Returns true (and nags) while frozen or eliminated.
 function blockedByFreeze() {
+    if (isEliminatedFromMatch()) {
+        showBoardMessage('הודחת מהמשחק!', 'warning', 800);
+        return true;
+    }
     if (!isBoardInputFrozen()) return false;
     showBoardMessage('אתה מוקפא!', 'warning', 800);
     return true;
@@ -1126,8 +1143,8 @@ function detectTileAt(x, y) {
 
 function endDrag() {
     isDragging = false;
-    // a freeze that landed mid-drag voids the word instead of scoring it
-    if (isBoardInputFrozen()) { cancelDrag(); return; }
+    // a freeze (or elimination) that landed mid-drag voids the word instead of scoring it
+    if (isBoardInputBlocked()) { cancelDrag(); return; }
     // board is all-regular forms, but normalize defensively so lookups match
     const word = normalizeFinals(dragPath.map(i => currentGame.board[i]).join(''));
 

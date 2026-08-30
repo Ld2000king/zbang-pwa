@@ -22,7 +22,8 @@ const MP = {
     matchType: null,   // 'random' while this room came from random matchmaking
     autoStarting: false, // guards against double-firing the random-match auto-start
     resultApplied: false, // guards against re-awarding coins/trophies on repeat 'finished' snapshots
-    _freezeNotifiedFor: 0 // freezeUntil value already announced, so each freeze alerts once
+    _freezeNotifiedFor: 0, // freezeUntil value already announced, so each freeze alerts once
+    spectating: false // eliminated player chose "watch the rest" - hides the elimination overlay
 };
 
 const ROUND_SECONDS = 60;
@@ -240,6 +241,13 @@ function onRoomUpdate(room) {
         }
         updateMultiplayerUI(room);
         applyFreezeFromRoom(room);
+        // An eliminated player can't keep scoring off the board they're stuck
+        // looking at - hide the power-ups (nothing left to spend them on) and
+        // surface the "watch / go home / new game" choice instead.
+        const iAmEliminated = amIEliminatedMP();
+        const powerUpsRow = document.getElementById('battlePowerUpsRow');
+        if (powerUpsRow) powerUpsRow.style.display = iAmEliminated ? 'none' : '';
+        renderEliminatedOverlay(iAmEliminated && !MP.spectating);
     } else if (room.status === 'roundEnd') {
         stopMultiplayerTimer();
         showMultiplayerRoundEnd(room);
@@ -649,7 +657,7 @@ function playAgainRandom() {
 
 function submitMultiplayerWord(word, newTotalScore) {
     if (!MP.roomCode || !MP.playerId) return;
-    if (mpFreezeMsLeft() > 0) return; // last line of defence: no scoring while frozen
+    if (mpFreezeMsLeft() > 0 || amIEliminatedMP()) return; // last line of defence: no scoring while frozen/eliminated
     const base = 'rooms/' + MP.roomCode + '/players/' + MP.playerId;
     db.ref(base + '/score').set(newTotalScore);
     db.ref(base + '/foundWords/' + word).set(true);
@@ -701,6 +709,63 @@ function useMultiplayerHint() {
 
     showMessage(`${word} - כל הכבוד! +${points}`, 'success');
     launchSparkles();
+}
+
+// ---- elimination gate --------------------------------------------------------
+
+// True once the room marks ME as eliminated - an eliminated player must not
+// keep finding words / spending power-ups on a match they're already out of.
+function amIEliminatedMP() {
+    if (currentGame.mode !== 'multiplayer' || !MP.room || !MP.playerId) return false;
+    const me = (MP.room.players || {})[MP.playerId];
+    return !!(me && me.eliminated);
+}
+
+// Full-board "you're out" curtain offering the only three things an
+// eliminated player can still do: keep watching, go home, or start a new
+// game. Dismissing it (spectate) just hides the curtain - the board input
+// itself stays locked via isBoardInputFrozen()/blockedByFreeze() in game.js.
+function renderEliminatedOverlay(show) {
+    const board = document.getElementById('battleBoard');
+    if (!board) return;
+    let overlay = document.getElementById('battleEliminatedOverlay');
+
+    if (!show) {
+        if (overlay) overlay.remove();
+        board.classList.remove('board-frozen');
+        return;
+    }
+
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'battleEliminatedOverlay';
+        overlay.className = 'board-eliminated-overlay';
+        overlay.innerHTML = `
+            <div class="elim-label">הודחת מהמשחק!</div>
+            <div class="elim-actions">
+                <button class="elim-btn elim-spectate" onclick="mpSpectateAfterElimination()">צפה בהמשך המשחק</button>
+                <button class="elim-btn elim-home" onclick="goHome()">מסך בית</button>
+                <button class="elim-btn elim-new" onclick="mpNewGameAfterElimination()">משחק חדש</button>
+            </div>`;
+        board.appendChild(overlay);
+    } else if (overlay.parentElement !== board) {
+        board.appendChild(overlay); // renderBoard() wipes the board's children
+    }
+    board.classList.add('board-frozen'); // reuse the same dimmed-tile look
+    if (isDragging) cancelDrag();
+}
+
+// "watch the rest" - dismiss the curtain, board stays visible but locked
+function mpSpectateAfterElimination() {
+    MP.spectating = true;
+    renderEliminatedOverlay(false);
+}
+
+// leave this room entirely and go pick a new game mode
+function mpNewGameAfterElimination() {
+    leaveMultiplayerRoom();
+    showScreen('gameModeScreen');
+    updateHomeUI();
 }
 
 // ---- freeze state ----------------------------------------------------------
@@ -825,5 +890,7 @@ function leaveMultiplayerRoom() {
     MP.autoStarting = false;
     MP.resultApplied = false;
     MP._freezeNotifiedFor = 0;
+    MP.spectating = false;
+    renderEliminatedOverlay(false);
     if (currentGame.mode === 'multiplayer') currentGame.mode = null;
 }
