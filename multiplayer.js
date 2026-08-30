@@ -742,24 +742,26 @@ function renderFreezeOverlay(msLeft) {
     if (isDragging) cancelDrag(); // a freeze mid-drag drops the selection at once
 }
 
-// freeze the current highest-scoring opponent for 8 seconds (on their device)
+// freeze every opponent (all players except the one who used the item) for 8 seconds
 function useMultiplayerFreeze() {
     if (blockedByFreeze()) return;
     if (!canPayForItem('freezeOpponents')) return;
     const players = (MP.room || {}).players || {};
     const opponents = Object.entries(players)
-        .filter(([pid, p]) => pid !== MP.playerId && !p.eliminated && p.connected !== false)
-        .sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
+        .filter(([pid, p]) => pid !== MP.playerId && !p.eliminated && p.connected !== false);
     if (opponents.length === 0) { showMessage('אין יריבים להקפיא', 'warning'); return; }
 
     consumeItemPayment('freezeOpponents');
     saveGameState();
     updateHomeUI();
 
-    const [targetId, target] = opponents[0];
     const until = Date.now() + MP.serverOffset + 8000;
-    db.ref('rooms/' + MP.roomCode + '/players/' + targetId + '/freezeUntil').set(until);
-    showMessage(`${target.name} הוקפא/ה ל-8 שניות!`, 'info');
+    const updates = {};
+    opponents.forEach(([pid]) => {
+        updates['players/' + pid + '/freezeUntil'] = until;
+    });
+    db.ref('rooms/' + MP.roomCode).update(updates);
+    showMessage('כל היריבים הוקפאו ל-8 שניות!', 'info');
 }
 
 // react to a freeze written to MY node by an opponent: lock the board right
