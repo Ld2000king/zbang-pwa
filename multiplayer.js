@@ -266,8 +266,12 @@ function renderLobby(room) {
     listEl.innerHTML = '';
     Object.entries(room.players || {}).forEach(([pid, p]) => {
         const isSelf = pid === MP.playerId;
+        // my own custom gallery photo is local-only and never synced to the
+        // room (see networkSafeAvatarId) - show it from local storage instead
+        // of the sanitized network id, same as everywhere else I render myself
+        const avatarSvg = isSelf ? getOwnAvatarMarkup() : getAvatarById(p.avatarId).svg;
         listEl.innerHTML += `<div class="player-status${isSelf ? ' self' : ''}">
-            <div class="status-avatar">${getAvatarById(p.avatarId).svg}</div>
+            <div class="status-avatar">${avatarSvg}</div>
             <span>${escapeHtml(p.name)}${pid === room.hostId ? ' 👑' : ''}</span>
         </div>`;
     });
@@ -673,8 +677,11 @@ function updateMultiplayerUI(room) {
         if (p.eliminated) return;
         const isSelf = pid === MP.playerId;
         const dim = p.connected === false ? ' style="opacity:.5"' : '';
+        // same local-photo fallback as renderLobby() - my custom avatar never
+        // reaches the room, so read it from local storage for myself
+        const avatarSvg = isSelf ? getOwnAvatarMarkup() : getAvatarById(p.avatarId).svg;
         statusEl.innerHTML += `<div class="player-status${isSelf ? ' self' : ''}"${dim}>
-            <div class="status-avatar">${getAvatarById(p.avatarId).svg}</div>
+            <div class="status-avatar">${avatarSvg}</div>
             <span>${isSelf ? 'אתה' : escapeHtml(p.name)}</span><span>${p.score || 0}</span>
         </div>`;
     });
