@@ -70,7 +70,29 @@ function myPlayerNode() {
     // must equal auth.uid (Rules reject any other value). Callers (createRoom /
     // joinRoom) always waitForAuth() first, so auth.currentUser is set here.
     const uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-    return { uid: uid, name: gameState.playerName, avatarId: networkSafeAvatarId(), score: 0, eliminated: false, connected: true, freezeUntil: 0 };
+    // photoURL is only set once uploadCustomAvatarPhoto() (game.js) has
+    // finished a successful upload for this device; null here just omits
+    // the field (Firebase treats a null leaf as "don't write it").
+    const photoURL = localStorage.getItem('zabangCustomAvatarURL') || null;
+    return { uid: uid, name: gameState.playerName, avatarId: networkSafeAvatarId(), photoURL: photoURL, score: 0, eliminated: false, connected: true, freezeUntil: 0 };
+}
+
+// Called after a fresh avatar photo finishes uploading (game.js) - pushes
+// the new URL straight into the room I'm currently in, if any, so friends
+// already mid-match see it without me having to leave and rejoin.
+function syncMyPhotoURLToRoom(url) {
+    if (!MP.roomCode || !MP.playerId || !db) return;
+    db.ref('rooms/' + MP.roomCode + '/players/' + MP.playerId + '/photoURL').set(url).catch(() => {});
+}
+
+// Shared by renderLobby()/updateMultiplayerUI(): my own photo comes straight
+// from local storage (instant, works offline, doesn't wait on the Storage
+// round-trip); an opponent's comes from their synced photoURL if they have
+// one, else their preset avatarId.
+function avatarMarkupForPlayer(pid, p) {
+    if (pid === MP.playerId) return getOwnAvatarMarkup();
+    if (p.photoURL) return `<img src="${escapeHtml(p.photoURL)}" alt="" class="custom-avatar-img">`;
+    return getAvatarById(p.avatarId).svg;
 }
 
 // ---- navigation entry points ----------------------------------------------
@@ -266,12 +288,8 @@ function renderLobby(room) {
     listEl.innerHTML = '';
     Object.entries(room.players || {}).forEach(([pid, p]) => {
         const isSelf = pid === MP.playerId;
-        // my own custom gallery photo is local-only and never synced to the
-        // room (see networkSafeAvatarId) - show it from local storage instead
-        // of the sanitized network id, same as everywhere else I render myself
-        const avatarSvg = isSelf ? getOwnAvatarMarkup() : getAvatarById(p.avatarId).svg;
         listEl.innerHTML += `<div class="player-status${isSelf ? ' self' : ''}">
-            <div class="status-avatar">${avatarSvg}</div>
+            <div class="status-avatar">${avatarMarkupForPlayer(pid, p)}</div>
             <span>${escapeHtml(p.name)}${pid === room.hostId ? ' 👑' : ''}</span>
         </div>`;
     });
@@ -677,11 +695,8 @@ function updateMultiplayerUI(room) {
         if (p.eliminated) return;
         const isSelf = pid === MP.playerId;
         const dim = p.connected === false ? ' style="opacity:.5"' : '';
-        // same local-photo fallback as renderLobby() - my custom avatar never
-        // reaches the room, so read it from local storage for myself
-        const avatarSvg = isSelf ? getOwnAvatarMarkup() : getAvatarById(p.avatarId).svg;
         statusEl.innerHTML += `<div class="player-status${isSelf ? ' self' : ''}"${dim}>
-            <div class="status-avatar">${avatarSvg}</div>
+            <div class="status-avatar">${avatarMarkupForPlayer(pid, p)}</div>
             <span>${isSelf ? 'אתה' : escapeHtml(p.name)}</span><span>${p.score || 0}</span>
         </div>`;
     });

@@ -359,7 +359,21 @@ window.addEventListener('load', () => {
     initMusic();
     maybeShowDailyReward(); // pop the daily bonus if it's waiting
     if (isFirstRun) openNameModal(true); // brand-new player - must pick a name before playing
+    backfillCustomAvatarUpload(); // a photo picked before online sync existed still needs its one-time upload
 });
+
+// One-time catch-up for a custom avatar that was picked before this device
+// ever uploaded one to Storage (i.e. before online avatar sync existed, or a
+// prior upload never succeeded) - re-derives the blob from the locally saved
+// data URL and runs it through the normal upload path. A no-op once
+// zabangCustomAvatarURL is set (every future re-pick already uploads itself).
+function backfillCustomAvatarUpload() {
+    if (gameState.avatarId !== 'custom') return;
+    if (localStorage.getItem('zabangCustomAvatarURL')) return;
+    const dataUrl = localStorage.getItem('zabangCustomAvatar');
+    if (!dataUrl) return;
+    fetch(dataUrl).then(r => r.blob()).then(blob => uploadCustomAvatarPhoto(blob)).catch(() => {});
+}
 
 // Merge the expansion packs into the dictionary: words.js (EXTRA_WORDS, written
 // with natural final letters) and words-bulk.js (EXTRA_WORDS_BULK, already
@@ -2399,9 +2413,11 @@ function renderAvatarPicker() {
     grid.appendChild(customTile);
 }
 
-// The player's own picture, resized/compressed client-side and kept only in
-// this device's localStorage - never uploaded or sent to other players (see
-// the avatarId sanitization in myPlayerNode()/submitScoreToLeaderboard()).
+// The player's own picture, resized/compressed client-side: kept in this
+// device's localStorage for instant local display (works offline, no wait
+// on a network round-trip), and also uploaded to Firebase Storage in the
+// background so online opponents/friends can see it too - see
+// uploadCustomAvatarPhoto() and multiplayer.js's avatar rendering.
 function handleCustomAvatarFile(event) {
     const file = event.target.files[0];
     event.target.value = ''; // allow re-selecting the same file later
@@ -2432,10 +2448,35 @@ function handleCustomAvatarFile(event) {
             renderAvatarPicker();
             updateHomeUI();
             showMessage('התמונה האישית נשמרה!', 'success');
+
+            canvas.toBlob(blob => uploadCustomAvatarPhoto(blob), 'image/jpeg', 0.82);
         };
         img.src = e.target.result;
     };
     reader.readAsDataURL(file);
+}
+
+// Uploads the resized avatar photo to a fixed per-player Storage path
+// (avatars/{uid}.jpg - a new upload overwrites the old file, so there's
+// nothing to clean up), then remembers the public download URL locally and
+// pushes it live into the room I'm currently in, if any. Best-effort: this
+// runs after the photo is already saved and shown locally, so a failure
+// here (offline, Storage not configured, auth not ready yet) only means
+// opponents keep seeing my default avatar - it never blocks my own use of
+// the photo.
+async function uploadCustomAvatarPhoto(blob) {
+    if (!blob || typeof storage === 'undefined' || !storage || typeof waitForAuth !== 'function') return;
+    try {
+        await waitForAuth();
+        const uid = auth.currentUser.uid;
+        const ref = storage.ref('avatars/' + uid + '.jpg');
+        await ref.put(blob, { contentType: 'image/jpeg' });
+        const url = await ref.getDownloadURL();
+        localStorage.setItem('zabangCustomAvatarURL', url);
+        if (typeof syncMyPhotoURLToRoom === 'function') syncMyPhotoURLToRoom(url);
+    } catch (err) {
+        console.error('Avatar photo upload failed:', err);
+    }
 }
 
 function selectAvatar(id) {
@@ -2464,9 +2505,12 @@ function getOwnAvatarMarkup() {
     return getAvatarById(gameState.avatarId).svg;
 }
 
-// The id to send over Firebase (multiplayer room state, the leaderboard) -
-// a custom photo is a local device image, never uploaded, so anything that
-// would otherwise send 'custom' falls back to the default avatar instead.
+// The preset avatarId to send over Firebase (multiplayer room state, the
+// leaderboard) as the fallback identity - 'custom' isn't a real preset
+// getAvatarById() can render, so it's swapped for the default avatar here.
+// A custom photo itself now DOES reach online opponents, but via the
+// separate photoURL field (see myPlayerNode()/uploadCustomAvatarPhoto()),
+// which every avatar renderer prefers over this id when present.
 function networkSafeAvatarId() {
     return gameState.avatarId === 'custom' ? 'dan' : gameState.avatarId;
 }
