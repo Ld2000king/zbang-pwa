@@ -223,12 +223,17 @@ const DAILY_REWARDS = [
 // Coins granted by watching a (mock) rewarded video ad.
 const AD_REWARD_COINS = 50;
 
-// Mock in-app coin packages. Prices are display-only placeholders in ILS -
-// tapping "buy" just shows the store-coming-soon modal (no real payments).
+// Real-money coin packages, purchased through Apple StoreKit / Google Play
+// Billing (see iap.js). `sku` must exactly match the consumable product id
+// created in App Store Connect / Google Play Console. `price` is only the
+// placeholder shown before the store responds (and the permanent fallback on
+// the web/PWA build, where there is no purchase system) - once the native
+// store loads the real product, iap.js fills in `livePrice` with the actual
+// localized price and renderShop() prefers that.
 const COIN_PACKAGES = [
-    { name: 'שק מטבעות', coins: 500,  price: '₪4.90',  emoji: '💰' },
-    { name: 'תיבת אוצר', coins: 1200, price: '₪9.90',  emoji: '🎁' },
-    { name: 'אוצר ענק',  coins: 3000, price: '₪19.90', emoji: '💎' }
+    { sku: 'com.zabang.royale.coins.small',  name: 'שק מטבעות', coins: 500,  price: '₪4.90',  emoji: '💰' },
+    { sku: 'com.zabang.royale.coins.medium', name: 'תיבת אוצר', coins: 1200, price: '₪9.90',  emoji: '🎁' },
+    { sku: 'com.zabang.royale.coins.large',  name: 'אוצר ענק',  coins: 3000, price: '₪19.90', emoji: '💎' }
 ];
 
 // words the admin has rejected (public rejected_words node), used to prune a
@@ -593,6 +598,10 @@ function loadGameState() {
         gameState.playerId = (typeof db !== 'undefined' && db) ? db.ref().push().key
             : 'local-' + Date.now() + Math.random().toString(36).slice(2);
     }
+    // finished coin-package purchase transaction ids already granted (iap.js)
+    // - guards a consumable against being credited twice if its receipt gets
+    // redelivered before finish() completes (e.g. the app closing mid-purchase)
+    if (!Array.isArray(gameState.grantedIapTransactions)) gameState.grantedIapTransactions = [];
     if (!gameState.inventory) gameState.inventory = {};
     // migrate the old single-counter hint field (pre-multi-item inventory) into the new shape
     if (typeof gameState.hints === 'number') {
@@ -2052,7 +2061,7 @@ function renderShop() {
                         <p>${icon('coin', 'coin-icon')} ${p.coins} מטבעות</p>
                     </div>
                 </div>
-                <button class="buy-btn price-btn" onclick="showIapComingSoon()">${p.price}</button>
+                <button class="buy-btn price-btn" onclick="buyCoinPackage('${p.sku}')">${p.livePrice || p.price}</button>
             </div>
         `;
     });
@@ -2151,7 +2160,10 @@ function watchAdForCoins() {
     }, 1000);
 }
 
-// Mock IAP: real payments arrive with the native app launch.
+// Fallback shown when a real purchase isn't possible right now: the web/PWA
+// build (no purchase system exists outside a native app), or a native build
+// whose store hasn't finished loading products yet. See buyCoinPackage() in
+// iap.js, which calls this itself when it can't place a real order.
 function showIapComingSoon() {
     showInfoModal('החנות הפיננסית תהיה זמינה עם השקת האפליקציה הרשמית ב-Google Play וב-App Store!');
 }
