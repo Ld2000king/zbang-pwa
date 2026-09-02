@@ -17,12 +17,13 @@
   //   the admin UID.
   //
   //   Each room player node carries "uid" = the writer's Firebase Auth UID
-  //   (set by myPlayerNode() in multiplayer.js). "photoURL" (optional, a
-  //   Firebase Storage download URL - see storage.rules) is how a player's
-  //   custom gallery avatar reaches their opponents; it's regex-locked to
-  //   our own storage bucket so a player can't smuggle an arbitrary URL into
-  //   someone else's client via their own player node. These rules use uid
-  //   so that:
+  //   (set by myPlayerNode() in multiplayer.js). "photoData" (optional) is
+  //   how a player's custom gallery avatar reaches their opponents: a small
+  //   base64 JPEG data URL embedded directly in the node (no Firebase
+  //   Storage - that needs the paid Blaze plan, and this project stays on
+  //   the free Spark plan), tightly length-capped since the whole room
+  //   re-downloads on every update for every player in it. These rules use
+  //   uid so that:
   //     * a player may only create/delete/edit the node whose uid is their own;
   //     * only the room HOST may reset other players' scores, mark a player
   //       eliminated, clear foundWords, or set status/winnerId/loserId/board;
@@ -94,10 +95,13 @@
             "uid":         { ".validate": "newData.isString() && newData.val() === auth.uid" },
             "name":        { ".validate": "newData.isString() && newData.val().length <= 40" },
             "avatarId":    { ".validate": "newData.isString() || newData.isNumber()" },
-            // uploaded gallery photo (Firebase Storage download URL) - scoped
-            // to our own bucket's URL shape so this can't be abused to inject
-            // an arbitrary/malicious src into another player's <img> tag
-            "photoURL":    { ".validate": "newData.isString() && newData.val().length <= 400 && newData.val().matches(/^https:\\/\\/firebasestorage\\.googleapis\\.com\\/.*/)" },
+            // gallery photo, embedded directly as a small base64 JPEG data
+            // URL (no Storage - see the comment at the top of this file).
+            // Locked to the exact data-URL prefix a real photo produces, and
+            // capped well above what a 64px/low-quality JPEG needs but far
+            // below anything that could meaningfully bloat every player's
+            // room traffic.
+            "photoData":   { ".validate": "newData.isString() && newData.val().length <= 8000 && newData.val().matches(/^data:image\\/jpeg;base64,/)" },
             "eliminated":  { ".validate": "newData.isBoolean()", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
             "connected":   { ".validate": "newData.isBoolean()" },
 

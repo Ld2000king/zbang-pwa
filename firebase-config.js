@@ -27,7 +27,6 @@ const FIREBASE_READY = !firebaseConfig.databaseURL.startsWith('PASTE_');
 
 let db = null;
 let auth = null;
-let storage = null; // Firebase Storage - holds players' uploaded gallery avatar photos
 
 // resolves once we have a signed-in user (anonymous by default). Every
 // write that Security Rules protect (multiplayer rooms, word submissions)
@@ -39,7 +38,6 @@ if (FIREBASE_READY && typeof firebase !== 'undefined') {
     firebase.initializeApp(firebaseConfig);
     db = firebase.database();
     auth = firebase.auth();
-    storage = firebase.storage();
 
     auth.onAuthStateChanged(user => {
         if (user) authReadyResolve(user);

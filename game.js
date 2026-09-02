@@ -364,20 +364,25 @@ window.addEventListener('load', () => {
     initMusic();
     maybeShowDailyReward(); // pop the daily bonus if it's waiting
     if (isFirstRun) openNameModal(true); // brand-new player - must pick a name before playing
-    backfillCustomAvatarUpload(); // a photo picked before online sync existed still needs its one-time upload
+    backfillCustomAvatarSync(); // a photo picked before online sync existed still needs its low-res sync copy built
 });
 
 // One-time catch-up for a custom avatar that was picked before this device
-// ever uploaded one to Storage (i.e. before online avatar sync existed, or a
-// prior upload never succeeded) - re-derives the blob from the locally saved
-// data URL and runs it through the normal upload path. A no-op once
-// zabangCustomAvatarURL is set (every future re-pick already uploads itself).
-function backfillCustomAvatarUpload() {
+// ever built a synced thumbnail (i.e. before online avatar sync existed) -
+// re-derives the small copy from the locally saved 160px data URL. A no-op
+// once zabangCustomAvatarSync is set (every future re-pick builds it itself).
+function backfillCustomAvatarSync() {
     if (gameState.avatarId !== 'custom') return;
-    if (localStorage.getItem('zabangCustomAvatarURL')) return;
+    if (localStorage.getItem('zabangCustomAvatarSync')) return;
     const dataUrl = localStorage.getItem('zabangCustomAvatar');
     if (!dataUrl) return;
-    fetch(dataUrl).then(r => r.blob()).then(blob => uploadCustomAvatarPhoto(blob)).catch(() => {});
+    const img = new Image();
+    img.onload = () => {
+        const syncDataUrl = resizeImageToDataUrl(img, 64, 0.6);
+        try { localStorage.setItem('zabangCustomAvatarSync', syncDataUrl); } catch (err) { /* non-fatal */ }
+        if (typeof syncMyPhotoToRoom === 'function') syncMyPhotoToRoom(syncDataUrl);
+    };
+    img.src = dataUrl;
 }
 
 // Merge the expansion packs into the dictionary: words.js (EXTRA_WORDS, written
@@ -2425,11 +2430,20 @@ function renderAvatarPicker() {
     grid.appendChild(customTile);
 }
 
-// The player's own picture, resized/compressed client-side: kept in this
-// device's localStorage for instant local display (works offline, no wait
-// on a network round-trip), and also uploaded to Firebase Storage in the
-// background so online opponents/friends can see it too - see
-// uploadCustomAvatarPhoto() and multiplayer.js's avatar rendering.
+// The player's own picture, resized/compressed client-side: a good-quality
+// 160px copy is kept in this device's localStorage for instant local display
+// (works offline, no network round-trip), and a much smaller 64px/low-quality
+// copy is embedded directly into the multiplayer room's player node (see
+// syncMyPhotoToRoom() below) so online opponents can see it too.
+//
+// There's no Firebase Storage involved on purpose: Storage now requires the
+// paid Blaze plan even for tiny usage, and this project stays on the free
+// Spark plan - so the synced copy travels as a small base64 data URL inside
+// Realtime Database (free on Spark) instead of an uploaded file. Keeping it
+// tiny matters here because the whole room snapshot (including every
+// player's photo) re-downloads on every single room update (a score change,
+// a freeze, anything) - a large image would multiply that traffic for
+// everyone in the room, not just its owner.
 function handleCustomAvatarFile(event) {
     const file = event.target.files[0];
     event.target.value = ''; // allow re-selecting the same file later
@@ -2440,15 +2454,7 @@ function handleCustomAvatarFile(event) {
     reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-            const size = 160;
-            const canvas = document.createElement('canvas');
-            canvas.width = size;
-            canvas.height = size;
-            const ctx = canvas.getContext('2d');
-            const scale = Math.max(size / img.width, size / img.height);
-            const w = img.width * scale, h = img.height * scale;
-            ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h); // cover-crop to a square
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+            const dataUrl = resizeImageToDataUrl(img, 160, 0.82);
             try {
                 localStorage.setItem('zabangCustomAvatar', dataUrl);
             } catch (err) {
@@ -2461,34 +2467,26 @@ function handleCustomAvatarFile(event) {
             updateHomeUI();
             showMessage('התמונה האישית נשמרה!', 'success');
 
-            canvas.toBlob(blob => uploadCustomAvatarPhoto(blob), 'image/jpeg', 0.82);
+            const syncDataUrl = resizeImageToDataUrl(img, 64, 0.6);
+            try { localStorage.setItem('zabangCustomAvatarSync', syncDataUrl); } catch (err) { /* my own display already works without it */ }
+            if (typeof syncMyPhotoToRoom === 'function') syncMyPhotoToRoom(syncDataUrl);
         };
         img.src = e.target.result;
     };
     reader.readAsDataURL(file);
 }
 
-// Uploads the resized avatar photo to a fixed per-player Storage path
-// (avatars/{uid}.jpg - a new upload overwrites the old file, so there's
-// nothing to clean up), then remembers the public download URL locally and
-// pushes it live into the room I'm currently in, if any. Best-effort: this
-// runs after the photo is already saved and shown locally, so a failure
-// here (offline, Storage not configured, auth not ready yet) only means
-// opponents keep seeing my default avatar - it never blocks my own use of
-// the photo.
-async function uploadCustomAvatarPhoto(blob) {
-    if (!blob || typeof storage === 'undefined' || !storage || typeof waitForAuth !== 'function') return;
-    try {
-        await waitForAuth();
-        const uid = auth.currentUser.uid;
-        const ref = storage.ref('avatars/' + uid + '.jpg');
-        await ref.put(blob, { contentType: 'image/jpeg' });
-        const url = await ref.getDownloadURL();
-        localStorage.setItem('zabangCustomAvatarURL', url);
-        if (typeof syncMyPhotoURLToRoom === 'function') syncMyPhotoURLToRoom(url);
-    } catch (err) {
-        console.error('Avatar photo upload failed:', err);
-    }
+// Cover-crops an already-loaded image into a square JPEG data URL at the
+// given pixel size/quality.
+function resizeImageToDataUrl(img, size, quality) {
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const scale = Math.max(size / img.width, size / img.height);
+    const w = img.width * scale, h = img.height * scale;
+    ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+    return canvas.toDataURL('image/jpeg', quality);
 }
 
 function selectAvatar(id) {
@@ -2520,9 +2518,11 @@ function getOwnAvatarMarkup() {
 // The preset avatarId to send over Firebase (multiplayer room state, the
 // leaderboard) as the fallback identity - 'custom' isn't a real preset
 // getAvatarById() can render, so it's swapped for the default avatar here.
-// A custom photo itself now DOES reach online opponents, but via the
-// separate photoURL field (see myPlayerNode()/uploadCustomAvatarPhoto()),
-// which every avatar renderer prefers over this id when present.
+// A custom photo itself now DOES reach online opponents in a multiplayer
+// room, but via the separate photoData field (see myPlayerNode()/
+// syncMyPhotoToRoom() in multiplayer.js), which every avatar renderer
+// prefers over this id when present. (The leaderboard has no such field -
+// it still only ever sees this fallback id.)
 function networkSafeAvatarId() {
     return gameState.avatarId === 'custom' ? 'dan' : gameState.avatarId;
 }
