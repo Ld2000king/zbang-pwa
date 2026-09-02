@@ -84,6 +84,10 @@
             "uid":         { ".validate": "newData.isString() && newData.val() === auth.uid" },
             "name":        { ".validate": "newData.isString() && newData.val().length <= 40" },
             "avatarId":    { ".validate": "newData.isString() || newData.isNumber()" },
+            // a player's uploaded avatar photo, if any - must be a Firebase
+            // Storage download URL (see storage.rules /avatars/{uid}.jpg) and
+            // capped in length. Inert until client code actually uploads one.
+            "photoURL":    { ".validate": "newData.isString() && newData.val().length <= 400 && newData.val().matches(/^https:\\/\\/firebasestorage\\.googleapis\\.com\\/.*/)" },
             "eliminated":  { ".validate": "newData.isBoolean()", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
             "connected":   { ".validate": "newData.isBoolean()" },
 
