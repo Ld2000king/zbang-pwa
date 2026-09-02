@@ -350,7 +350,7 @@
 
             <div class="current-word-display" id="battleWordDisplay"></div>
 
-            <div class="power-ups-row">
+            <div class="power-ups-row" id="battlePowerUpsRow">
                 <button class="power-up-btn" onclick="handleBattleHint()" title="רמז"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18 H15"/><path d="M12 3 a6 6 0 0 1 3.5 10.9 c-0.8 0.6 -1.2 1.4 -1.2 2.1 H9.7 c0 -0.7 -0.4 -1.5 -1.2 -2.1 A6 6 0 0 1 12 3 Z"/></svg></span><span class="pu-cost">50</span></button>
                 <button class="power-up-btn" onclick="useShuffle()" title="ערבב לוח"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6 H7 L17 18 H21"/><path d="M17 6 H21 V10"/><path d="M3 18 H7 L10.5 13.8"/><path d="M17 18 H21 V14"/></svg></span><span class="pu-cost">20</span></button>
                 <button class="power-up-btn" onclick="handleBattleFreeze()" title="הקפא יריבים"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2 V22 M4.5 6 L19.5 18 M19.5 6 L4.5 18"/><circle cx="12" cy="12" r="10" stroke-dasharray="2 3"/></svg></span><span class="pu-cost">20</span></button>
@@ -629,6 +629,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-storage-compat.js"></script>
     <script src="firebase-config.js"></script>
     <script src="avatars.js"></script>
     <script src="icons.js"></script>
@@ -637,6 +638,7 @@
     <script src="words-bulk.js"></script>
     <script src="multiplayer.js"></script>
     <script src="admin.js"></script>
+    <script src="iap.js"></script>
     <script>
         // Register service worker for offline play & installability, but NOT
         // inside the Capacitor native shell: there the webview already bundles

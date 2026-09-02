@@ -22,7 +22,8 @@ const MP = {
     matchType: null,   // 'random' while this room came from random matchmaking
     autoStarting: false, // guards against double-firing the random-match auto-start
     resultApplied: false, // guards against re-awarding coins/trophies on repeat 'finished' snapshots
-    _freezeNotifiedFor: 0 // freezeUntil value already announced, so each freeze alerts once
+    _freezeNotifiedFor: 0, // freezeUntil value already announced, so each freeze alerts once
+    spectating: false // eliminated player chose "watch the rest" - hides the elimination overlay
 };
 
 const ROUND_SECONDS = 60;
@@ -69,7 +70,29 @@ function myPlayerNode() {
     // must equal auth.uid (Rules reject any other value). Callers (createRoom /
     // joinRoom) always waitForAuth() first, so auth.currentUser is set here.
     const uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-    return { uid: uid, name: gameState.playerName, avatarId: networkSafeAvatarId(), score: 0, eliminated: false, connected: true, freezeUntil: 0 };
+    // photoURL is only set once uploadCustomAvatarPhoto() (game.js) has
+    // finished a successful upload for this device; null here just omits
+    // the field (Firebase treats a null leaf as "don't write it").
+    const photoURL = localStorage.getItem('zabangCustomAvatarURL') || null;
+    return { uid: uid, name: gameState.playerName, avatarId: networkSafeAvatarId(), photoURL: photoURL, score: 0, eliminated: false, connected: true, freezeUntil: 0 };
+}
+
+// Called after a fresh avatar photo finishes uploading (game.js) - pushes
+// the new URL straight into the room I'm currently in, if any, so friends
+// already mid-match see it without me having to leave and rejoin.
+function syncMyPhotoURLToRoom(url) {
+    if (!MP.roomCode || !MP.playerId || !db) return;
+    db.ref('rooms/' + MP.roomCode + '/players/' + MP.playerId + '/photoURL').set(url).catch(() => {});
+}
+
+// Shared by renderLobby()/updateMultiplayerUI(): my own photo comes straight
+// from local storage (instant, works offline, doesn't wait on the Storage
+// round-trip); an opponent's comes from their synced photoURL if they have
+// one, else their preset avatarId.
+function avatarMarkupForPlayer(pid, p) {
+    if (pid === MP.playerId) return getOwnAvatarMarkup();
+    if (p.photoURL) return `<img src="${escapeHtml(p.photoURL)}" alt="" class="custom-avatar-img">`;
+    return getAvatarById(p.avatarId).svg;
 }
 
 // ---- navigation entry points ----------------------------------------------
@@ -240,6 +263,13 @@ function onRoomUpdate(room) {
         }
         updateMultiplayerUI(room);
         applyFreezeFromRoom(room);
+        // An eliminated player can't keep scoring off the board they're stuck
+        // looking at - hide the power-ups (nothing left to spend them on) and
+        // surface the "watch / go home / new game" choice instead.
+        const iAmEliminated = amIEliminatedMP();
+        const powerUpsRow = document.getElementById('battlePowerUpsRow');
+        if (powerUpsRow) powerUpsRow.style.display = iAmEliminated ? 'none' : '';
+        renderEliminatedOverlay(iAmEliminated && !MP.spectating);
     } else if (room.status === 'roundEnd') {
         stopMultiplayerTimer();
         showMultiplayerRoundEnd(room);
@@ -259,7 +289,7 @@ function renderLobby(room) {
     Object.entries(room.players || {}).forEach(([pid, p]) => {
         const isSelf = pid === MP.playerId;
         listEl.innerHTML += `<div class="player-status${isSelf ? ' self' : ''}">
-            <div class="status-avatar">${getAvatarById(p.avatarId).svg}</div>
+            <div class="status-avatar">${avatarMarkupForPlayer(pid, p)}</div>
             <span>${escapeHtml(p.name)}${pid === room.hostId ? ' 👑' : ''}</span>
         </div>`;
     });
@@ -649,7 +679,7 @@ function playAgainRandom() {
 
 function submitMultiplayerWord(word, newTotalScore) {
     if (!MP.roomCode || !MP.playerId) return;
-    if (mpFreezeMsLeft() > 0) return; // last line of defence: no scoring while frozen
+    if (mpFreezeMsLeft() > 0 || amIEliminatedMP()) return; // last line of defence: no scoring while frozen/eliminated
     const base = 'rooms/' + MP.roomCode + '/players/' + MP.playerId;
     db.ref(base + '/score').set(newTotalScore);
     db.ref(base + '/foundWords/' + word).set(true);
@@ -666,7 +696,7 @@ function updateMultiplayerUI(room) {
         const isSelf = pid === MP.playerId;
         const dim = p.connected === false ? ' style="opacity:.5"' : '';
         statusEl.innerHTML += `<div class="player-status${isSelf ? ' self' : ''}"${dim}>
-            <div class="status-avatar">${getAvatarById(p.avatarId).svg}</div>
+            <div class="status-avatar">${avatarMarkupForPlayer(pid, p)}</div>
             <span>${isSelf ? 'אתה' : escapeHtml(p.name)}</span><span>${p.score || 0}</span>
         </div>`;
     });
@@ -701,6 +731,63 @@ function useMultiplayerHint() {
 
     showMessage(`${word} - כל הכבוד! +${points}`, 'success');
     launchSparkles();
+}
+
+// ---- elimination gate --------------------------------------------------------
+
+// True once the room marks ME as eliminated - an eliminated player must not
+// keep finding words / spending power-ups on a match they're already out of.
+function amIEliminatedMP() {
+    if (currentGame.mode !== 'multiplayer' || !MP.room || !MP.playerId) return false;
+    const me = (MP.room.players || {})[MP.playerId];
+    return !!(me && me.eliminated);
+}
+
+// Full-board "you're out" curtain offering the only three things an
+// eliminated player can still do: keep watching, go home, or start a new
+// game. Dismissing it (spectate) just hides the curtain - the board input
+// itself stays locked via isBoardInputFrozen()/blockedByFreeze() in game.js.
+function renderEliminatedOverlay(show) {
+    const board = document.getElementById('battleBoard');
+    if (!board) return;
+    let overlay = document.getElementById('battleEliminatedOverlay');
+
+    if (!show) {
+        if (overlay) overlay.remove();
+        board.classList.remove('board-frozen');
+        return;
+    }
+
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'battleEliminatedOverlay';
+        overlay.className = 'board-eliminated-overlay';
+        overlay.innerHTML = `
+            <div class="elim-label">הודחת מהמשחק!</div>
+            <div class="elim-actions">
+                <button class="elim-btn elim-spectate" onclick="mpSpectateAfterElimination()">צפה בהמשך המשחק</button>
+                <button class="elim-btn elim-home" onclick="goHome()">מסך בית</button>
+                <button class="elim-btn elim-new" onclick="mpNewGameAfterElimination()">משחק חדש</button>
+            </div>`;
+        board.appendChild(overlay);
+    } else if (overlay.parentElement !== board) {
+        board.appendChild(overlay); // renderBoard() wipes the board's children
+    }
+    board.classList.add('board-frozen'); // reuse the same dimmed-tile look
+    if (isDragging) cancelDrag();
+}
+
+// "watch the rest" - dismiss the curtain, board stays visible but locked
+function mpSpectateAfterElimination() {
+    MP.spectating = true;
+    renderEliminatedOverlay(false);
+}
+
+// leave this room entirely and go pick a new game mode
+function mpNewGameAfterElimination() {
+    leaveMultiplayerRoom();
+    showScreen('gameModeScreen');
+    updateHomeUI();
 }
 
 // ---- freeze state ----------------------------------------------------------
@@ -742,24 +829,26 @@ function renderFreezeOverlay(msLeft) {
     if (isDragging) cancelDrag(); // a freeze mid-drag drops the selection at once
 }
 
-// freeze the current highest-scoring opponent for 8 seconds (on their device)
+// freeze every opponent (all players except the one who used the item) for 8 seconds
 function useMultiplayerFreeze() {
     if (blockedByFreeze()) return;
     if (!canPayForItem('freezeOpponents')) return;
     const players = (MP.room || {}).players || {};
     const opponents = Object.entries(players)
-        .filter(([pid, p]) => pid !== MP.playerId && !p.eliminated && p.connected !== false)
-        .sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
+        .filter(([pid, p]) => pid !== MP.playerId && !p.eliminated && p.connected !== false);
     if (opponents.length === 0) { showMessage('אין יריבים להקפיא', 'warning'); return; }
 
     consumeItemPayment('freezeOpponents');
     saveGameState();
     updateHomeUI();
 
-    const [targetId, target] = opponents[0];
     const until = Date.now() + MP.serverOffset + 8000;
-    db.ref('rooms/' + MP.roomCode + '/players/' + targetId + '/freezeUntil').set(until);
-    showMessage(`${target.name} הוקפא/ה ל-8 שניות!`, 'info');
+    const updates = {};
+    opponents.forEach(([pid]) => {
+        updates['players/' + pid + '/freezeUntil'] = until;
+    });
+    db.ref('rooms/' + MP.roomCode).update(updates);
+    showMessage('כל היריבים הוקפאו ל-8 שניות!', 'info');
 }
 
 // react to a freeze written to MY node by an opponent: lock the board right
@@ -823,5 +912,7 @@ function leaveMultiplayerRoom() {
     MP.autoStarting = false;
     MP.resultApplied = false;
     MP._freezeNotifiedFor = 0;
+    MP.spectating = false;
+    renderEliminatedOverlay(false);
     if (currentGame.mode === 'multiplayer') currentGame.mode = null;
 }

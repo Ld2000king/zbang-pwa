@@ -223,12 +223,17 @@ const DAILY_REWARDS = [
 // Coins granted by watching a (mock) rewarded video ad.
 const AD_REWARD_COINS = 50;
 
-// Mock in-app coin packages. Prices are display-only placeholders in ILS -
-// tapping "buy" just shows the store-coming-soon modal (no real payments).
+// Real-money coin packages, purchased through Apple StoreKit / Google Play
+// Billing (see iap.js). `sku` must exactly match the consumable product id
+// created in App Store Connect / Google Play Console. `price` is only the
+// placeholder shown before the store responds (and the permanent fallback on
+// the web/PWA build, where there is no purchase system) - once the native
+// store loads the real product, iap.js fills in `livePrice` with the actual
+// localized price and renderShop() prefers that.
 const COIN_PACKAGES = [
-    { name: 'שק מטבעות', coins: 500,  price: '₪4.90',  emoji: '💰' },
-    { name: 'תיבת אוצר', coins: 1200, price: '₪9.90',  emoji: '🎁' },
-    { name: 'אוצר ענק',  coins: 3000, price: '₪19.90', emoji: '💎' }
+    { sku: 'com.zabang.royale.coins.small',  name: 'שק מטבעות', coins: 500,  price: '₪4.90',  emoji: '💰' },
+    { sku: 'com.zabang.royale.coins.medium', name: 'תיבת אוצר', coins: 1200, price: '₪9.90',  emoji: '🎁' },
+    { sku: 'com.zabang.royale.coins.large',  name: 'אוצר ענק',  coins: 3000, price: '₪19.90', emoji: '💎' }
 ];
 
 // words the admin has rejected (public rejected_words node), used to prune a
@@ -359,7 +364,21 @@ window.addEventListener('load', () => {
     initMusic();
     maybeShowDailyReward(); // pop the daily bonus if it's waiting
     if (isFirstRun) openNameModal(true); // brand-new player - must pick a name before playing
+    backfillCustomAvatarUpload(); // a photo picked before online sync existed still needs its one-time upload
 });
+
+// One-time catch-up for a custom avatar that was picked before this device
+// ever uploaded one to Storage (i.e. before online avatar sync existed, or a
+// prior upload never succeeded) - re-derives the blob from the locally saved
+// data URL and runs it through the normal upload path. A no-op once
+// zabangCustomAvatarURL is set (every future re-pick already uploads itself).
+function backfillCustomAvatarUpload() {
+    if (gameState.avatarId !== 'custom') return;
+    if (localStorage.getItem('zabangCustomAvatarURL')) return;
+    const dataUrl = localStorage.getItem('zabangCustomAvatar');
+    if (!dataUrl) return;
+    fetch(dataUrl).then(r => r.blob()).then(blob => uploadCustomAvatarPhoto(blob)).catch(() => {});
+}
 
 // Merge the expansion packs into the dictionary: words.js (EXTRA_WORDS, written
 // with natural final letters) and words-bulk.js (EXTRA_WORDS_BULK, already
@@ -579,6 +598,10 @@ function loadGameState() {
         gameState.playerId = (typeof db !== 'undefined' && db) ? db.ref().push().key
             : 'local-' + Date.now() + Math.random().toString(36).slice(2);
     }
+    // finished coin-package purchase transaction ids already granted (iap.js)
+    // - guards a consumable against being credited twice if its receipt gets
+    // redelivered before finish() completes (e.g. the app closing mid-purchase)
+    if (!Array.isArray(gameState.grantedIapTransactions)) gameState.grantedIapTransactions = [];
     if (!gameState.inventory) gameState.inventory = {};
     // migrate the old single-counter hint field (pre-multi-item inventory) into the new shape
     if (typeof gameState.hints === 'number') {
@@ -1053,7 +1076,7 @@ function renderBoard(boardId = 'board') {
     });
 
     boardEl.onpointerdown = (e) => {
-        if (!currentGame.gameActive || isBoardInputFrozen()) return;
+        if (!currentGame.gameActive || isBoardInputBlocked()) return;
         e.preventDefault();
         isDragging = true;
         dragPath = [];
@@ -1091,8 +1114,25 @@ function isBoardInputFrozen() {
     return typeof mpFreezeMsLeft === 'function' && mpFreezeMsLeft() > 0;
 }
 
-// Guard for every player action. Returns true (and nags) while frozen.
+// True once the room has eliminated ME in this multiplayer match - an
+// eliminated player can watch, but must not keep finding words or spending
+// power-ups on a match they're already out of.
+function isEliminatedFromMatch() {
+    return typeof amIEliminatedMP === 'function' && amIEliminatedMP();
+}
+
+// Combined "board can't be touched right now" check used by the pointer
+// handlers - covers both an active freeze and being eliminated.
+function isBoardInputBlocked() {
+    return isBoardInputFrozen() || isEliminatedFromMatch();
+}
+
+// Guard for every player action. Returns true (and nags) while frozen or eliminated.
 function blockedByFreeze() {
+    if (isEliminatedFromMatch()) {
+        showBoardMessage('הודחת מהמשחק!', 'warning', 800);
+        return true;
+    }
     if (!isBoardInputFrozen()) return false;
     showBoardMessage('אתה מוקפא!', 'warning', 800);
     return true;
@@ -1126,8 +1166,8 @@ function detectTileAt(x, y) {
 
 function endDrag() {
     isDragging = false;
-    // a freeze that landed mid-drag voids the word instead of scoring it
-    if (isBoardInputFrozen()) { cancelDrag(); return; }
+    // a freeze (or elimination) that landed mid-drag voids the word instead of scoring it
+    if (isBoardInputBlocked()) { cancelDrag(); return; }
     // board is all-regular forms, but normalize defensively so lookups match
     const word = normalizeFinals(dragPath.map(i => currentGame.board[i]).join(''));
 
@@ -2021,7 +2061,7 @@ function renderShop() {
                         <p>${icon('coin', 'coin-icon')} ${p.coins} מטבעות</p>
                     </div>
                 </div>
-                <button class="buy-btn price-btn" onclick="showIapComingSoon()">${p.price}</button>
+                <button class="buy-btn price-btn" onclick="buyCoinPackage('${p.sku}')">${p.livePrice || p.price}</button>
             </div>
         `;
     });
@@ -2120,7 +2160,10 @@ function watchAdForCoins() {
     }, 1000);
 }
 
-// Mock IAP: real payments arrive with the native app launch.
+// Fallback shown when a real purchase isn't possible right now: the web/PWA
+// build (no purchase system exists outside a native app), or a native build
+// whose store hasn't finished loading products yet. See buyCoinPackage() in
+// iap.js, which calls this itself when it can't place a real order.
 function showIapComingSoon() {
     showInfoModal('החנות הפיננסית תהיה זמינה עם השקת האפליקציה הרשמית ב-Google Play וב-App Store!');
 }
@@ -2382,9 +2425,11 @@ function renderAvatarPicker() {
     grid.appendChild(customTile);
 }
 
-// The player's own picture, resized/compressed client-side and kept only in
-// this device's localStorage - never uploaded or sent to other players (see
-// the avatarId sanitization in myPlayerNode()/submitScoreToLeaderboard()).
+// The player's own picture, resized/compressed client-side: kept in this
+// device's localStorage for instant local display (works offline, no wait
+// on a network round-trip), and also uploaded to Firebase Storage in the
+// background so online opponents/friends can see it too - see
+// uploadCustomAvatarPhoto() and multiplayer.js's avatar rendering.
 function handleCustomAvatarFile(event) {
     const file = event.target.files[0];
     event.target.value = ''; // allow re-selecting the same file later
@@ -2415,10 +2460,35 @@ function handleCustomAvatarFile(event) {
             renderAvatarPicker();
             updateHomeUI();
             showMessage('התמונה האישית נשמרה!', 'success');
+
+            canvas.toBlob(blob => uploadCustomAvatarPhoto(blob), 'image/jpeg', 0.82);
         };
         img.src = e.target.result;
     };
     reader.readAsDataURL(file);
+}
+
+// Uploads the resized avatar photo to a fixed per-player Storage path
+// (avatars/{uid}.jpg - a new upload overwrites the old file, so there's
+// nothing to clean up), then remembers the public download URL locally and
+// pushes it live into the room I'm currently in, if any. Best-effort: this
+// runs after the photo is already saved and shown locally, so a failure
+// here (offline, Storage not configured, auth not ready yet) only means
+// opponents keep seeing my default avatar - it never blocks my own use of
+// the photo.
+async function uploadCustomAvatarPhoto(blob) {
+    if (!blob || typeof storage === 'undefined' || !storage || typeof waitForAuth !== 'function') return;
+    try {
+        await waitForAuth();
+        const uid = auth.currentUser.uid;
+        const ref = storage.ref('avatars/' + uid + '.jpg');
+        await ref.put(blob, { contentType: 'image/jpeg' });
+        const url = await ref.getDownloadURL();
+        localStorage.setItem('zabangCustomAvatarURL', url);
+        if (typeof syncMyPhotoURLToRoom === 'function') syncMyPhotoURLToRoom(url);
+    } catch (err) {
+        console.error('Avatar photo upload failed:', err);
+    }
 }
 
 function selectAvatar(id) {
@@ -2447,9 +2517,12 @@ function getOwnAvatarMarkup() {
     return getAvatarById(gameState.avatarId).svg;
 }
 
-// The id to send over Firebase (multiplayer room state, the leaderboard) -
-// a custom photo is a local device image, never uploaded, so anything that
-// would otherwise send 'custom' falls back to the default avatar instead.
+// The preset avatarId to send over Firebase (multiplayer room state, the
+// leaderboard) as the fallback identity - 'custom' isn't a real preset
+// getAvatarById() can render, so it's swapped for the default avatar here.
+// A custom photo itself now DOES reach online opponents, but via the
+// separate photoURL field (see myPlayerNode()/uploadCustomAvatarPhoto()),
+// which every avatar renderer prefers over this id when present.
 function networkSafeAvatarId() {
     return gameState.avatarId === 'custom' ? 'dan' : gameState.avatarId;
 }
