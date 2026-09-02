@@ -5,9 +5,12 @@
   // Deploy: Firebase Console -> Realtime Database -> Rules -> paste -> Publish
   //   (or `firebase deploy --only database` with firebase.json pointing here).
   //
-  // Admin UID is bound below to the email/password account used by
-  // adminSignIn() in admin.js (liavdimri12@gmail.com). If that account is
-  // ever recreated, its new UID must be swapped in everywhere below.
+  // ADMIN UID (now bound below):
+  //   auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2' is the real UID of the admin
+  //   Auth account (the email/password account used by adminSignIn() in
+  //   admin.js, liavdimri12@gmail.com). If that account is ever recreated,
+  //   swap its new UID into all six spots below and redeploy. Find it in
+  //   Console -> Authentication -> Users -> User UID.
   //
   // IDENTITY BINDING (now active):
   //   /approved_words, /rejected_words and /removed_words are the admin's
@@ -16,7 +19,13 @@
   //   the admin UID.
   //
   //   Each room player node carries "uid" = the writer's Firebase Auth UID
-  //   (set by myPlayerNode() in multiplayer.js). These rules use it so that:
+  //   (set by myPlayerNode() in multiplayer.js). "photoData" (optional) is
+  //   how a player's custom gallery avatar reaches their opponents: a small
+  //   base64 JPEG data URL embedded directly in the node (no Firebase
+  //   Storage - that needs the paid Blaze plan, and this project stays on
+  //   the free Spark plan), tightly length-capped since the whole room
+  //   re-downloads on every update for every player in it. These rules use
+  //   uid so that:
   //     * a player may only create/delete/edit the node whose uid is their own;
   //     * only the room HOST may reset other players' scores, mark a player
   //       eliminated, clear foundWords, or set status/winnerId/loserId/board;
@@ -27,6 +36,13 @@
   //       be extended (never cleared, except by the host on a round reset), so
   //       a frozen player really is out of the round.
   //
+  //   /leaderboard keys are the game's own playerId (a push key, not the auth
+  //   UID), but each entry also carries "uid" = the writer's Firebase Auth UID
+  //   (set by submitScoreToLeaderboard() in game.js). A brand-new row may be
+  //   created by anyone (self-submission is opt-in), but once it exists, only
+  //   the original writer (matching uid) or the admin UID may modify it - so
+  //   one player can no longer overwrite another player's row.
+  //
   // REMAINING TRUST NOTES (inherent to host-authoritative P2P, not fixable
   // with Rules alone):
   //   * A player can still inflate their OWN score - Rules can't tell a real
@@ -35,9 +51,6 @@
   //   * The HOST is a trusted role: it computes round results and the winner,
   //     so a cheating host could rig its own match. Only server authority
   //     (Cloud Functions) removes that trust.
-  //   * /leaderboard keys are the game's own playerId (a push key), not the
-  //     auth UID, so leaderboard entries are validated for shape but not
-  //     identity-bound. Bind by switching writes to leaderboard/{auth.uid}.
   // ==========================================================================
 
   "rules": {
@@ -84,10 +97,13 @@
             "uid":         { ".validate": "newData.isString() && newData.val() === auth.uid" },
             "name":        { ".validate": "newData.isString() && newData.val().length <= 40" },
             "avatarId":    { ".validate": "newData.isString() || newData.isNumber()" },
-            // a player's uploaded avatar photo, if any - must be a Firebase
-            // Storage download URL (see storage.rules /avatars/{uid}.jpg) and
-            // capped in length. Inert until client code actually uploads one.
-            "photoURL":    { ".validate": "newData.isString() && newData.val().length <= 400 && newData.val().matches(/^https:\\/\\/firebasestorage\\.googleapis\\.com\\/.*/)" },
+            // gallery photo, embedded directly as a small base64 JPEG data
+            // URL (no Storage - see the comment at the top of this file).
+            // Locked to the exact data-URL prefix a real photo produces, and
+            // capped well above what a 64px/low-quality JPEG needs but far
+            // below anything that could meaningfully bloat every player's
+            // room traffic.
+            "photoData":   { ".validate": "newData.isString() && newData.val().length <= 8000 && newData.val().matches(/^data:image\\/jpeg;base64,/)" },
             "eliminated":  { ".validate": "newData.isBoolean()", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
             "connected":   { ".validate": "newData.isBoolean()" },
 
@@ -139,7 +155,13 @@
     "leaderboard": {
       ".read": "auth != null",
       "$pid": {
-        ".write": "auth != null",
+        // A brand-new row may be created by anyone (self-submission is
+        // opt-in from the result screen). Once a row exists, only the
+        // player who created it (uid match) or the admin may modify it -
+        // this is what makes renameLeaderboardEntry() in game.js actually
+        // admin-only instead of anyone being able to edit any row.
+        ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && (data.child('uid').val() === auth.uid || auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2')))",
+        "uid":       { ".validate": "newData.isString() && newData.val() === auth.uid" },
         "name":      { ".validate": "newData.isString() && newData.val().length <= 40" },
         "score":     { ".validate": "newData.isNumber() && newData.val() >= 0" },
         "avatarId":  { ".validate": "newData.isString() || newData.isNumber()" },

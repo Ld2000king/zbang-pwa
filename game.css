@@ -1622,6 +1622,29 @@
     color: var(--neon-cyan-deep);
 }
 
+/* admin-only pencil at the end of a row (see renameLeaderboardEntry).
+   Muted rather than cyan so it stays subordinate to the score beside it. */
+.lb-edit {
+    flex-shrink: 0;
+    font-size: 18px;
+    padding: 6px;
+    color: var(--text-secondary);
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease;
+}
+
+.lb-edit:hover {
+    color: var(--neon-cyan);
+}
+
+.lb-edit:active {
+    transform: scale(0.93);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lb-edit { transition: color 0.15s ease; }
+    .lb-edit:active { transform: none; }
+}
+
 /* Messages */
 .message {
     position: fixed;
@@ -1884,6 +1907,73 @@
 .board.board-frozen .letter-tile {
     filter: grayscale(0.7) brightness(0.7);
 }
+
+/* ===== Elimination lockout ===== */
+/* Shown to a multiplayer player once the room marks them eliminated: the
+   board stays visible (dimmed, same as a freeze) but input is locked in JS,
+   so this curtain explains why and offers the only things left to do. */
+.board-eliminated-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 21;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 20px;
+    border-radius: var(--radius-card);
+    background: rgba(10, 26, 48, 0.85);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    border: 2px solid var(--neon-red-deep, var(--neon-red));
+    color: var(--neon-red-deep, var(--neon-red));
+    text-align: center;
+    pointer-events: auto;
+    touch-action: none;
+}
+
+.board-eliminated-overlay .elim-label {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.5em;
+    letter-spacing: 1px;
+}
+
+.board-eliminated-overlay .elim-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 220px;
+}
+
+.board-eliminated-overlay .elim-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: var(--radius-btn);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.95em;
+    cursor: pointer;
+    color: white;
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease;
+}
+
+.board-eliminated-overlay .elim-btn:hover {
+    filter: brightness(1.08);
+    transform: translateY(-2px);
+}
+
+.board-eliminated-overlay .elim-btn:active {
+    transform: scale(0.95);
+    filter: brightness(0.92);
+}
+
+.board-eliminated-overlay .elim-spectate { background: var(--grad-blue, #3a65b8); }
+.board-eliminated-overlay .elim-home { background: var(--grad-green, #168752); }
+.board-eliminated-overlay .elim-new { background: var(--grad-purple, #5b4fcf); }
 
 /* ===== Frozen timer ===== */
 .timer-display.frozen {
