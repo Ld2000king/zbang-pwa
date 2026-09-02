@@ -70,28 +70,33 @@ function myPlayerNode() {
     // must equal auth.uid (Rules reject any other value). Callers (createRoom /
     // joinRoom) always waitForAuth() first, so auth.currentUser is set here.
     const uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-    // photoURL is only set once uploadCustomAvatarPhoto() (game.js) has
-    // finished a successful upload for this device; null here just omits
-    // the field (Firebase treats a null leaf as "don't write it").
-    const photoURL = localStorage.getItem('zabangCustomAvatarURL') || null;
-    return { uid: uid, name: gameState.playerName, avatarId: networkSafeAvatarId(), photoURL: photoURL, score: 0, eliminated: false, connected: true, freezeUntil: 0 };
+    // photoData is a small (64px, low-quality JPEG) base64 data URL - see
+    // handleCustomAvatarFile()/resizeImageToDataUrl() in game.js. It's kept
+    // tiny on purpose: this whole room object re-downloads on every update
+    // for every player in the room, not just its owner, and there's no
+    // Firebase Storage in play here (that needs the paid Blaze plan; this
+    // project stays on the free Spark plan), so the photo itself has to fit
+    // directly inside the database. null here just omits the field
+    // (Firebase treats a null leaf as "don't write it").
+    const photoData = localStorage.getItem('zabangCustomAvatarSync') || null;
+    return { uid: uid, name: gameState.playerName, avatarId: networkSafeAvatarId(), photoData: photoData, score: 0, eliminated: false, connected: true, freezeUntil: 0 };
 }
 
-// Called after a fresh avatar photo finishes uploading (game.js) - pushes
-// the new URL straight into the room I'm currently in, if any, so friends
-// already mid-match see it without me having to leave and rejoin.
-function syncMyPhotoURLToRoom(url) {
+// Called after a fresh avatar photo finishes its (local, no-upload) resize -
+// pushes the new thumbnail straight into the room I'm currently in, if any,
+// so friends already mid-match see it without me having to leave and rejoin.
+function syncMyPhotoToRoom(dataUrl) {
     if (!MP.roomCode || !MP.playerId || !db) return;
-    db.ref('rooms/' + MP.roomCode + '/players/' + MP.playerId + '/photoURL').set(url).catch(() => {});
+    db.ref('rooms/' + MP.roomCode + '/players/' + MP.playerId + '/photoData').set(dataUrl).catch(() => {});
 }
 
 // Shared by renderLobby()/updateMultiplayerUI(): my own photo comes straight
-// from local storage (instant, works offline, doesn't wait on the Storage
-// round-trip); an opponent's comes from their synced photoURL if they have
+// from local storage (the full-quality 160px copy, instant, works offline);
+// an opponent's comes from their synced photoData thumbnail if they have
 // one, else their preset avatarId.
 function avatarMarkupForPlayer(pid, p) {
     if (pid === MP.playerId) return getOwnAvatarMarkup();
-    if (p.photoURL) return `<img src="${escapeHtml(p.photoURL)}" alt="" class="custom-avatar-img">`;
+    if (p.photoData) return `<img src="${escapeHtml(p.photoData)}" alt="" class="custom-avatar-img">`;
     return getAvatarById(p.avatarId).svg;
 }
 
