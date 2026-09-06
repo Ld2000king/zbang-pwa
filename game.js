@@ -1,3 +1,20 @@
+// ---- global error visibility -----------------------------------------------
+// A failure that only reaches the browser console looks, to the player, like
+// the app silently froze or ate their tap. Surface anything uncaught as one
+// visible message instead of nothing - throttled so a burst of related
+// errors (e.g. a dropped connection failing several requests at once) shows
+// a single toast, not a wall of them.
+let _lastGlobalErrorAt = 0;
+function reportUnexpectedError(err) {
+    console.error('Unexpected error:', err);
+    const now = Date.now();
+    if (now - _lastGlobalErrorAt < 4000) return;
+    _lastGlobalErrorAt = now;
+    if (typeof showMessage === 'function') showMessage('משהו השתבש - נסה שוב', 'error');
+}
+window.addEventListener('error', e => reportUnexpectedError(e.error || e.message));
+window.addEventListener('unhandledrejection', e => reportUnexpectedError(e.reason));
+
 // Escape HTML-significant characters before interpolating any user-controlled
 // string (player names, etc.) into innerHTML - prevents stored XSS, since
 // player names get shared across real clients in multiplayer mode.

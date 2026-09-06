@@ -512,7 +512,10 @@ function startMultiplayerRound(roundNum) {
             updates['players/' + pid + '/freezeUntil'] = 0;
         }
     });
-    MP.roomRef.update(updates);
+    MP.roomRef.update(updates).catch(err => {
+        console.error('Failed to start round:', err);
+        showMessage('שגיאה בהתחלת הסיבוב - נסה שוב', 'error');
+    });
 }
 
 function hostNextMultiplayerRound() {
@@ -604,7 +607,10 @@ function endMultiplayerRound() {
             updates['loserId'] = loserId || '';
         }
     }
-    MP.roomRef.update(updates);
+    MP.roomRef.update(updates).catch(err => {
+        console.error('Failed to end round:', err);
+        showMessage('שגיאה בסיום הסיבוב - נסה שוב', 'error');
+    });
 }
 
 // ---- round-end & final screens ---------------------------------------------
@@ -686,8 +692,8 @@ function submitMultiplayerWord(word, newTotalScore) {
     if (!MP.roomCode || !MP.playerId) return;
     if (mpFreezeMsLeft() > 0 || amIEliminatedMP()) return; // last line of defence: no scoring while frozen/eliminated
     const base = 'rooms/' + MP.roomCode + '/players/' + MP.playerId;
-    db.ref(base + '/score').set(newTotalScore);
-    db.ref(base + '/foundWords/' + word).set(true);
+    db.ref(base + '/score').set(newTotalScore).catch(err => console.error('Score sync failed:', err));
+    db.ref(base + '/foundWords/' + word).set(true).catch(err => console.error('Word sync failed:', err));
 }
 
 // ---- opponents UI ----------------------------------------------------------
@@ -843,6 +849,10 @@ function useMultiplayerFreeze() {
         .filter(([pid, p]) => pid !== MP.playerId && !p.eliminated && p.connected !== false);
     if (opponents.length === 0) { showMessage('אין יריבים להקפיא', 'warning'); return; }
 
+    // remember which payment path was taken so a failed broadcast (below)
+    // can be refunded exactly, instead of the player losing the cost for an
+    // effect that never actually reached anyone
+    const paidFromInventory = gameState.inventory.freezeOpponents > 0;
     consumeItemPayment('freezeOpponents');
     saveGameState();
     updateHomeUI();
@@ -852,8 +862,16 @@ function useMultiplayerFreeze() {
     opponents.forEach(([pid]) => {
         updates['players/' + pid + '/freezeUntil'] = until;
     });
-    db.ref('rooms/' + MP.roomCode).update(updates);
-    showMessage('כל היריבים הוקפאו ל-8 שניות!', 'info');
+    db.ref('rooms/' + MP.roomCode).update(updates).then(() => {
+        showMessage('כל היריבים הוקפאו ל-8 שניות!', 'info');
+    }).catch(err => {
+        console.error('Freeze broadcast failed:', err);
+        if (paidFromInventory) gameState.inventory.freezeOpponents++;
+        else if (!hasInfiniteCoins()) gameState.coins += getShopItem('freezeOpponents').cost;
+        saveGameState();
+        updateHomeUI();
+        showMessage('ההקפאה נכשלה - המטבעות הוחזרו, נסה שוב', 'error');
+    });
 }
 
 // react to a freeze written to MY node by an opponent: lock the board right
@@ -904,9 +922,9 @@ function leaveMultiplayerRoom() {
     if (MP.roomCode && MP.playerId && db) {
         // if we're still just waiting in the lobby, remove our slot entirely
         if (MP.room && MP.room.status === 'waiting') {
-            db.ref('rooms/' + MP.roomCode + '/players/' + MP.playerId).remove();
+            db.ref('rooms/' + MP.roomCode + '/players/' + MP.playerId).remove().catch(() => {});
         } else {
-            db.ref('rooms/' + MP.roomCode + '/players/' + MP.playerId + '/connected').set(false);
+            db.ref('rooms/' + MP.roomCode + '/players/' + MP.playerId + '/connected').set(false).catch(() => {});
         }
     }
     MP.roomCode = null;
