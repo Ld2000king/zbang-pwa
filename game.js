@@ -610,6 +610,10 @@ function loadGameState() {
     if (!gameState.equippedBackground) gameState.equippedBackground = 'default';
     if (typeof gameState.musicEnabled !== 'boolean') gameState.musicEnabled = true;
     if (typeof gameState.bestSingleScore !== 'number') gameState.bestSingleScore = 0;
+    // these two are shown directly on the profile, so an older/partial save
+    // (including one restored from another device) must not render "undefined"
+    if (typeof gameState.totalScore !== 'number') gameState.totalScore = 0;
+    if (typeof gameState.gamesPlayed !== 'number') gameState.gamesPlayed = 0;
     if (typeof gameState.diamonds !== 'number') gameState.diamonds = 0;
     if (typeof gameState.dailyStreak !== 'number') gameState.dailyStreak = 0;
     if (typeof gameState.lastDailyClaim === 'undefined') gameState.lastDailyClaim = null;
@@ -638,6 +642,9 @@ function loadGameState() {
 
 function saveGameState() {
     localStorage.setItem('zabangState', JSON.stringify(gameState));
+    // Mirror progress to the player's cloud save, if they attached an account
+    // (see cloudsave.js) - debounced there, and a no-op for anonymous players.
+    if (typeof scheduleCloudSync === 'function') scheduleCloudSync();
 }
 
 // ===== Daily login reward =====
@@ -794,16 +801,24 @@ function updateMusicButtonUI() {
     btn.classList.toggle('muted', !gameState.musicEnabled);
 }
 
-// The admin/dev account. Grants infinite coins, infinite trophies, and
-// every city/theme unlocked. Recognized two ways:
-//  1. the local dev shortcut: player named 'ld2000'
-//  2. a real Firebase admin sign-in (a non-anonymous account via
-//     adminSignIn) - this is what actually matters when logging in as
-//     admin on another device, where the display name isn't 'ld2000'
+// The one real admin identity, the same UID the Security Rules bind to (see
+// database.rules.json). A UID is an identifier, not a credential - knowing it
+// grants nothing, because every admin-only write is checked server-side
+// against the signed-in account.
+const ADMIN_UID = 'kvJkfcfrT5S8OZb73GfxAXOtEET2';
+
+// The admin/dev account. Grants infinite coins, infinite trophies, and every
+// city/theme unlocked - so it has to be exactly one account, not a shape that
+// other players can fall into.
+//
+// It used to also accept "player named ld2000" and "any non-anonymous
+// sign-in". Both were holes: the first meant any player could rename
+// themselves into infinite currency, and the second means every player who
+// signs in for cloud save (see cloudsave.js) would get admin perks. Now the
+// signed-in UID has to actually be the admin's.
 function isAdminAccount() {
-    if (gameState.playerName.trim().toLowerCase() === 'ld2000') return true;
-    if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) return true;
-    return false;
+    return !!(typeof auth !== 'undefined' && auth && auth.currentUser
+        && auth.currentUser.uid === ADMIN_UID);
 }
 
 function hasInfiniteCoins() {
@@ -2203,8 +2218,10 @@ function closeInfoModal() {
     if (overlay) overlay.style.display = 'none';
 }
 
-// generic yes/no confirmation modal (the callback runs only on "yes")
-function showConfirm(message, onYes) {
+// Generic yes/no confirmation modal. onNo is optional - most callers only
+// care about "yes", but a choice between two real outcomes (restore the cloud
+// save vs keep this device's progress) needs both branches.
+function showConfirm(message, onYes, onNo) {
     const overlay = document.getElementById('confirmOverlay');
     document.getElementById('confirmText').textContent = message;
     overlay.style.display = 'flex';
@@ -2212,7 +2229,7 @@ function showConfirm(message, onYes) {
     const no = document.getElementById('confirmNoBtn');
     const close = () => { overlay.style.display = 'none'; yes.onclick = null; no.onclick = null; };
     yes.onclick = () => { close(); onYes(); };
-    no.onclick = close;
+    no.onclick = () => { close(); if (onNo) onNo(); };
 }
 
 // buys one unit of any shop item (key = SHOP_ITEMS[].key) into its own
@@ -2324,6 +2341,7 @@ function renderProfile() {
     `;
     renderAvatarPicker();
     renderSubmissions();
+    if (typeof renderCloudSaveSection === 'function') renderCloudSaveSection();
 }
 
 function renamePlayer() {
