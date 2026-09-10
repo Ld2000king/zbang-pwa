@@ -2265,6 +2265,27 @@
     box-shadow: var(--shadow-depth-sm);
 }
 
+/* Quiet text action inside a modal (e.g. "forgot password") - deliberately
+   not a .btn-large, so it never competes with the modal's real actions. */
+.cloud-link-btn {
+    display: block;
+    width: 100%;
+    margin-top: 14px;
+    padding: 8px;
+    background: none;
+    border: none;
+    font-family: var(--font-body, inherit);
+    font-size: 0.95em;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-decoration: underline;
+    cursor: pointer;
+    transition: color 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.cloud-link-btn:hover { color: var(--neon-cyan); }
+.cloud-link-btn:active { transform: scale(0.95); }
+
 /* ===== Admin word bank ===== */
 .dict-input {
     display: block;
