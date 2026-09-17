@@ -23,8 +23,8 @@
 const CLOUD_SAVE_FIELDS = [
     'playerName', 'coins', 'diamonds', 'inventory', 'totalScore', 'gamesPlayed',
     'level', 'xp', 'xpToNextLevel', 'avatarId', 'trophies', 'preferredTheme',
-    'ownedAvatars', 'ownedBackgrounds', 'equippedBackground', 'bestSingleScore',
-    'playerId', 'lastDailyClaim', 'dailyStreak', 'grantedIapTransactions'
+    'ownedAvatars', 'bestSingleScore', 'playerId', 'lastDailyClaim',
+    'dailyStreak', 'grantedIapTransactions'
 ];
 
 // Progress changes in bursts (a word found bumps score, coins and xp in the
