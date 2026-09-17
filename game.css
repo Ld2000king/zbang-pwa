@@ -6,9 +6,9 @@
     z-index: 1; /* above the ambient glow layer */
 }
 
-/* Ambient "aurora" glow behind the home screen: two soft radial color pools
-   that drift very slowly. Pure decoration - pointer-events off, sits behind
-   .home-content, clipped by #app's overflow:hidden. */
+/* Jungle foliage crowding in from the bottom corners of the home screen, so
+   the menu reads as a clearing on the island. Pure decoration - pointer-events
+   off, sits behind .home-content, clipped by #app's overflow:hidden. */
 #homeScreen {
     position: relative;
     overflow: hidden;
@@ -18,94 +18,104 @@
 #homeScreen::after {
     content: '';
     position: absolute;
-    width: 460px;
-    height: 460px;
-    border-radius: 50%;
-    filter: blur(65px);
-    opacity: 0.9;
+    width: 320px;
+    height: 280px;
     pointer-events: none;
     z-index: 0;
+    background-repeat: no-repeat;
 }
 
 #homeScreen::before {
-    background: radial-gradient(circle, rgba(96, 150, 255, 0.6), rgba(96, 150, 255, 0.12) 55%, transparent 70%);
-    top: -120px;
-    right: -100px;
-    animation: auroraDrift 14s ease-in-out infinite alternate;
+    bottom: -80px;
+    right: -90px;
+    background-image:
+        radial-gradient(circle at 30% 58%, var(--jungle-deep) 0 26%, transparent 27%),
+        radial-gradient(circle at 58% 42%, var(--jungle) 0 24%, transparent 25%),
+        radial-gradient(circle at 80% 64%, var(--jungle-deep) 0 22%, transparent 23%),
+        radial-gradient(circle at 46% 80%, var(--jungle) 0 28%, transparent 29%);
+    transform-origin: bottom right;
+    animation: frondSway 11s ease-in-out infinite alternate;
 }
 
 #homeScreen::after {
-    background: radial-gradient(circle, rgba(206, 88, 196, 0.55), rgba(206, 88, 196, 0.12) 55%, transparent 70%);
-    bottom: -140px;
-    left: -120px;
-    animation: auroraDrift 18s ease-in-out infinite alternate-reverse;
+    bottom: -80px;
+    left: -90px;
+    background-image:
+        radial-gradient(circle at 70% 58%, var(--jungle-deep) 0 26%, transparent 27%),
+        radial-gradient(circle at 42% 42%, var(--jungle) 0 24%, transparent 25%),
+        radial-gradient(circle at 20% 64%, var(--jungle-deep) 0 22%, transparent 23%),
+        radial-gradient(circle at 54% 80%, var(--jungle) 0 28%, transparent 29%);
+    transform-origin: bottom left;
+    animation: frondSway 14s ease-in-out infinite alternate-reverse;
 }
 
-@keyframes auroraDrift {
-    from { transform: translate(0, 0) scale(1); }
-    to   { transform: translate(40px, 30px) scale(1.15); }
+@keyframes frondSway {
+    from { transform: rotate(-1.2deg) scale(1); }
+    to   { transform: rotate(1.6deg) scale(1.04); }
 }
 
+/* The carved logo: gold fill, thick brown stroke, hard drop shadow.
+   paint-order keeps the stroke behind the fill so Hebrew stays legible. */
 .main-title {
     font-family: var(--font-display);
     font-size: 4em;
     text-align: center;
     margin-bottom: 10px;
-    font-weight: 800;
-    letter-spacing: -1px;
-    /* animated gradient text: blue -> purple -> pink, slowly sweeping */
-    background: linear-gradient(100deg,
-        #6FA0F0 0%, #8B7BE8 30%, #C86FA8 50%, #8B7BE8 70%, #6FA0F0 100%);
-    background-size: 200% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: var(--text-dark); /* fallback if background-clip unsupported */
-    animation: titleShimmer 6s ease-in-out infinite;
+    font-weight: 900;
+    letter-spacing: 0;
+    color: var(--title-fill);
+    -webkit-text-stroke: 4px var(--wood-dark);
+    paint-order: stroke fill;
+    text-shadow: 0 5px 0 rgba(78, 49, 22, 0.55);
+    animation: titleBob 4s ease-in-out infinite;
 }
 
-@keyframes titleShimmer {
-    0%, 100% { background-position: 0% 50%; }
-    50%      { background-position: 100% 50%; }
+@keyframes titleBob {
+    0%, 100% { transform: translateY(0) rotate(-1deg); }
+    50%      { transform: translateY(-6px) rotate(1deg); }
 }
 
+/* Brown ink with a cream halo, because this sits straight on the pale sky
+   rather than inside a panel */
 .subtitle {
     text-align: center;
-    color: var(--text-secondary);
+    color: var(--ink);
+    font-weight: 700;
     font-size: 1.2em;
     margin-bottom: 30px;
+    text-shadow: 0 2px 0 var(--cream-hi);
 }
 
+/* The wood frame material: a cream panel inside a carved brown ring */
 .player-card {
-    /* subtle diagonal sheen over the panel + a hairline top highlight so the
-       card catches "light" instead of sitting totally flat */
-    background:
-        linear-gradient(145deg, rgba(78, 127, 214, 0.10), rgba(156, 67, 148, 0.06) 60%, transparent),
-        var(--panel-light);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-top-color: rgba(255, 255, 255, 0.14);
+    background: var(--cream);
+    border: 4px solid var(--wood-dark);
     border-radius: var(--radius-card);
     padding: 20px;
     margin-bottom: 30px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: var(--shadow-depth-md);
+    box-shadow:
+        0 0 0 5px var(--wood),
+        0 0 0 8px var(--wood-dark),
+        inset 0 3px 0 var(--cream-hi),
+        var(--panel-shadow);
 }
 
-/* gentle breathing glow on the avatar ring */
+/* gentle breathing on the avatar's gold ring */
 .player-avatar {
     animation: avatarPulse 3.5s ease-in-out infinite;
 }
 
 @keyframes avatarPulse {
-    0%, 100% { box-shadow: var(--glow-cyan); }
-    50%      { box-shadow: 0 8px 28px rgba(78, 127, 214, 0.45), var(--shadow-depth-sm); }
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.05); }
 }
 
 .player-header {
     display: flex;
-    gap: 15px;
+    gap: 18px;
     align-items: center;
 }
 
@@ -116,9 +126,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--grad-blue);
+    background: var(--blue);
     border-radius: 50%;
-    box-shadow: var(--glow-cyan);
+    border: 3px solid var(--wood-dark);
+    box-shadow: 0 0 0 4px var(--gold), 0 0 0 7px var(--wood-dark);
 }
 
 .player-info {
@@ -129,34 +140,22 @@
 
 .player-name {
     font-size: 1.3em;
-    font-weight: 700;
-    /* it's a <button> now (tap-to-rename) - reset the default chrome, keep
-       the same look it always had */
-    background: none;
-    border: none;
-    padding: 0;
-    margin: 0;
-    color: inherit;
-    font-family: inherit;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.player-name .rename-btn {
-    font-size: 0.7em;
-    padding: 0;
+    font-weight: 800;
+    color: var(--ink);
 }
 
 .level-badge {
-    background: var(--grad-gold);
-    color: black;
-    padding: 4px 12px;
-    border-radius: 20px;
+    --btn-base: var(--blue-base);
+    background: var(--blue);
+    color: var(--ink-on-color);
+    padding: 4px 14px;
+    border: 2px solid var(--wood-dark);
+    border-radius: var(--radius-pill);
     font-size: 0.9em;
-    font-weight: 700;
+    font-weight: 800;
     width: fit-content;
+    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.45);
+    box-shadow: var(--bevel-sm);
 }
 
 .player-stats {
@@ -172,10 +171,12 @@
     gap: 8px;
     font-size: 1.5em;
     font-weight: 800;
+    color: var(--ink);
 }
 
 .coin-icon {
     font-size: 1.5em;
+    color: var(--gold-base);
 }
 
 .trophies-display {
@@ -183,8 +184,8 @@
     align-items: center;
     gap: 6px;
     font-size: 1.1em;
-    font-weight: 700;
-    color: var(--neon-cyan-deep, #00b8d4);
+    font-weight: 800;
+    color: var(--orange-base);
 }
 
 .trophies-display .icon svg {
@@ -195,30 +196,20 @@
 /* Its background/border tint comes from the current city's --banner-accent
    (set inline in updateHomeUI), so each arena expresses its identity through
    a soft, static color hint rather than an animated glow */
+/* A wooden signboard. The arena's own --banner-accent (set inline in
+   updateHomeUI) tints the plank so each island expresses its identity. */
 .arena-banner {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
-    width: 100%;
     margin-bottom: 20px;
     padding: 14px 18px;
     border-radius: var(--radius-btn);
-    background: linear-gradient(var(--banner-accent, rgba(78, 127, 214, 0.14)), var(--banner-accent, rgba(78, 127, 214, 0.14))), var(--panel-light);
-    border: 1px solid var(--banner-accent, rgba(78, 127, 214, 0.3));
-    box-shadow: var(--shadow-depth-sm);
-    font: inherit;
-    text-align: inherit;
-    cursor: pointer;
-    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
-}
-.arena-banner:hover  { transform: translateY(-2px); box-shadow: var(--shadow-depth-md); }
-.arena-banner:active { transform: scale(0.97); }
-
-.arena-banner-chevron {
-    font-size: 1.4em;
-    color: var(--text-secondary);
-    margin-inline-start: auto;
+    background: linear-gradient(var(--banner-accent, transparent), var(--banner-accent, transparent)), var(--wood);
+    border: 3px solid var(--wood-dark);
+    box-shadow: inset 0 3px 0 var(--wood-light), var(--bevel-sm);
+    --btn-base: var(--wood-dark);
 }
 
 .arena-banner-motif {
@@ -241,160 +232,54 @@
 
 .arena-banner-label {
     font-size: 0.75em;
-    color: #9fb3c8;
-    font-weight: 600;
+    color: var(--cream-3);
+    font-weight: 700;
 }
 
 .arena-banner-name {
     font-family: var(--font-display);
     font-size: 1.3em;
-    font-weight: 700;
-    color: var(--neon-cyan);
+    font-weight: 800;
+    color: var(--title-fill);
+    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.6);
 }
 
 .arena-banner-tagline {
     font-size: 0.8em;
-    color: #cbd5e1;
+    color: var(--cream-2);
     font-weight: 600;
 }
 
-/* Arena picker screen - swipeable card carousel over the ARENAS table
-   (game.js), reusing applyBoardTheme()'s inline-custom-property technique
-   so each card is themed from its own --arena-tile/--arena-accent instead
-   of 16 hardcoded classes. No painted art - the "image" is a flat tile-color
-   fill behind the city's existing motif emoji, matching the rest of the app. */
-.arena-screen-container { padding-inline: 30px; }
-
-.arena-carousel {
-    display: flex;
-    gap: 16px;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    /* bleed past the panel's own inline padding so neighboring cards peek at
-       the edges, then restore it as scroll-padding so snapping still centers */
-    margin-inline: -30px;
-    padding-inline: 30px;
-    scroll-padding-inline: 30px;
-    padding-block: 4px 12px;
-    margin-top: 18px;
-}
-.arena-carousel::-webkit-scrollbar { display: none; }
-
-.arena-card {
-    flex: 0 0 250px;
-    scroll-snap-align: center;
-    border-radius: var(--radius-card);
-    overflow: hidden;
-    background: linear-gradient(var(--arena-accent), var(--arena-accent)), var(--panel-light);
-    border: 1px solid var(--arena-accent);
-    box-shadow: var(--shadow-depth-md);
-    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.arena-card-art {
-    position: relative;
-    height: 140px;
+.theme-selector {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--arena-tile);
-}
-
-.arena-card-motif {
-    font-size: 3.4em;
-    line-height: 1;
-    color: var(--arena-motif-color);
-    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
-}
-
-.arena-card-body {
-    padding: 14px 16px 18px;
-    text-align: center;
-}
-
-.arena-card-name {
-    font-family: var(--font-display);
-    font-size: 1.15em;
+    gap: 10px;
+    margin-top: 18px;
+    /* sits low, over the foliage, so it needs the light-on-dark treatment
+       the subtitle up on the sky does not */
+    color: var(--cream);
     font-weight: 800;
-    color: var(--text-dark);
+    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.75);
 }
 
-.arena-card-tagline {
-    font-size: 0.85em;
-    color: var(--text-secondary);
-    margin: 4px 0 12px;
-}
-
-.arena-card-badge {
-    display: inline-block;
-    padding: 6px 14px;
-    border-radius: var(--radius-sm);
-    background: rgba(20, 122, 74, 0.18);
-    color: var(--neon-lime-deep);
-    font-weight: 700;
-    font-size: 0.9em;
-}
-
-.arena-card-select-btn {
-    padding: 8px 18px;
-    border: none;
+.theme-selector select {
+    flex: 0 1 auto;
+    padding: 9px 14px;
     border-radius: var(--radius-btn);
-    background: var(--grad-blue);
-    color: var(--text-dark);
-    font-family: var(--font-display);
+    background: var(--cream);
+    color: var(--ink);
+    border: 3px solid var(--wood-dark);
+    font-family: var(--font-body, inherit);
+    font-size: 1em;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: var(--glow-cyan);
-    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.arena-card-select-btn:active { transform: scale(0.93); }
-
-.arena-card-req {
-    font-size: 0.85em;
-    color: var(--text-secondary);
-    font-weight: 600;
+    box-shadow: inset 0 2px 0 var(--cream-hi), var(--shadow-depth-sm);
 }
 
-.arena-card.arena-locked {
-    opacity: 0.55;
-    filter: grayscale(0.6);
-}
-
-.arena-card.arena-locked .arena-lock {
-    position: absolute;
-    top: 10px;
-    inset-inline-end: 10px;
-    font-size: 18px;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
-}
-
-.arena-dots {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 4px;
-}
-
-.arena-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--surface-3);
-    transition: background 0.15s ease, transform 0.15s ease;
-}
-
-.arena-dot.active {
-    background: var(--neon-cyan);
-    transform: scale(1.3);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .arena-carousel { scroll-behavior: auto; }
-    .arena-banner, .arena-card, .arena-dot, .arena-card-select-btn {
-        transition: none;
-    }
+.theme-selector select:focus {
+    outline: 3px solid var(--blue);
+    outline-offset: 3px;
 }
 
 .button-group {
@@ -403,20 +288,37 @@
     gap: 15px;
 }
 
+/* ===== The candy button - the theme's signature control =====
+   A color class sets only --btn-face and --btn-base; this recipe does the
+   rest. The press travels down by exactly what the bevel loses, so the face
+   moves and the ground stays put. */
 .mega-btn {
-    padding: 22px 18px;
+    padding: 20px 18px;
     font-family: var(--font-display);
     font-size: 1.25em;
-    border: none;
+    background: var(--btn-face, var(--green));
+    color: var(--ink-on-color);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-btn);
     cursor: pointer;
     font-weight: 800;
     letter-spacing: 0.3px;
+    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.45);
+    box-shadow: var(--bevel);
     position: relative;
-    overflow: hidden; /* clips the ::after shine sweep */
+    overflow: hidden; /* clips the shine sweep and the gloss cap */
     transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
-                filter 0.15s ease,
-                box-shadow 0.2s ease;
+                box-shadow 0.15s ease;
+}
+
+/* the gloss cap over the top third, so the face reads as domed */
+.mega-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: 42%;
+    background: linear-gradient(rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0));
+    pointer-events: none;
 }
 
 /* diagonal light sweep that glides across the button on hover */
@@ -428,7 +330,7 @@
     width: 55%;
     height: 100%;
     background: linear-gradient(105deg,
-        transparent, rgba(255, 255, 255, 0.22), transparent);
+        transparent, rgba(255, 255, 255, 0.28), transparent);
     transform: skewX(-20deg);
     pointer-events: none;
     transition: left 0.5s ease;
@@ -439,115 +341,94 @@
 }
 
 .mega-btn:hover {
-    transform: translateY(-3px) scale(1.01);
-    filter: brightness(1.1);
+    transform: translateY(-2px);
+    box-shadow: var(--bevel-lg);
 }
 
-/* Punchy, satisfying press feedback - the primary tactile signal on touch
-   devices, where :hover never really fires */
+/* The sink - the primary tactile signal on touch devices, where :hover
+   never really fires */
 .mega-btn:active {
-    transform: scale(0.95);
-    filter: brightness(0.92);
+    transform: translateY(4px);
+    box-shadow: var(--sink);
 }
 
-.blue-btn {
-    background: var(--grad-blue);
-    color: var(--text-dark);
-    text-shadow: none;
-    box-shadow: var(--glow-cyan);
-}
+/* ===== Color identities =====
+   Each owns a hue and carries its own base. Adding a button color means two
+   variables here, never a new shadow. */
+.green-btn  { --btn-face: var(--green);  --btn-base: var(--green-base);  background: var(--btn-face); color: var(--ink-on-color); }
+.blue-btn   { --btn-face: var(--blue);   --btn-base: var(--blue-base);   background: var(--btn-face); color: var(--ink-on-color); }
+.orange-btn { --btn-face: var(--orange); --btn-base: var(--orange-base); background: var(--btn-face); color: var(--ink-on-color); }
+.purple-btn { --btn-face: var(--purple); --btn-base: var(--purple-base); background: var(--btn-face); color: var(--ink-on-color); }
 
-/* Richer two-tone gradients + hairline top highlight, scoped to the home
-   screen's mega buttons only - other screens keep the flat matte fills */
-.mega-btn.green-btn {
-    background: linear-gradient(160deg, #1E9E63, #147A4A 55%, #0E5E38);
-    border-top: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-.mega-btn.gold-btn {
-    background: linear-gradient(160deg, #E8B93E, #C99A2E 55%, #A87F22);
-    border-top: 1px solid rgba(255, 255, 255, 0.25);
-}
-
-.mega-btn.blue-btn {
-    background: linear-gradient(160deg, #4E7FD6, #3A65B8 55%, #2C4F94);
-    border-top: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-.mega-btn.purple-btn {
-    background: linear-gradient(160deg, #6E61E8, #5B4FCF 55%, #4A3FB0);
-    border-top: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-.mega-btn.green-btn:hover  { box-shadow: 0 12px 30px rgba(22, 135, 82, 0.4), var(--shadow-depth-sm); }
-.mega-btn.gold-btn:hover   { box-shadow: 0 12px 30px rgba(201, 154, 46, 0.4), var(--shadow-depth-sm); }
-.mega-btn.blue-btn:hover   { box-shadow: 0 12px 30px rgba(58, 101, 184, 0.45), var(--shadow-depth-sm); }
-.mega-btn.purple-btn:hover { box-shadow: 0 12px 30px rgba(91, 79, 207, 0.45), var(--shadow-depth-sm); }
-
-.orange-btn {
-    background: var(--grad-orange);
-    color: var(--text-dark);
-    text-shadow: none;
-    box-shadow: var(--glow-orange);
-}
-
-.green-btn {
-    background: var(--grad-green);
-    color: var(--text-dark);
-    text-shadow: none;
-    box-shadow: var(--glow-green);
-}
-
-/* Golden/yellow - reserved for the Shop, matching its "premium currency" feel */
+/* Gold is the one light face, so its text is brown ink with a light lift
+   instead of white with a brown one */
 .gold-btn {
-    background: var(--grad-gold);
-    color: #1E1706;
-    box-shadow: var(--glow-gold);
+    --btn-face: var(--gold);
+    --btn-base: var(--gold-base);
+    background: var(--btn-face);
+    color: var(--ink);
+    text-shadow: 0 2px 0 rgba(255, 255, 255, 0.45);
 }
 
-/* Game Mode Screen */
+/* Game Mode Screen - the wood frame material */
 .modal-content {
-    background: var(--panel-light);
+    background: var(--cream);
+    border: 4px solid var(--wood-dark);
     border-radius: var(--radius-card);
-    padding: 40px;
+    padding: 30px 24px 24px;
+    margin-top: 40px;
     width: 100%;
     max-width: 600px;
-    color: var(--text-dark);
-    border: none;
-    box-shadow: var(--shadow-depth-lg);
+    color: var(--ink);
+    box-shadow:
+        0 0 0 5px var(--wood),
+        0 0 0 8px var(--wood-dark),
+        inset 0 3px 0 var(--cream-hi),
+        var(--panel-shadow);
 }
 
+/* The title is a wooden signboard straddling the panel's top edge, not text
+   sitting inside it */
 .modal-content h2 {
     font-family: var(--font-display);
-    font-size: 2.2em;
+    font-size: 1.9em;
     font-weight: 800;
-    margin-bottom: 25px;
-    color: var(--text-dark);
-    letter-spacing: -0.5px;
+    width: fit-content;
+    max-width: 100%;
+    margin: -52px auto 24px;
+    padding: 10px 28px;
+    background: var(--wood);
+    color: var(--title-fill);
+    border: 3px solid var(--wood-dark);
+    border-radius: var(--radius-pill);
+    text-shadow: 0 3px 0 rgba(78, 49, 22, 0.6);
+    box-shadow: inset 0 3px 0 var(--wood-light), var(--shadow-depth-md);
 }
 
+/* The list row material: cream fill, carved ring, domed top edge */
 .mode-option {
     display: flex;
     align-items: center;
     gap: 15px;
-    padding: 22px 20px;
-    border-radius: var(--radius-btn);
-    background: var(--surface-2);
-    border: none;
+    padding: 18px 16px;
+    border-radius: var(--radius-sm);
+    background: var(--cream-2);
+    border: 3px solid var(--wood-dark);
     cursor: pointer;
     transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background 0.2s ease;
-    margin-bottom: 16px;
-    box-shadow: var(--shadow-depth-sm);
+    margin-bottom: 14px;
+    --btn-base: var(--sand-deep);
+    box-shadow: inset 0 2px 0 var(--cream-hi), var(--bevel-sm);
 }
 
 .mode-option:hover {
     transform: translateY(-2px);
-    background: var(--surface-3);
-    box-shadow: var(--shadow-depth-md);
+    background: var(--cream-mint);
 }
 
 .mode-option:active {
-    transform: scale(0.97);
+    transform: translateY(3px);
+    box-shadow: inset 0 2px 0 var(--cream-hi), var(--sink);
 }
 
 .mode-icon {
@@ -562,47 +443,51 @@
 
 .mode-details h3 {
     font-size: 1.2em;
-    font-weight: 700;
+    font-weight: 800;
     margin-bottom: 5px;
-    color: var(--text-dark);
+    color: var(--ink);
 }
 
 .mode-details p {
-    color: var(--text-secondary);
+    color: var(--ink-2);
     font-size: 0.95em;
+    font-weight: 600;
 }
 
 .mode-arrow {
     font-size: 2em;
-    color: var(--text-dark);
+    color: var(--wood);
     font-weight: bold;
 }
 
 /* Close/back/cancel - always red, a consistent "exit" signal across every
    modal in the game */
 .close-modal-btn {
+    --btn-face: var(--red);
+    --btn-base: var(--red-base);
     width: 100%;
-    padding: 18px;
-    background: var(--grad-red);
-    color: white;
-    border: none;
+    padding: 16px;
+    background: var(--btn-face);
+    color: var(--ink-on-color);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-btn);
     font-weight: 800;
     font-family: var(--font-display);
     cursor: pointer;
     font-size: 1.2em;
-    box-shadow: var(--glow-red);
-    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease;
+    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.45);
+    box-shadow: var(--bevel);
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
 }
 
 .close-modal-btn:active {
-    transform: scale(0.95);
-    filter: brightness(0.95);
+    transform: translateY(4px);
+    box-shadow: var(--sink);
 }
 
 .close-modal-btn:hover {
-    filter: brightness(1.1);
     transform: translateY(-2px);
+    box-shadow: var(--bevel-lg);
 }
 
 /* Game Screen */
@@ -631,28 +516,33 @@
     gap: 8px;
 }
 
+/* The round icon button: gold face, brown glyph, carved ring */
 .exit-btn,
 .pause-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    color: white;
+    --btn-face: var(--gold);
+    --btn-base: var(--gold-base);
+    background: var(--btn-face);
+    border: 3px solid var(--wood-dark);
+    color: var(--ink);
     font-size: 1.5em;
     width: 50px;
     height: 50px;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-pill);
     cursor: pointer;
-    box-shadow: var(--shadow-depth-sm);
-    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease;
+    box-shadow: var(--bevel-sm);
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
 }
 
 .exit-btn:hover,
 .pause-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+    box-shadow: var(--bevel);
 }
 
 .exit-btn:active,
 .pause-btn:active {
-    transform: scale(0.92);
+    transform: translateY(2px);
+    box-shadow: var(--sink);
 }
 
 /* The pause button is the primary in-game control (top-right), so make it a
@@ -673,24 +563,28 @@
        browser window's corner. max(0px, ...) collapses to 0 whenever the
        frame is full-bleed. */
     left: calc(16px + env(safe-area-inset-left) + max(0px, (100vw - var(--app-max-width)) / 2));
-    background: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.25);
-    color: white;
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
+    --btn-face: var(--gold);
+    --btn-base: var(--gold-base);
+    background: var(--btn-face);
+    border: 3px solid var(--wood-dark);
+    color: var(--ink);
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-pill);
     cursor: pointer;
     z-index: 10;
-    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: var(--bevel-sm);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
 }
 
 .help-btn:active {
-    transform: scale(0.9);
+    transform: translateY(2px);
+    box-shadow: var(--sink);
 }
 
 .help-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    box-shadow: var(--glow-cyan);
+    transform: translateY(-2px);
+    box-shadow: var(--bevel);
 }
 
 .music-toggle-btn {
@@ -704,27 +598,31 @@
     bottom: calc(16px + env(safe-area-inset-bottom));
     /* Mirror of .help-btn's frame-relative formula, right corner instead of left */
     right: calc(16px + env(safe-area-inset-right) + max(0px, (100vw - var(--app-max-width)) / 2));
-    background: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.25);
-    color: white;
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
+    --btn-face: var(--gold);
+    --btn-base: var(--gold-base);
+    background: var(--btn-face);
+    border: 3px solid var(--wood-dark);
+    color: var(--ink);
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-pill);
     cursor: pointer;
     z-index: 10;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: var(--bevel-sm);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
 }
 
 .music-toggle-btn:active {
-    transform: scale(0.9);
+    transform: translateY(2px);
+    box-shadow: var(--sink);
 }
 
 .music-toggle-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    box-shadow: var(--glow-cyan);
+    transform: translateY(-2px);
+    box-shadow: var(--bevel);
 }
 
 .music-toggle-btn.muted {
@@ -740,22 +638,26 @@
 }
 
 .instructions-list li {
-    background: linear-gradient(135deg, rgba(78, 127, 214, 0.08), rgba(20, 122, 74, 0.08));
+    background: var(--cream-2);
+    border: 2px solid var(--wood-dark);
     border-radius: var(--radius-sm);
     padding: 14px 16px;
     line-height: 1.5;
+    color: var(--ink);
+    font-weight: 600;
+    box-shadow: inset 0 2px 0 var(--cream-hi);
 }
 
 .timer-display {
     font-family: var(--font-display);
     font-size: 2.5em;
-    font-weight: 700;
-    color: var(--neon-red-deep, var(--neon-red));
-    background: var(--surface-2);
-    padding: 12px 25px;
+    font-weight: 800;
+    color: var(--red-base);
+    background: var(--cream);
+    padding: 10px 24px;
     border-radius: var(--radius-btn);
-    border: 1px solid rgba(179, 55, 46, 0.3);
-    box-shadow: var(--shadow-depth-sm);
+    border: 3px solid var(--wood-dark);
+    box-shadow: inset 0 3px 0 var(--cream-hi), var(--shadow-depth-md);
     min-width: 120px;
     text-align: center;
 }
@@ -763,25 +665,30 @@
 .score-display {
     font-family: var(--font-display);
     font-size: 1.8em;
-    font-weight: 700;
-    color: var(--neon-lime-deep);
-    background: var(--surface-2);
-    padding: 12px 25px;
+    font-weight: 800;
+    color: var(--green-base);
+    background: var(--cream);
+    padding: 10px 24px;
     border-radius: var(--radius-btn);
-    border: 1px solid rgba(47, 190, 133, 0.3);
-    box-shadow: var(--shadow-depth-sm);
+    border: 3px solid var(--wood-dark);
+    box-shadow: inset 0 3px 0 var(--cream-hi), var(--shadow-depth-md);
 }
 
+/* The board is a patch of grassy table inside a carved wood frame */
 .board {
     position: relative; /* anchors the freeze lockout overlay */
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 10px;
     margin-bottom: 20px;
-    background: var(--board-bg, rgba(0, 0, 0, 0.3));
-    padding: 15px;
+    background: var(--board-bg, var(--felt));
+    padding: 14px;
+    border: 4px solid var(--wood-dark);
     border-radius: var(--radius-card);
-    box-shadow: var(--shadow-depth-lg);
+    box-shadow:
+        0 0 0 5px var(--wood),
+        0 0 0 8px var(--wood-dark),
+        var(--panel-shadow);
     aspect-ratio: 1;
     width: min(100%, 52vh);
     align-self: center;
@@ -792,36 +699,39 @@
     -webkit-touch-callout: none;
 }
 
-/* Premium flat material tile: solid city color, crisp flat text, a soft
-   realistic shadow for lift - no gloss sheen, no colored glow halo */
+/* A cream candy slab with a carved letter - the tile is a button, so it
+   gets the button's bevel and sink */
 .letter-tile {
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: var(--font-display);
     font-size: 2.2em;
-    font-weight: 700;
-    background: var(--tile-bg, var(--grad-blue));
-    color: var(--tile-text, var(--text-dark));
-    border: none;
+    font-weight: 800;
+    background: var(--tile-bg, var(--cream));
+    color: var(--tile-text, var(--ink));
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-tile);
     cursor: pointer;
     user-select: none;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-    box-shadow: var(--shadow-depth-sm);
+    /* the arena skin supplies both the face and its bevel base */
+    --btn-base: var(--tile-base, var(--sand-deep));
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.4), var(--bevel-sm);
     touch-action: none;
 }
 
 .letter-tile:hover {
     transform: translateY(-2px);
-    box-shadow: var(--shadow-depth-md);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.4), var(--bevel);
 }
 
 .letter-tile.selected {
-    background: var(--grad-gold);
-    color: #1E1706;
-    box-shadow: var(--shadow-depth-md);
-    transform: scale(1.05);
+    background: var(--gold);
+    color: var(--ink);
+    --btn-base: var(--gold-base);
+    transform: translateY(3px);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), var(--sink);
 }
 
 /* ===== Arena board themes (skins) =====
@@ -830,17 +740,19 @@
    from the ARENAS table. Each city expresses its identity through a static,
    subtle background tint and a soft accent border - no animated glow. */
 .board.arena-themed {
-    background: linear-gradient(var(--board-accent, rgba(78, 127, 214, 0.15)), var(--board-accent, rgba(78, 127, 214, 0.15))), var(--panel-light);
-    border: 1px solid var(--board-accent, rgba(78, 127, 214, 0.3));
+    background: linear-gradient(var(--board-accent, transparent), var(--board-accent, transparent)), var(--felt);
 }
 
 .current-word-display {
     font-family: var(--font-display);
     text-align: center;
     font-size: 2.5em;
-    font-weight: 700;
+    font-weight: 900;
     min-height: 50px;
-    color: var(--neon-cyan);
+    color: var(--title-fill);
+    -webkit-text-stroke: 3px var(--wood-dark);
+    paint-order: stroke fill;
+    text-shadow: 0 3px 0 rgba(78, 49, 22, 0.5);
     margin-bottom: 15px;
     letter-spacing: 3px;
 }
@@ -856,37 +768,41 @@
     font-size: 1.8em;
     width: 70px;
     height: 70px;
-    border-radius: var(--radius-sm);
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-pill);
+    border: 3px solid var(--wood-dark);
+    --btn-face: var(--gold);
+    --btn-base: var(--gold-base);
+    background: var(--btn-face);
+    color: var(--ink);
     cursor: pointer;
-    box-shadow: var(--shadow-depth-sm);
-    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-    backdrop-filter: blur(5px);
+    box-shadow: var(--bevel-sm);
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
 }
 
 .power-up-btn:hover {
-    border-color: var(--neon-cyan);
-    background: rgba(255, 255, 255, 0.15);
-    box-shadow: var(--glow-cyan);
-    transform: scale(1.08);
+    transform: translateY(-2px);
+    box-shadow: var(--bevel);
 }
 
 .power-up-btn:active {
-    transform: scale(0.93);
+    transform: translateY(2px);
+    box-shadow: var(--sink);
 }
 
 .found-words {
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--cream);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-btn);
-    padding: 15px;
+    padding: 14px;
     max-height: 150px;
     overflow-y: auto;
+    box-shadow: inset 0 3px 0 var(--cream-hi), var(--shadow-depth-md);
 }
 
 .found-words h3 {
     margin-bottom: 10px;
-    color: var(--neon-cyan);
+    color: var(--ink);
+    font-weight: 800;
 }
 
 .found-words ul {
@@ -897,15 +813,18 @@
     display: flex;
     justify-content: space-between;
     padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--cream-2);
+    color: var(--ink);
+    font-weight: 700;
     margin-bottom: 6px;
-    border-radius: 8px;
-    border-left: 3px solid var(--neon-cyan);
+    border: 2px solid var(--wood-dark);
+    border-radius: var(--radius-sm);
+    border-inline-start: 5px solid var(--green);
 }
 
 .points {
-    color: var(--neon-gold);
-    font-weight: 700;
+    color: var(--gold-base);
+    font-weight: 800;
 }
 
 /* Battle Screen */
@@ -924,13 +843,16 @@
 }
 
 .round-badge {
-    background: var(--grad-orange);
-    color: var(--text-dark);
-    padding: 8px 16px;
-    border-radius: 20px;
+    --btn-base: var(--orange-base);
+    background: var(--orange);
+    color: var(--ink-on-color);
+    padding: 8px 18px;
+    border: 3px solid var(--wood-dark);
+    border-radius: var(--radius-pill);
     font-family: var(--font-display);
-    font-weight: 700;
-    box-shadow: var(--glow-orange);
+    font-weight: 800;
+    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.45);
+    box-shadow: var(--bevel-sm);
 }
 
 .players-status {
@@ -939,29 +861,32 @@
     margin-bottom: 20px;
     overflow-x: auto;
     padding: 10px;
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--wood);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-btn);
+    box-shadow: inset 0 3px 0 var(--wood-light);
 }
 
+/* A wooden name plate, as on the reference tables */
 .player-status {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
-    padding: 12px 16px;
-    background: var(--surface-2);
-    border: 1px solid rgba(78, 127, 214, 0.25);
+    padding: 10px 14px;
+    background: var(--cream-2);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-sm);
     min-width: 100px;
     text-align: center;
-    font-weight: 700;
-    box-shadow: var(--shadow-depth-sm);
+    font-weight: 800;
+    color: var(--ink);
+    box-shadow: inset 0 2px 0 var(--cream-hi), var(--shadow-depth-sm);
 }
 
 .player-status.self {
-    border-color: rgba(201, 154, 46, 0.5);
-    background: rgba(201, 154, 46, 0.14);
-    box-shadow: var(--shadow-depth-sm);
+    background: var(--cream-mint);
+    box-shadow: inset 0 2px 0 var(--cream-hi), 0 0 0 3px var(--gold), var(--shadow-depth-sm);
 }
 
 .player-score {
@@ -969,28 +894,42 @@
     text-align: center;
     font-size: 1.5em;
     margin-bottom: 15px;
-    color: var(--neon-lime-deep);
-    font-weight: 700;
+    color: var(--green-base);
+    font-weight: 800;
 }
 
 /* Result Screens */
 .result-modal, .victory-modal {
-    background: var(--panel-light);
+    background: var(--cream);
+    border: 4px solid var(--wood-dark);
     border-radius: var(--radius-card);
-    padding: 40px;
+    padding: 34px 26px 26px;
+    margin-top: 40px;
     width: 100%;
     max-width: 500px;
     text-align: center;
-    color: var(--text-dark);
-    border: none;
-    box-shadow: var(--shadow-depth-lg);
+    color: var(--ink);
+    box-shadow:
+        0 0 0 5px var(--wood),
+        0 0 0 8px var(--wood-dark),
+        inset 0 3px 0 var(--cream-hi),
+        var(--panel-shadow);
 }
 
 .result-modal h2 {
     font-family: var(--font-display);
-    color: var(--text-dark);
-    font-size: 2em;
-    margin-bottom: 20px;
+    font-size: 1.9em;
+    font-weight: 800;
+    width: fit-content;
+    max-width: 100%;
+    margin: -56px auto 20px;
+    padding: 10px 28px;
+    background: var(--wood);
+    color: var(--title-fill);
+    border: 3px solid var(--wood-dark);
+    border-radius: var(--radius-pill);
+    text-shadow: 0 3px 0 rgba(78, 49, 22, 0.6);
+    box-shadow: inset 0 3px 0 var(--wood-light), var(--shadow-depth-md);
 }
 
 .standings {
@@ -1002,24 +941,25 @@
     justify-content: space-between;
     align-items: center;
     padding: 12px 16px;
-    background: var(--surface-2);
+    background: var(--cream-2);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-sm);
     margin-bottom: 8px;
-    font-weight: 700;
-    color: var(--text-dark);
+    font-weight: 800;
+    color: var(--ink);
+    box-shadow: inset 0 2px 0 var(--cream-hi);
 }
 
 .standing.eliminated {
-    background: rgba(179, 55, 46, 0.14);
-    border: 1px solid rgba(179, 55, 46, 0.35);
-    opacity: 0.75;
+    background: var(--cream-3);
+    opacity: 0.7;
     text-decoration: line-through;
 }
 
 .elimination-notice {
     text-align: center;
-    color: var(--neon-red-deep, var(--neon-red));
-    font-weight: 700;
+    color: var(--red-base);
+    font-weight: 800;
     font-size: 1.2em;
     margin-bottom: 15px;
 }
@@ -1029,85 +969,101 @@
     align-items: center;
     justify-content: center;
     gap: 12px;
-    background: rgba(201, 154, 46, 0.14);
-    border: 1px solid rgba(201, 154, 46, 0.4);
+    background: var(--gold);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-btn);
-    padding: 20px;
+    padding: 18px;
     margin: 20px 0;
     font-size: 1.2em;
-    font-weight: 700;
-    color: #E0B84D;
-    box-shadow: var(--shadow-depth-sm);
+    font-weight: 800;
+    color: var(--ink);
+    box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.45), var(--shadow-depth-md);
 }
 
 .victory-modal h1 {
     font-family: var(--font-display);
-    font-size: 3.5em;
-    color: var(--text-dark);
-    margin-bottom: 10px;
+    font-size: 3.2em;
+    font-weight: 900;
+    color: var(--title-fill);
+    -webkit-text-stroke: 4px var(--wood-dark);
+    paint-order: stroke fill;
+    text-shadow: 0 5px 0 rgba(78, 49, 22, 0.55);
+    margin-bottom: 14px;
 }
 
 .victory-modal p {
-    color: var(--text-secondary);
+    color: var(--ink-2);
+    font-weight: 600;
     font-size: 1.1em;
     margin-bottom: 20px;
 }
 
 .btn-large {
     width: 100%;
-    padding: 20px;
-    border: none;
+    padding: 18px;
+    background: var(--btn-face, var(--green));
+    color: var(--ink-on-color);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-btn);
     font-family: var(--font-display);
     font-size: 1.2em;
     font-weight: 800;
     cursor: pointer;
     margin-top: 20px;
-    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease;
+    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.45);
+    box-shadow: var(--bevel);
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
 }
 
 .btn-large:hover {
-    filter: brightness(1.06);
     transform: translateY(-2px);
+    box-shadow: var(--bevel-lg);
 }
 
 .btn-large:active {
-    transform: scale(0.95);
-    filter: brightness(0.92);
-}
-
-.purple-btn {
-    background: var(--grad-purple);
-    color: white;
-    box-shadow: var(--glow-purple);
+    transform: translateY(4px);
+    box-shadow: var(--sink);
 }
 
 /* Shop & Profile */
 .shop-container, .profile-container {
-    background: var(--panel-light);
+    background: var(--cream);
+    border: 4px solid var(--wood-dark);
     border-radius: var(--radius-card);
-    padding: 30px;
+    padding: 30px 24px 24px;
+    margin-top: 40px;
     width: 100%;
     max-width: 600px;
-    color: var(--text-dark);
-    border: none;
-    box-shadow: var(--shadow-depth-lg);
+    color: var(--ink);
+    box-shadow:
+        0 0 0 5px var(--wood),
+        0 0 0 8px var(--wood-dark),
+        inset 0 3px 0 var(--cream-hi),
+        var(--panel-shadow);
 }
 
 .shop-container h2, .profile-container h2 {
     font-family: var(--font-display);
     font-weight: 800;
-    color: var(--text-dark);
-    font-size: 2em;
-    margin-bottom: 20px;
-    letter-spacing: -0.5px;
+    font-size: 1.9em;
+    width: fit-content;
+    max-width: 100%;
+    margin: -52px auto 22px;
+    padding: 10px 28px;
+    background: var(--wood);
+    color: var(--title-fill);
+    border: 3px solid var(--wood-dark);
+    border-radius: var(--radius-pill);
+    text-shadow: 0 3px 0 rgba(78, 49, 22, 0.6);
+    box-shadow: inset 0 3px 0 var(--wood-light), var(--shadow-depth-md);
 }
 
 .shop-coins {
     text-align: center;
     font-size: 1.5em;
     margin-bottom: 25px;
-    font-weight: 700;
+    font-weight: 800;
+    color: var(--ink);
 }
 
 .shop-items {
@@ -1121,61 +1077,70 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 18px;
-    background: var(--surface-2);
-    border: none;
+    padding: 16px;
+    background: var(--cream-2);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-btn);
-    box-shadow: var(--shadow-depth-sm);
+    --btn-base: var(--sand-deep);
+    box-shadow: inset 0 2px 0 var(--cream-hi), var(--bevel-sm);
     transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .shop-item:active {
-    transform: scale(0.98);
+    transform: translateY(3px);
+    box-shadow: inset 0 2px 0 var(--cream-hi), var(--sink);
 }
 
 .shop-item:hover {
-    background: var(--surface-3);
-    box-shadow: var(--shadow-depth-md);
+    background: var(--cream-mint);
+    transform: translateY(-2px);
+    box-shadow: inset 0 2px 0 var(--cream-hi), var(--bevel);
 }
 
 .item-info h3 {
-    color: var(--text-dark);
+    color: var(--ink);
     font-size: 1.1em;
+    font-weight: 800;
     margin-bottom: 5px;
 }
 
 .item-info p {
-    color: var(--text-secondary);
+    color: var(--ink-2);
     font-size: 0.9em;
+    font-weight: 600;
 }
 
 .buy-btn {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 12px 18px;
-    background: var(--grad-blue);
-    color: var(--text-dark);
-    border: none;
+    padding: 11px 18px;
+    --btn-face: var(--blue);
+    --btn-base: var(--blue-base);
+    background: var(--btn-face);
+    color: var(--ink-on-color);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-sm);
     font-family: var(--font-display);
     font-weight: 800;
     font-size: 16px;
     cursor: pointer;
-    box-shadow: var(--shadow-depth-sm);
-    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, filter 0.15s ease;
+    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.45);
+    box-shadow: var(--bevel-sm);
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
 }
 
 .buy-btn:active {
-    transform: scale(0.93);
-    filter: brightness(0.95);
+    transform: translateY(2px);
+    box-shadow: var(--sink);
 }
 
 .owned-count {
     font-size: 0.75em;
-    font-weight: 700;
-    color: var(--neon-lime-deep);
-    background: rgba(20, 122, 74, 0.15);
+    font-weight: 800;
+    color: var(--green-base);
+    background: var(--cream-mint);
+    border: 2px solid var(--wood-dark);
     border-radius: var(--radius-sm);
     padding: 2px 8px;
     vertical-align: middle;
@@ -1185,7 +1150,7 @@
 .confirm-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(10, 12, 30, 0.75);
+    background: rgba(28, 62, 40, 0.7);
     backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
@@ -1194,19 +1159,23 @@
 }
 
 .confirm-box {
-    background: var(--panel-light);
-    border: none;
+    background: var(--cream);
+    border: 4px solid var(--wood-dark);
     border-radius: var(--radius-card);
-    box-shadow: var(--shadow-depth-lg);
-    padding: 30px;
+    box-shadow:
+        0 0 0 5px var(--wood),
+        0 0 0 8px var(--wood-dark),
+        inset 0 3px 0 var(--cream-hi),
+        var(--panel-shadow);
+    padding: 28px 24px;
     max-width: 420px;
-    width: calc(100% - 40px);
+    width: calc(100% - 50px);
     text-align: center;
 }
 
 .confirm-box p {
-    color: var(--text-dark);
-    font-weight: 700;
+    color: var(--ink);
+    font-weight: 800;
     font-size: 1.15em;
     margin-bottom: 22px;
 }
@@ -1224,7 +1193,7 @@
 
 .buy-btn:hover {
     transform: translateY(-2px);
-    box-shadow: var(--glow-cyan);
+    box-shadow: var(--bevel);
 }
 
 /* Avatar picker */
@@ -1236,24 +1205,22 @@
 .current-avatar {
     width: 110px;
     height: 110px;
-    margin: 0 auto 15px;
+    margin: 6px auto 20px;
     border-radius: 50%;
     overflow: hidden;
-    border: 2px solid rgba(78, 127, 214, 0.4);
-    box-shadow: var(--shadow-depth-sm);
+    border: 3px solid var(--wood-dark);
+    box-shadow: 0 0 0 5px var(--gold), 0 0 0 8px var(--wood-dark), var(--shadow-depth-md);
 }
 
-.current-avatar svg,
-.current-avatar img {
+.current-avatar svg {
     width: 100%;
     height: 100%;
-    object-fit: cover;
     display: block;
 }
 
 .avatar-section-title {
-    font-weight: 700;
-    color: var(--text-dark);
+    font-weight: 800;
+    color: var(--ink);
     margin-bottom: 12px;
     font-size: 1.1em;
 }
@@ -1268,9 +1235,11 @@
     cursor: pointer;
     border-radius: var(--radius-btn);
     padding: 8px;
-    border: 2px solid transparent;
+    border: 3px solid var(--wood-dark);
     transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, box-shadow 0.2s ease;
-    background: var(--surface-2);
+    background: var(--cream-2);
+    --btn-base: var(--sand-deep);
+    box-shadow: inset 0 2px 0 var(--cream-hi), var(--bevel-sm);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1286,20 +1255,20 @@
 }
 
 .avatar-option:hover {
-    transform: translateY(-4px) scale(1.05);
-    background: rgba(78, 127, 214, 0.1);
+    transform: translateY(-3px);
+    background: var(--cream-mint);
+    box-shadow: inset 0 2px 0 var(--cream-hi), var(--bevel);
 }
 
 .avatar-option.avatar-selected {
-    border-color: var(--neon-cyan);
-    background: rgba(78, 127, 214, 0.15);
-    box-shadow: var(--glow-cyan);
+    background: var(--cream-mint);
+    box-shadow: inset 0 2px 0 var(--cream-hi), 0 0 0 4px var(--gold), var(--bevel-sm);
 }
 
 .avatar-name {
     font-size: 16px;
-    font-weight: 700;
-    color: var(--text-dark);
+    font-weight: 800;
+    color: var(--ink);
 }
 
 .avatar-option {
@@ -1312,7 +1281,8 @@
 }
 
 .avatar-option:active {
-    transform: scale(0.95);
+    transform: translateY(2px);
+    box-shadow: inset 0 2px 0 var(--cream-hi), var(--sink);
 }
 
 .avatar-option.avatar-locked:hover,
@@ -1328,47 +1298,6 @@
     line-height: 1;
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
 }
-
-/* Custom photo tile - a personal picture from the player's own device,
-   local-only (see handleCustomAvatarFile/getOwnAvatarMarkup in game.js) */
-.custom-avatar-img {
-    width: 100%;
-    max-width: 70px;
-    aspect-ratio: 1;
-    object-fit: cover;
-    border-radius: 50%;
-    display: block;
-}
-
-.avatar-custom-placeholder {
-    width: 100%;
-    max-width: 70px;
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    border: 2px dashed rgba(255, 255, 255, 0.25);
-    color: var(--text-secondary);
-}
-.avatar-custom-placeholder svg { width: 26px; height: 26px; }
-
-.avatar-custom-replace {
-    position: absolute;
-    top: 4px;
-    inset-inline-end: 4px;
-    width: 22px;
-    height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--surface-3);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 50%;
-    color: var(--neon-cyan-deep);
-    cursor: pointer;
-}
-.avatar-custom-replace svg { width: 13px; height: 13px; }
 
 /* Shop: premium profile pictures */
 .shop-section-title {
@@ -1406,24 +1335,6 @@
     height: 1.1em;
 }
 
-/* ===== Background skins: swatch previews + the equipped-row highlight =====
-   Full scene recipes (fire/buildings/grass) that these swatches preview live
-   in the "App-wide background scenes" section near the end of this file. */
-.shop-item-equipped {
-    border: 2px solid var(--neon-lime-deep);
-}
-
-.bg-swatch {
-    width: 52px;
-    height: 52px;
-    border-radius: 14px;
-    flex: 0 0 auto;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
-}
-.bg-swatch-fire      { background: linear-gradient(200deg, #7a2410, #ffb066); }
-.bg-swatch-buildings { background: linear-gradient(200deg, #0a0b10, #2c3450); }
-.bg-swatch-grass     { background: linear-gradient(200deg, #0d2417, #2f8a4c); }
-
 /* ===== Get-coins section: rewarded ad + mock coin packages ===== */
 .pack-emoji {
     font-size: 2.2em;
@@ -1434,24 +1345,27 @@
 }
 
 .ad-card {
-    background: rgba(47, 190, 133, 0.12);
+    background: var(--cream-mint);
 }
 
 .pack-card {
-    background: rgba(201, 154, 46, 0.10);
+    background: var(--cream-3);
 }
 
 .green-buy-btn {
-    background: var(--grad-green);
-    box-shadow: var(--shadow-depth-sm);
+    --btn-face: var(--green);
+    --btn-base: var(--green-base);
+    background: var(--btn-face);
 }
 
 .price-btn {
-    background: var(--grad-gold);
-    color: #1E1706;
+    --btn-face: var(--gold);
+    --btn-base: var(--gold-base);
+    background: var(--btn-face);
+    color: var(--ink);
+    text-shadow: 0 2px 0 rgba(255, 255, 255, 0.45);
     min-width: 76px;
     justify-content: center;
-    box-shadow: var(--shadow-depth-sm);
 }
 
 /* ===== Rewarded-ad countdown modal ===== */
@@ -1470,7 +1384,7 @@
     font-family: var(--font-display);
     font-size: 3em;
     font-weight: 800;
-    color: var(--neon-cyan-deep);
+    color: var(--ink);
 }
 
 /* the spinning "loading" ring around the countdown number */
@@ -1479,8 +1393,8 @@
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    border: 8px solid rgba(78, 127, 214, 0.18);
-    border-top-color: var(--neon-cyan);
+    border: 8px solid var(--cream-3);
+    border-top-color: var(--green);
     animation: mpSpin 1s linear infinite;
 }
 
@@ -1488,12 +1402,12 @@
     font-family: var(--font-display);
     font-weight: 800;
     font-size: 1.3em;
-    color: var(--text-dark);
+    color: var(--ink);
     margin-bottom: 6px;
 }
 
 .ad-sub {
-    color: var(--text-secondary);
+    color: var(--ink-2);
     font-weight: 600;
     font-size: 0.95em;
 }
@@ -1504,11 +1418,9 @@
     padding: 0;
 }
 
-.player-avatar svg,
-.player-avatar img {
+.player-avatar svg {
     width: 100%;
     height: 100%;
-    object-fit: cover;
     display: block;
 }
 
@@ -1518,27 +1430,30 @@
     height: 42px;
     border-radius: 50%;
     overflow: hidden;
-    border: 2px solid rgba(255, 255, 255, 0.4);
+    border: 3px solid var(--wood-dark);
+    box-shadow: 0 0 0 3px var(--gold), 0 0 0 5px var(--wood-dark);
 }
 
-.status-avatar svg,
-.status-avatar img {
+.status-avatar svg {
     width: 100%;
     height: 100%;
-    object-fit: cover;
     display: block;
 }
 
 .profile-stats {
-    background: var(--surface-2);
+    background: var(--cream-2);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-btn);
-    padding: 25px;
+    padding: 22px;
+    color: var(--ink);
+    font-weight: 700;
+    box-shadow: inset 0 2px 0 var(--cream-hi);
 }
 
 .rename-btn {
     background: none;
     border: none;
-    color: var(--neon-cyan-deep);
+    color: var(--blue-base);
     cursor: pointer;
     font-size: 16px;
     padding: 4px;
@@ -1546,13 +1461,13 @@
 }
 
 .rename-btn:hover {
-    color: var(--neon-cyan);
+    color: var(--blue);
 }
 
 .profile-stats p {
     padding: 12px 0;
     font-size: 1.1em;
-    border-bottom: 1px solid rgba(78, 127, 214, 0.2);
+    border-bottom: 2px solid var(--sand-deep);
 }
 
 .profile-stats p:last-child {
@@ -1572,14 +1487,16 @@
     align-items: center;
     gap: 12px;
     padding: 10px 14px;
-    background: linear-gradient(135deg, rgba(0, 229, 255, 0.08), rgba(57, 255, 106, 0.08));
-    border: 2px solid rgba(0, 229, 255, 0.2);
-    border-radius: 12px;
+    background: var(--cream-2);
+    border: 3px solid var(--wood-dark);
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 2px 0 var(--cream-hi);
 }
 
+/* the only row tint in the system - "this one is you" */
 .lb-row.lb-me {
-    border-color: var(--neon-gold);
-    background: linear-gradient(135deg, rgba(255, 214, 10, 0.14), rgba(255, 159, 0, 0.1));
+    background: var(--cream-mint);
+    box-shadow: inset 0 2px 0 var(--cream-hi), 0 0 0 3px var(--gold);
 }
 
 .lb-rank {
@@ -1588,7 +1505,7 @@
     font-size: 1.15em;
     min-width: 30px;
     text-align: center;
-    color: var(--text-dark);
+    color: var(--ink);
 }
 
 .lb-avatar {
@@ -1597,7 +1514,8 @@
     border-radius: 50%;
     overflow: hidden;
     flex-shrink: 0;
-    border: 2px solid rgba(255, 255, 255, 0.5);
+    border: 3px solid var(--wood-dark);
+    box-shadow: 0 0 0 3px var(--gold), 0 0 0 5px var(--wood-dark);
 }
 
 .lb-avatar svg {
@@ -1608,8 +1526,8 @@
 
 .lb-name {
     flex: 1;
-    font-weight: 700;
-    color: var(--text-dark);
+    font-weight: 800;
+    color: var(--ink);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1619,30 +1537,7 @@
     font-family: var(--font-display);
     font-weight: 800;
     font-size: 1.15em;
-    color: var(--neon-cyan-deep);
-}
-
-/* admin-only pencil at the end of a row (see renameLeaderboardEntry).
-   Muted rather than cyan so it stays subordinate to the score beside it. */
-.lb-edit {
-    flex-shrink: 0;
-    font-size: 18px;
-    padding: 6px;
-    color: var(--text-secondary);
-    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease;
-}
-
-.lb-edit:hover {
-    color: var(--neon-cyan);
-}
-
-.lb-edit:active {
-    transform: scale(0.93);
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .lb-edit { transition: color 0.15s ease; }
-    .lb-edit:active { transform: none; }
+    color: var(--gold-base);
 }
 
 /* Messages */
@@ -1651,11 +1546,13 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    padding: 20px 40px;
+    padding: 18px 36px;
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-btn);
     font-family: var(--font-display);
     font-size: 1.2em;
     font-weight: 800;
+    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.4);
     box-shadow: var(--shadow-depth-lg);
     z-index: 1000;
     animation: slideInMessage 0.3s ease-out;
@@ -1673,27 +1570,24 @@
 }
 
 .message.success {
-    background: var(--grad-green);
-    color: var(--text-dark);
-    box-shadow: var(--glow-green);
+    background: var(--green);
+    color: var(--ink-on-color);
 }
 
 .message.error {
-    background: var(--grad-red);
-    color: white;
-    box-shadow: var(--glow-red);
+    background: var(--red);
+    color: var(--ink-on-color);
 }
 
 .message.warning {
-    background: var(--grad-gold);
-    color: black;
-    box-shadow: var(--glow-gold);
+    background: var(--gold);
+    color: var(--ink);
+    text-shadow: 0 2px 0 rgba(255, 255, 255, 0.4);
 }
 
 .message.info {
-    background: var(--grad-blue);
-    color: var(--text-dark);
-    box-shadow: var(--glow-cyan);
+    background: var(--blue);
+    color: var(--ink-on-color);
 }
 
 /* ---- Above-the-board messages (in-game feedback + זבאנג cheers) ----
@@ -1704,10 +1598,12 @@
 .board-msg {
     position: fixed;
     padding: 9px 18px;
-    border-radius: var(--radius-btn);
+    border: 3px solid var(--wood-dark);
+    border-radius: var(--radius-pill);
     font-family: var(--font-display);
     font-weight: 800;
     font-size: 1.05em;
+    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.4);
     box-shadow: var(--shadow-depth-md);
     z-index: 150;
     pointer-events: none;
@@ -1727,18 +1623,23 @@
     to   { opacity: 1; margin-top: 0; }
 }
 
-.board-msg.success { background: var(--grad-green); color: var(--text-dark); }
-.board-msg.error   { background: var(--grad-red);   color: #fff; }
-.board-msg.warning { background: var(--grad-gold);  color: #1E1706; }
-.board-msg.info    { background: var(--grad-blue);  color: var(--text-dark); }
+.board-msg.success { background: var(--green); color: var(--ink-on-color); }
+.board-msg.error   { background: var(--red);   color: var(--ink-on-color); }
+.board-msg.warning { background: var(--gold);  color: var(--ink); text-shadow: 0 2px 0 rgba(255, 255, 255, 0.4); }
+.board-msg.info    { background: var(--blue);  color: var(--ink-on-color); }
 
-/* The signature זבאנג cheer - bigger, golden, celebratory */
+/* The signature זבאנג cheer - a cream speech bubble with carved gold text,
+   the loudest thing on the board */
 .board-msg.cheer {
-    background: linear-gradient(135deg, #FFD24D, #FF8A1E);
-    color: #3A1D00;
-    font-size: 1.25em;
+    background: var(--cream);
+    color: var(--title-fill);
+    -webkit-text-stroke: 3px var(--wood-dark);
+    paint-order: stroke fill;
+    text-shadow: 0 3px 0 rgba(78, 49, 22, 0.45);
+    font-size: 1.5em;
+    font-weight: 900;
     letter-spacing: 0.3px;
-    box-shadow: 0 8px 24px rgba(255, 138, 30, 0.4), var(--shadow-depth-sm);
+    box-shadow: inset 0 3px 0 var(--cream-hi), var(--shadow-depth-lg);
     animation: cheerPop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -1754,7 +1655,7 @@
 
 /* "new personal best" note on the result screen */
 .sr-best-note {
-    color: var(--neon-gold, #C99A2E);
+    color: var(--gold-base);
     font-weight: 800;
     font-size: 1.05em;
     margin: 4px 0 10px;
@@ -1762,20 +1663,22 @@
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-    width: 8px;
+    width: 10px;
 }
 
 ::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--cream-3);
+    border-radius: var(--radius-pill);
 }
 
 ::-webkit-scrollbar-thumb {
-    background: rgba(78, 127, 214, 0.3);
-    border-radius: 4px;
+    background: var(--wood);
+    border: 2px solid var(--cream-3);
+    border-radius: var(--radius-pill);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(78, 127, 214, 0.5);
+    background: var(--wood-dark);
 }
 
 /* Responsive */
@@ -1878,11 +1781,12 @@
     justify-content: center;
     gap: 6px;
     border-radius: var(--radius-card);
-    background: rgba(10, 26, 48, 0.78);
+    background: rgba(59, 169, 188, 0.82);
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
-    border: 2px solid var(--neon-cyan);
-    color: var(--neon-cyan);
+    border: 4px solid var(--wood-dark);
+    color: var(--cream);
+    text-shadow: 0 3px 0 rgba(78, 49, 22, 0.55);
     text-align: center;
     /* swallow taps so nothing reaches the tiles underneath */
     pointer-events: auto;
@@ -1908,84 +1812,16 @@
     filter: grayscale(0.7) brightness(0.7);
 }
 
-/* ===== Elimination lockout ===== */
-/* Shown to a multiplayer player once the room marks them eliminated: the
-   board stays visible (dimmed, same as a freeze) but input is locked in JS,
-   so this curtain explains why and offers the only things left to do. */
-.board-eliminated-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 21;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    padding: 20px;
-    border-radius: var(--radius-card);
-    background: rgba(10, 26, 48, 0.85);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
-    border: 2px solid var(--neon-red-deep, var(--neon-red));
-    color: var(--neon-red-deep, var(--neon-red));
-    text-align: center;
-    pointer-events: auto;
-    touch-action: none;
-}
-
-.board-eliminated-overlay .elim-label {
-    font-family: var(--font-display);
-    font-weight: 800;
-    font-size: 1.5em;
-    letter-spacing: 1px;
-}
-
-.board-eliminated-overlay .elim-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    width: 100%;
-    max-width: 220px;
-}
-
-.board-eliminated-overlay .elim-btn {
-    width: 100%;
-    padding: 12px;
-    border: none;
-    border-radius: var(--radius-btn);
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 0.95em;
-    cursor: pointer;
-    color: white;
-    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease;
-}
-
-.board-eliminated-overlay .elim-btn:hover {
-    filter: brightness(1.08);
-    transform: translateY(-2px);
-}
-
-.board-eliminated-overlay .elim-btn:active {
-    transform: scale(0.95);
-    filter: brightness(0.92);
-}
-
-.board-eliminated-overlay .elim-spectate { background: var(--grad-blue, #3a65b8); }
-.board-eliminated-overlay .elim-home { background: var(--grad-green, #168752); }
-.board-eliminated-overlay .elim-new { background: var(--grad-purple, #5b4fcf); }
-
 /* ===== Frozen timer ===== */
 .timer-display.frozen {
-    color: var(--neon-cyan);
-    border-color: var(--neon-cyan);
-    background: rgba(78, 127, 214, 0.12);
+    color: var(--water-deep);
+    background: #DFF4F7;
     animation: freezePulse 1s ease-in-out infinite;
 }
 
 @keyframes freezePulse {
-    0%, 100% { box-shadow: var(--shadow-depth-sm); }
-    50% { box-shadow: 0 0 12px rgba(78, 127, 214, 0.35), var(--shadow-depth-sm); }
+    0%, 100% { box-shadow: inset 0 3px 0 var(--cream-hi), var(--shadow-depth-md); }
+    50%      { box-shadow: inset 0 3px 0 var(--cream-hi), 0 0 0 4px var(--water), var(--shadow-depth-md); }
 }
 
 /* ===== Power-up cost badges ===== */
@@ -1995,16 +1831,17 @@
 
 .pu-cost {
     position: absolute;
-    bottom: -6px;
+    bottom: -8px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--grad-gold);
-    color: #1E1706;
+    background: var(--cream);
+    color: var(--ink);
     font-family: var(--font-display);
     font-size: 14px;
     font-weight: 800;
-    padding: 1px 8px;
-    border-radius: 10px;
+    padding: 1px 9px;
+    border: 2px solid var(--wood-dark);
+    border-radius: var(--radius-pill);
     white-space: nowrap;
 }
 
@@ -2016,40 +1853,46 @@
 }
 
 .submit-word-btn {
-    background: #fff;
-    color: #c62828;
-    border: none;
+    --btn-base: var(--sand-deep);
+    background: var(--cream);
+    color: var(--ink);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-sm);
-    padding: 8px 14px;
+    padding: 7px 14px;
     font-weight: 800;
     font-family: inherit;
     font-size: 16px;
     cursor: pointer;
     white-space: nowrap;
-    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: var(--bevel-sm);
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
 }
 
 .submit-word-btn:active {
-    transform: scale(0.93);
+    transform: translateY(2px);
+    box-shadow: var(--sink);
 }
 
 /* ===== Submissions review panel (profile) ===== */
 .submissions-section {
     margin-top: 25px;
-    background: var(--surface-2);
-    border: 1px solid rgba(201, 154, 46, 0.3);
+    background: var(--cream-2);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-btn);
     padding: 20px;
+    box-shadow: inset 0 2px 0 var(--cream-hi);
 }
 
 .submissions-section h3 {
     font-family: var(--font-display);
-    color: var(--text-dark);
+    color: var(--ink);
+    font-weight: 800;
     margin-bottom: 12px;
 }
 
 .no-subs {
-    color: var(--text-secondary);
+    color: var(--ink-2);
+    font-weight: 600;
     text-align: center;
     padding: 10px;
 }
@@ -2058,7 +1901,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--surface-3);
+    background: var(--cream);
+    border: 2px solid var(--wood-dark);
     border-radius: var(--radius-sm);
     padding: 10px 14px;
     margin-bottom: 8px;
@@ -2069,7 +1913,7 @@
 .sub-word {
     font-weight: 800;
     font-size: 1.15em;
-    color: var(--text-dark);
+    color: var(--ink);
 }
 
 .sub-actions {
@@ -2078,69 +1922,76 @@
 }
 
 .approve-btn, .reject-btn {
-    border: none;
+    background: var(--btn-face);
+    color: var(--ink-on-color);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-sm);
-    padding: 9px 14px;
+    padding: 8px 14px;
     font-weight: 800;
     font-family: inherit;
     cursor: pointer;
     font-size: 16px;
-    box-shadow: var(--shadow-depth-sm);
-    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease;
+    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.45);
+    box-shadow: var(--bevel-sm);
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
 }
 
 .approve-btn:active, .reject-btn:active {
-    transform: scale(0.93);
-    filter: brightness(0.95);
+    transform: translateY(2px);
+    box-shadow: var(--sink);
 }
 
 .approve-btn {
-    background: var(--grad-green);
-    color: var(--text-dark);
+    --btn-face: var(--green);
+    --btn-base: var(--green-base);
 }
 
 .reject-btn {
-    background: var(--grad-red);
-    color: var(--text-dark);
+    --btn-face: var(--red);
+    --btn-base: var(--red-base);
 }
 
 .sub-status {
     font-size: 0.85em;
-    font-weight: 700;
+    font-weight: 800;
     padding: 4px 10px;
-    border-radius: 8px;
+    border: 2px solid var(--wood-dark);
+    border-radius: var(--radius-pill);
 }
 
 .sub-pending {
-    color: #E0B84D;
-    background: rgba(201, 154, 46, 0.18);
+    color: var(--ink);
+    background: var(--gold);
 }
 
 .sub-approved {
-    color: #2FBE85;
-    background: rgba(20, 122, 74, 0.18);
+    color: var(--ink);
+    background: var(--cream-mint);
 }
 
 .admin-section {
     margin-top: 25px;
-    background: var(--surface-2);
-    border: 1px solid rgba(91, 79, 207, 0.3);
+    background: var(--cream-2);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-btn);
     padding: 20px;
+    box-shadow: inset 0 2px 0 var(--cream-hi);
 }
 
 .admin-section h3 {
     font-family: var(--font-display);
-    color: var(--neon-purple);
+    color: var(--purple-base);
+    font-weight: 800;
     margin-bottom: 12px;
 }
 
 /* ===== Shop note ===== */
 .shop-note {
     text-align: center;
-    color: var(--text-secondary);
-    background: rgba(78, 127, 214, 0.08);
-    border-radius: 10px;
+    color: var(--ink-2);
+    background: var(--cream-3);
+    border: 2px solid var(--wood-dark);
+    border-radius: var(--radius-sm);
     padding: 12px;
     margin-bottom: 15px;
     font-size: 0.95em;
@@ -2199,24 +2050,24 @@
 .room-code-display {
     font-family: var(--font-display);
     font-size: 2.8em;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 8px;
     text-align: center;
-    color: var(--neon-cyan-deep);
-    background: var(--surface-2);
-    border: 1px solid rgba(78, 127, 214, 0.3);
+    color: var(--ink);
+    background: var(--cream-2);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-btn);
     padding: 16px;
     margin-bottom: 8px;
     cursor: pointer;
-    box-shadow: var(--shadow-depth-sm);
+    box-shadow: inset 0 3px 0 var(--cream-hi), var(--shadow-depth-md);
     user-select: all;
 }
 
 .mp-copied {
     text-align: center;
-    color: var(--neon-lime-deep);
-    font-weight: 700;
+    color: var(--green-base);
+    font-weight: 800;
     margin-bottom: 10px;
 }
 
@@ -2225,66 +2076,24 @@
     width: 100%;
     font-family: var(--font-display);
     font-size: 2em;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 10px;
     text-align: center;
     text-transform: uppercase;
-    color: var(--text-dark);
-    background: var(--surface-2);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--ink);
+    background: var(--cream-2);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-btn);
     padding: 14px;
     margin-bottom: 18px;
     outline: none;
+    box-shadow: inset 0 3px 0 var(--cream-hi);
 }
 
 .room-code-input:focus {
-    border-color: var(--neon-cyan);
-    box-shadow: var(--shadow-depth-sm);
+    outline: 3px solid var(--blue);
+    outline-offset: 3px;
 }
-
-/* Name entry - same shell as .room-code-input, but a name, not a room code:
-   normal weight/case, no letter-spacing */
-.name-input {
-    display: block;
-    width: 100%;
-    font-family: var(--font-body, inherit);
-    font-size: 1.1em;
-    font-weight: 600;
-    color: var(--text-dark);
-    background: var(--surface-2);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: var(--radius-btn);
-    padding: 14px;
-    margin-bottom: 18px;
-    outline: none;
-}
-
-.name-input:focus {
-    border-color: var(--neon-cyan);
-    box-shadow: var(--shadow-depth-sm);
-}
-
-/* Quiet text action inside a modal (e.g. "forgot password") - deliberately
-   not a .btn-large, so it never competes with the modal's real actions. */
-.cloud-link-btn {
-    display: block;
-    width: 100%;
-    margin-top: 14px;
-    padding: 8px;
-    background: none;
-    border: none;
-    font-family: var(--font-body, inherit);
-    font-size: 0.95em;
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-decoration: underline;
-    cursor: pointer;
-    transition: color 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.cloud-link-btn:hover { color: var(--neon-cyan); }
-.cloud-link-btn:active { transform: scale(0.95); }
 
 /* ===== Admin word bank ===== */
 .dict-input {
@@ -2293,17 +2102,18 @@
     font-family: inherit;
     font-size: 1.1em;
     font-weight: 700;
-    color: var(--text-dark);
-    background: var(--surface-2);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--ink);
+    background: var(--cream);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-btn);
-    padding: 12px 14px;
+    padding: 11px 14px;
     outline: none;
+    box-shadow: inset 0 2px 0 var(--cream-hi);
 }
 
 .dict-input:focus {
-    border-color: var(--neon-cyan);
-    box-shadow: var(--shadow-depth-sm);
+    outline: 3px solid var(--blue);
+    outline-offset: 3px;
 }
 
 .dict-add-row {
@@ -2328,8 +2138,8 @@
 }
 
 .dict-stats {
-    color: var(--text-secondary);
-    font-weight: 700;
+    color: var(--ink-2);
+    font-weight: 800;
 }
 
 /* neutral toggle - it switches a view, it isn't a destructive action, so it
@@ -2339,8 +2149,11 @@
     padding: 8px 14px;
     font-size: 0.95em;
     width: auto;
-    background: var(--surface-3);
-    color: var(--text-dark);
+    --btn-face: var(--cream-3);
+    --btn-base: var(--sand-deep);
+    background: var(--btn-face);
+    color: var(--ink);
+    text-shadow: none;
 }
 
 #wordBankAdminTools {
@@ -2370,13 +2183,13 @@
 }
 
 .sub-builtin {
-    color: var(--text-secondary);
-    background: rgba(255, 255, 255, 0.08);
+    color: var(--ink-2);
+    background: var(--cream-3);
 }
 
 .lobby-players-title {
-    color: var(--text-dark);
-    font-weight: 700;
+    color: var(--ink);
+    font-weight: 800;
     margin: 18px 0 10px;
     text-align: center;
 }
@@ -2384,19 +2197,18 @@
 .lobby-players {
     flex-wrap: wrap;
     justify-content: center;
-    background: var(--surface-2);
 }
 
 .lobby-players .player-status span {
-    color: var(--text-dark);
+    color: var(--ink);
 }
 
 .mp-spinner {
     width: 60px;
     height: 60px;
     margin: 10px auto 20px;
-    border: 6px solid rgba(78, 127, 214, 0.2);
-    border-top-color: var(--neon-cyan);
+    border: 6px solid var(--cream-3);
+    border-top-color: var(--green);
     border-radius: 50%;
     animation: mpSpin 0.9s linear infinite;
 }
@@ -2407,8 +2219,8 @@
 
 .mp-waiting {
     text-align: center;
-    color: var(--text-secondary);
-    font-weight: 600;
+    color: var(--ink-2);
+    font-weight: 700;
     margin: 12px 0;
 }
 
@@ -2419,20 +2231,23 @@
     position: fixed;
     top: calc(16px + env(safe-area-inset-top));
     right: calc(16px + env(safe-area-inset-right) + max(0px, (100vw - var(--app-max-width)) / 2));
-    background: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.25);
-    color: white;
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
+    --btn-face: var(--gold);
+    --btn-base: var(--gold-base);
+    background: var(--btn-face);
+    border: 3px solid var(--wood-dark);
+    color: var(--ink);
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-pill);
     cursor: pointer;
     z-index: 10;
-    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: var(--bevel-sm);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
 }
 
 .menu-btn svg { width: 22px; height: 22px; }
-.menu-btn:hover { background: rgba(255, 255, 255, 0.2); box-shadow: var(--glow-cyan); }
-.menu-btn:active { transform: scale(0.9); }
+.menu-btn:hover { transform: translateY(-2px); box-shadow: var(--bevel); }
+.menu-btn:active { transform: translateY(2px); box-shadow: var(--sink); }
 
 /* Menu bubble overlay - dim backdrop + centered card, ~2/3 screen height */
 .menu-overlay {
@@ -2443,7 +2258,7 @@
     align-items: center;
     justify-content: center;
     padding: 20px;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(28, 62, 40, 0.65);
     backdrop-filter: blur(3px);
     animation: fadeIn 0.2s ease;
 }
@@ -2454,10 +2269,14 @@
     max-width: 360px;
     height: 66vh;
     max-height: 560px;
-    background: var(--panel-light);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--cream);
+    border: 4px solid var(--wood-dark);
     border-radius: var(--radius-card);
-    box-shadow: var(--shadow-depth-lg);
+    box-shadow:
+        0 0 0 5px var(--wood),
+        0 0 0 8px var(--wood-dark),
+        inset 0 3px 0 var(--cream-hi),
+        var(--panel-shadow);
     padding: 28px 22px;
     display: flex;
     flex-direction: column;
@@ -2465,32 +2284,43 @@
     animation: homeRise 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* the round red X, as on the reference modals */
 .menu-close {
     position: absolute;
-    top: 12px;
+    top: 10px;
     /* logical inline-start = right in this RTL layout, so X sits top-right */
-    inset-inline-start: 14px;
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    border: none;
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--text-dark);
-    font-size: 22px;
+    inset-inline-start: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-pill);
+    --btn-face: var(--red);
+    --btn-base: var(--red-base);
+    background: var(--btn-face);
+    border: 3px solid var(--wood-dark);
+    color: var(--ink-on-color);
+    font-size: 20px;
+    font-weight: 800;
     line-height: 1;
     cursor: pointer;
-    transition: background 0.2s ease, transform 0.15s ease;
+    box-shadow: var(--bevel-sm);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.menu-close:hover { background: var(--grad-red); color: #fff; }
-.menu-close:active { transform: scale(0.9); }
+.menu-close:hover { transform: translateY(-2px); box-shadow: var(--bevel); }
+.menu-close:active { transform: translateY(2px); box-shadow: var(--sink); }
 
 .menu-title {
     font-family: var(--font-display);
     font-size: 1.6em;
     font-weight: 800;
-    color: var(--text-dark);
-    margin: 6px 0 24px;
+    color: var(--title-fill);
+    background: var(--wood);
+    border: 3px solid var(--wood-dark);
+    border-radius: var(--radius-pill);
+    padding: 8px 24px;
+    text-shadow: 0 3px 0 rgba(78, 49, 22, 0.6);
+    box-shadow: inset 0 3px 0 var(--wood-light), var(--shadow-depth-sm);
+    margin: 2px 0 24px;
 }
 
 .menu-links {
@@ -2504,30 +2334,36 @@
     display: block;
     width: 100%;
     text-align: center;
-    background: var(--surface-2);
-    color: var(--text-dark);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--cream-2);
+    color: var(--ink);
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-btn);
-    padding: 16px;
+    padding: 14px;
     font-family: var(--font-body);
     font-size: 1.05em;
-    font-weight: 700;
+    font-weight: 800;
     cursor: pointer;
     text-decoration: none;
+    --btn-base: var(--sand-deep);
+    box-shadow: inset 0 2px 0 var(--cream-hi), var(--bevel-sm);
     transition: transform 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .menu-link:hover {
-    background: var(--surface-3);
+    background: var(--cream-mint);
     transform: translateY(-2px);
-    box-shadow: var(--shadow-depth-sm);
+    box-shadow: inset 0 2px 0 var(--cream-hi), var(--bevel);
 }
 
-.menu-link:active { transform: scale(0.97); }
+.menu-link:active {
+    transform: translateY(2px);
+    box-shadow: inset 0 2px 0 var(--cream-hi), var(--sink);
+}
 
 .accessibility-statement h3 {
-    color: var(--neon-cyan-deep);
+    color: var(--wood);
     font-size: 1.15em;
+    font-weight: 800;
     margin: 16px 0 8px;
 }
 
@@ -2538,13 +2374,13 @@
 .accessibility-statement p {
     font-size: 16px;
     line-height: 1.6;
-    color: var(--text-dark);
+    color: var(--ink);
     margin-bottom: 10px;
 }
 
 .accessibility-statement a {
-    color: var(--neon-cyan-deep);
-    font-weight: 700;
+    color: var(--blue-base);
+    font-weight: 800;
 }
 
 /* ===========================================================================
@@ -2559,7 +2395,8 @@
 #homeScreen.active .subtitle,
 #homeScreen.active .player-card,
 #homeScreen.active .arena-banner,
-#homeScreen.active .button-group {
+#homeScreen.active .button-group,
+#homeScreen.active .theme-selector {
     animation: homeRise 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
@@ -2567,6 +2404,7 @@
 #homeScreen.active .player-card    { animation-delay: 0.12s; }
 #homeScreen.active .arena-banner   { animation-delay: 0.18s; }
 #homeScreen.active .button-group   { animation-delay: 0.24s; }
+#homeScreen.active .theme-selector { animation-delay: 0.30s; }
 
 @keyframes homeRise {
     from { opacity: 0; transform: translateY(14px); }
@@ -2585,7 +2423,8 @@
     #homeScreen.active .subtitle,
     #homeScreen.active .player-card,
     #homeScreen.active .arena-banner,
-    #homeScreen.active .button-group {
+    #homeScreen.active .button-group,
+    #homeScreen.active .theme-selector {
         animation: none;
     }
 
@@ -2596,12 +2435,11 @@
 
 /* ===========================================================================
    Game-mode selection screen "pop" pass - matches the home screen treatment
-   (aurora backdrop, gradient heading, accent-colored mode cards, staggered
-   entrance). Scoped to #gameModeScreen and #mpChoiceScreen so every other
-   modal keeps the plain matte look.
+   (foliage corners, accent-colored mode cards, staggered entrance). Scoped to
+   #gameModeScreen and #mpChoiceScreen so every other modal stays plain.
    ========================================================================= */
 
-/* same ambient aurora as the home screen */
+/* the same jungle corners as the home screen */
 #gameModeScreen,
 #mpChoiceScreen {
     position: relative;
@@ -2614,55 +2452,41 @@
 #mpChoiceScreen::after {
     content: '';
     position: absolute;
-    width: 460px;
-    height: 460px;
-    border-radius: 50%;
-    filter: blur(65px);
-    opacity: 0.85;
+    width: 300px;
+    height: 260px;
     pointer-events: none;
     z-index: 0;
+    background-repeat: no-repeat;
 }
 
 #gameModeScreen::before,
 #mpChoiceScreen::before {
-    background: radial-gradient(circle, rgba(96, 150, 255, 0.55), rgba(96, 150, 255, 0.1) 55%, transparent 70%);
-    top: -120px;
-    right: -100px;
-    animation: auroraDrift 14s ease-in-out infinite alternate;
+    bottom: -80px;
+    right: -90px;
+    background-image:
+        radial-gradient(circle at 30% 58%, var(--jungle-deep) 0 26%, transparent 27%),
+        radial-gradient(circle at 58% 42%, var(--jungle) 0 24%, transparent 25%),
+        radial-gradient(circle at 80% 64%, var(--jungle-deep) 0 22%, transparent 23%);
+    transform-origin: bottom right;
+    animation: frondSway 11s ease-in-out infinite alternate;
 }
 
 #gameModeScreen::after,
 #mpChoiceScreen::after {
-    background: radial-gradient(circle, rgba(206, 88, 196, 0.5), rgba(206, 88, 196, 0.1) 55%, transparent 70%);
-    bottom: -140px;
-    left: -120px;
-    animation: auroraDrift 18s ease-in-out infinite alternate-reverse;
+    bottom: -80px;
+    left: -90px;
+    background-image:
+        radial-gradient(circle at 70% 58%, var(--jungle-deep) 0 26%, transparent 27%),
+        radial-gradient(circle at 42% 42%, var(--jungle) 0 24%, transparent 25%),
+        radial-gradient(circle at 20% 64%, var(--jungle-deep) 0 22%, transparent 23%);
+    transform-origin: bottom left;
+    animation: frondSway 14s ease-in-out infinite alternate-reverse;
 }
 
 #gameModeScreen .modal-content,
 #mpChoiceScreen .modal-content {
     position: relative;
     z-index: 1;
-    /* the same subtle diagonal sheen the home player-card got */
-    background:
-        linear-gradient(145deg, rgba(78, 127, 214, 0.08), rgba(156, 67, 148, 0.05) 60%, transparent),
-        var(--panel-light);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-top-color: rgba(255, 255, 255, 0.14);
-}
-
-/* gradient heading, same sweep as the main title */
-#gameModeScreen .modal-content h2,
-#mpChoiceScreen .modal-content h2 {
-    background: linear-gradient(100deg,
-        #6FA0F0 0%, #8B7BE8 30%, #C86FA8 50%, #8B7BE8 70%, #6FA0F0 100%);
-    background-size: 200% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: var(--text-dark); /* fallback */
-    animation: titleShimmer 6s ease-in-out infinite;
-    width: fit-content;
 }
 
 /* ---- accent-colored mode cards ----
@@ -2674,38 +2498,38 @@
 #mpChoiceScreen .mode-option {
     position: relative;
     overflow: hidden; /* clips the shine sweep */
-    border-inline-start: 4px solid var(--mode-accent, var(--neon-cyan));
+    border-inline-start: 8px solid var(--mode-accent, var(--blue));
 }
 
-#gameModeScreen .mode-option:nth-of-type(1) { --mode-accent: #4E7FD6; --mode-accent-soft: rgba(78, 127, 214, 0.16); }
-#gameModeScreen .mode-option:nth-of-type(2) { --mode-accent: #C77B2E; --mode-accent-soft: rgba(199, 123, 46, 0.16); }
-#gameModeScreen .mode-option:nth-of-type(3) { --mode-accent: #2FBE85; --mode-accent-soft: rgba(47, 190, 133, 0.16); }
-#gameModeScreen .mode-option:nth-of-type(4) { --mode-accent: #8B7BE8; --mode-accent-soft: rgba(139, 123, 232, 0.16); }
-#mpChoiceScreen .mode-option:nth-of-type(1) { --mode-accent: #2FBE85; --mode-accent-soft: rgba(47, 190, 133, 0.16); }
-#mpChoiceScreen .mode-option:nth-of-type(2) { --mode-accent: #4E7FD6; --mode-accent-soft: rgba(78, 127, 214, 0.16); }
+#gameModeScreen .mode-option:nth-of-type(1) { --mode-accent: var(--blue); }
+#gameModeScreen .mode-option:nth-of-type(2) { --mode-accent: var(--orange); }
+#gameModeScreen .mode-option:nth-of-type(3) { --mode-accent: var(--green); }
+#gameModeScreen .mode-option:nth-of-type(4) { --mode-accent: var(--purple); }
+#mpChoiceScreen .mode-option:nth-of-type(1) { --mode-accent: var(--green); }
+#mpChoiceScreen .mode-option:nth-of-type(2) { --mode-accent: var(--blue); }
 
-/* icon sits in a soft rounded chip tinted with the card's accent */
+/* the icon sits on a candy chip in the card's own accent */
 #gameModeScreen .mode-icon,
 #mpChoiceScreen .mode-icon {
-    width: 60px;
-    height: 60px;
+    width: 58px;
+    height: 58px;
     display: flex;
     align-items: center;
     justify-content: center;
+    border: 3px solid var(--wood-dark);
     border-radius: var(--radius-sm);
-    background: var(--mode-accent-soft, rgba(78, 127, 214, 0.16));
-    color: var(--mode-accent, var(--neon-cyan));
-    font-size: 1.9em;
+    background: var(--mode-accent, var(--blue));
+    color: var(--ink-on-color);
+    font-size: 1.8em;
     flex: 0 0 auto;
+    box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.35);
 }
 
-/* hover: accent-tinted lift + the home buttons' light sweep */
+/* hover: the row lifts on its bevel and warms to mint */
 #gameModeScreen .mode-option:hover,
 #mpChoiceScreen .mode-option:hover {
-    background:
-        linear-gradient(145deg, var(--mode-accent-soft, rgba(78, 127, 214, 0.16)), transparent 70%),
-        var(--surface-3);
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+    background: var(--cream-mint);
+    box-shadow: inset 0 2px 0 var(--cream-hi), var(--bevel);
 }
 
 #gameModeScreen .mode-option::after,
@@ -2759,15 +2583,6 @@
 #gameModeScreen.active .close-modal-btn { animation-delay: 0.30s; }
 #mpChoiceScreen.active .close-modal-btn { animation-delay: 0.18s; }
 
-/* the h2 shimmer must not double-animate with the rise - rise wins on entry,
-   shimmer resumes because 'animation' shorthand above only lists homeRise
-   while it runs; re-assert both so they compose */
-#gameModeScreen.active .modal-content h2,
-#mpChoiceScreen.active .modal-content h2 {
-    animation: homeRise 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards,
-               titleShimmer 6s ease-in-out infinite;
-}
-
 /* motion accessibility - same policy as the home screen */
 @media (prefers-reduced-motion: reduce) {
     #gameModeScreen::before,
@@ -2807,7 +2622,7 @@
     gap: 6px;
     font-size: 1.1em;
     font-weight: 800;
-    color: #4aa3ff;
+    color: var(--blue-base);
 }
 .diamonds-display .icon svg { width: 1.1em; height: 1.1em; }
 
@@ -2815,7 +2630,12 @@
 .shop-diamonds-sep { display: inline-block; width: 16px; }
 
 /* Diamond-priced buy button (premium avatars) */
-.diamond-buy-btn { background: linear-gradient(160deg, #4aa3ff, #2b7fff); color: #fff; }
+.diamond-buy-btn {
+    --btn-face: var(--water-deep);
+    --btn-base: #2A8296;
+    background: var(--btn-face);
+    color: var(--ink-on-color);
+}
 
 /* Daily-reward floating button - bottom-LEFT, mirror of the music FAB */
 .daily-fab {
@@ -2824,25 +2644,550 @@
     left: calc(16px + env(safe-area-inset-left) + max(0px, (100vw - var(--app-max-width)) / 2));
     width: 46px;
     height: 46px;
-    border-radius: 50%;
-    background: linear-gradient(160deg, #FFD24D, #FF8A1E);
-    border: 2px solid rgba(255, 255, 255, 0.35);
-    color: #3A1D00;
+    border-radius: var(--radius-pill);
+    --btn-face: var(--gold);
+    --btn-base: var(--gold-base);
+    background: var(--btn-face);
+    border: 3px solid var(--wood-dark);
+    color: var(--ink);
     cursor: pointer;
     z-index: 60;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 6px 18px rgba(255, 138, 30, 0.4);
+    box-shadow: var(--bevel-sm);
     animation: dailyPulse 2.2s ease-in-out infinite;
 }
 .daily-fab svg { width: 24px; height: 24px; }
-.daily-fab:active { transform: scale(0.9); }
+.daily-fab:active { transform: translateY(2px); box-shadow: var(--sink); }
 
 @keyframes dailyPulse {
-    0%, 100% { transform: scale(1);    box-shadow: 0 6px 18px rgba(255, 138, 30, 0.4); }
-    50%      { transform: scale(1.07); box-shadow: 0 8px 26px rgba(255, 138, 30, 0.6); }
+    0%, 100% { transform: translateY(0);    box-shadow: var(--bevel-sm); }
+    50%      { transform: translateY(-3px); box-shadow: var(--bevel); }
 }
+
+/* Daily reward modal - reuses .menu-overlay/.menu-bubble; overrides for the
+   7-day track layout */
+.daily-bubble { height: auto; max-height: 84vh; overflow-y: auto; }
+
+.daily-note {
+    color: var(--ink-2);
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.daily-track {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.daily-day {
+    background: var(--cream-2);
+    border: 3px solid var(--wood-dark);
+    border-radius: var(--radius-sm);
+    padding: 12px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    box-shadow: inset 0 2px 0 var(--cream-hi);
+}
+
+/* day 7 = the big finish, spans the full width */
+.daily-day:last-child { grid-column: span 2; }
+
+.daily-day.done { opacity: 0.5; }
+
+.daily-day.today {
+    background: var(--gold);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), 0 0 0 3px var(--gold-base);
+}
+
+.daily-num { font-size: 0.85em; font-weight: 800; color: var(--ink-2); }
+
+.daily-reward {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 800;
+    color: var(--ink);
+}
+.daily-ico svg { width: 1.15em; height: 1.15em; }
+
+@media (prefers-reduced-motion: reduce) {
+    .daily-fab { animation: none; }
+}
+
+/* "בונוס התחברות" entry in the hamburger menu - stands out gold, with icon */
+.menu-link-daily {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: var(--gold);
+    --btn-base: var(--gold-base);
+    color: var(--ink);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), var(--bevel-sm);
+}
+.menu-link-daily svg { width: 20px; height: 20px; flex-shrink: 0; }
+.menu-link-daily:hover {
+    background: var(--gold);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), var(--bevel);
+}
+
+/* ===========================================================================
+   zbang-pwa components — features this app has that the island skin never saw:
+   the arena picker, purchasable background scenes, the bottom tab bar, the
+   freeze/elimination lockouts, cloud save, custom avatar photos and
+   leaderboard editing. Only rules the island skin does not already define
+   live here, so nothing below can override a tropical treatment.
+   =========================================================================== */
+
+/* Two elements this app turned into real <button>s that are plain text/divs
+   in the island skin: the player's name (opens the rename modal, and carries
+   a pencil) and the city banner (opens the arena picker). They keep the
+   island's look and only get back what a button needs - the UA chrome reset,
+   and the sizing/cursor the tropical rules never had to specify. */
+.player-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    background: none;
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+    color: var(--ink);
+}
+
+.arena-banner {
+    width: 100%;
+    font: inherit;
+    text-align: inherit;
+    cursor: pointer;
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+
+@keyframes auroraDrift {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(40px, 30px) scale(1.15); }
+}
+
+@keyframes titleShimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
+}
+
+.player-name .rename-btn {
+    font-size: 0.7em;
+    padding: 0;
+}
+
+.arena-banner:hover  { transform: translateY(-2px); box-shadow: var(--shadow-depth-md); }
+
+.arena-banner:active { transform: scale(0.97); }
+
+.arena-banner-chevron {
+    font-size: 1.4em;
+    color: var(--text-secondary);
+    margin-inline-start: auto;
+}
+
+/* Arena picker screen - swipeable card carousel over the ARENAS table
+   (game.js), reusing applyBoardTheme()'s inline-custom-property technique
+   so each card is themed from its own --arena-tile/--arena-accent instead
+   of 16 hardcoded classes. No painted art - the "image" is a flat tile-color
+   fill behind the city's existing motif emoji, matching the rest of the app. */
+.arena-screen-container { padding-inline: 30px; }
+
+.arena-carousel {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    /* bleed past the panel's own inline padding so neighboring cards peek at
+       the edges, then restore it as scroll-padding so snapping still centers */
+    margin-inline: -30px;
+    padding-inline: 30px;
+    scroll-padding-inline: 30px;
+    padding-block: 4px 12px;
+    margin-top: 18px;
+}
+
+.arena-carousel::-webkit-scrollbar { display: none; }
+
+.arena-card {
+    flex: 0 0 250px;
+    scroll-snap-align: center;
+    border-radius: var(--radius-card);
+    overflow: hidden;
+    background: var(--cream);
+    /* a carved card, like every other panel in the island skin */
+    border: 3px solid var(--wood-dark);
+    --btn-base: var(--wood);
+    box-shadow: inset 0 3px 0 var(--cream-hi), var(--bevel-sm);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.arena-card-art {
+    position: relative;
+    height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--arena-tile);
+    /* the carved line where the city's colour meets the cream body */
+    border-bottom: 3px solid var(--wood-dark);
+}
+
+.arena-card-motif {
+    font-size: 3.4em;
+    line-height: 1;
+    color: var(--arena-motif-color);
+    filter: drop-shadow(0 3px 0 rgba(78, 49, 22, 0.35));
+}
+
+.arena-card-body {
+    padding: 14px 16px 18px;
+    text-align: center;
+}
+
+.arena-card-name {
+    font-family: var(--font-display);
+    font-size: 1.15em;
+    font-weight: 800;
+    color: var(--text-dark);
+}
+
+.arena-card-tagline {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    margin: 4px 0 12px;
+}
+
+/* "this one is yours" - the mint row tint, the only row tint in the system */
+.arena-card-badge {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: var(--radius-pill);
+    background: var(--cream-mint);
+    border: 2px solid var(--wood-dark);
+    color: var(--green-base);
+    font-weight: 800;
+    font-size: 0.9em;
+}
+
+.arena-card-select-btn {
+    padding: 8px 18px;
+    border: 3px solid var(--wood-dark);
+    border-radius: var(--radius-btn);
+    --btn-face: var(--blue);
+    --btn-base: var(--blue-base);
+    background: var(--btn-face);
+    color: var(--ink-on-color);
+    font-family: var(--font-display);
+    font-weight: 800;
+    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.45);
+    cursor: pointer;
+    box-shadow: var(--bevel-sm);
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.15s ease;
+}
+
+.arena-card-select-btn:active { transform: translateY(3px); box-shadow: var(--sink); }
+
+.arena-card-req {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.arena-card.arena-locked {
+    opacity: 0.55;
+    filter: grayscale(0.6);
+}
+
+.arena-card.arena-locked .arena-lock {
+    position: absolute;
+    top: 10px;
+    inset-inline-end: 10px;
+    font-size: 18px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.arena-dots {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.arena-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--surface-3);
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.arena-dot.active {
+    background: var(--neon-cyan);
+    transform: scale(1.3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+.arena-carousel { scroll-behavior: auto; }
+.arena-card, .arena-card-select-btn, .arena-dot {
+        transition: none;
+    }
+}
+
+/* Richer two-tone gradients + hairline top highlight, scoped to the home
+   screen's mega buttons only - other screens keep the flat matte fills */
+/* The old dark-theme .mega-btn colour variants lived here (per-button
+   gradients plus a coloured hover halo). They are gone on purpose: the
+   island skin colours every control through the generic .green-btn /
+   .gold-btn / .blue-btn / .purple-btn classes above, which set --btn-face
+   and --btn-base so the shared bevel and sink work. A .mega-btn.<colour>
+   rule would out-specify those and knock the button back out of the theme. */
+
+.current-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Custom photo tile - a personal picture from the player's own device,
+   local-only (see handleCustomAvatarFile/getOwnAvatarMarkup in game.js) */
+.custom-avatar-img {
+    width: 100%;
+    max-width: 70px;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+}
+
+.avatar-custom-placeholder {
+    width: 100%;
+    max-width: 70px;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 2px dashed rgba(255, 255, 255, 0.25);
+    color: var(--text-secondary);
+}
+
+.avatar-custom-placeholder svg { width: 26px; height: 26px; }
+
+.avatar-custom-replace {
+    position: absolute;
+    top: 4px;
+    inset-inline-end: 4px;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-3);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    color: var(--neon-cyan-deep);
+    cursor: pointer;
+}
+
+.avatar-custom-replace svg { width: 13px; height: 13px; }
+
+/* ===== Background skins: swatch previews + the equipped-row highlight =====
+   Full scene recipes (fire/buildings/grass) that these swatches preview live
+   in the "App-wide background scenes" section near the end of this file. */
+.shop-item-equipped {
+    border: 2px solid var(--neon-lime-deep);
+}
+
+.bg-swatch {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    flex: 0 0 auto;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+}
+
+.bg-swatch-fire      { background: linear-gradient(200deg, #7a2410, #ffb066); }
+
+.bg-swatch-buildings { background: linear-gradient(200deg, #0a0b10, #2c3450); }
+
+.bg-swatch-grass     { background: linear-gradient(200deg, #0d2417, #2f8a4c); }
+
+.player-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.status-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* admin-only pencil at the end of a row (see renameLeaderboardEntry).
+   Muted rather than cyan so it stays subordinate to the score beside it. */
+.lb-edit {
+    flex-shrink: 0;
+    font-size: 18px;
+    padding: 6px;
+    color: var(--text-secondary);
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease;
+}
+
+.lb-edit:hover {
+    color: var(--neon-cyan);
+}
+
+.lb-edit:active {
+    transform: scale(0.93);
+}
+
+@media (prefers-reduced-motion: reduce) {
+.lb-edit { transition: color 0.15s ease; }
+.lb-edit:active { transform: none; }
+}
+
+/* ===== Elimination lockout ===== */
+/* Shown to a multiplayer player once the room marks them eliminated: the
+   board stays visible (dimmed, same as a freeze) but input is locked in JS,
+   so this curtain explains why and offers the only things left to do. */
+.board-eliminated-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 21;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 20px;
+    border-radius: var(--radius-card);
+    /* Same curtain treatment as the freeze lockout above, in the "you're
+       out" red rather than lagoon blue: a carved wood ring over a tinted
+       wash, with carved cream text on top. */
+    background: rgba(175, 50, 38, 0.86);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    border: 4px solid var(--wood-dark);
+    color: var(--cream);
+    text-shadow: 0 3px 0 rgba(78, 49, 22, 0.55);
+    text-align: center;
+    pointer-events: auto;
+    touch-action: none;
+}
+
+.board-eliminated-overlay .elim-label {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.5em;
+    letter-spacing: 1px;
+}
+
+.board-eliminated-overlay .elim-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 220px;
+}
+
+/* Candy buttons, same recipe as every other control: a face over its base,
+   ringed in wood, sinking by exactly what the bevel loses. */
+.board-eliminated-overlay .elim-btn {
+    width: 100%;
+    padding: 12px;
+    border: 3px solid var(--wood-dark);
+    border-radius: var(--radius-btn);
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 0.95em;
+    cursor: pointer;
+    background: var(--btn-face);
+    color: var(--ink-on-color);
+    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.45);
+    box-shadow: var(--bevel-sm);
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.15s ease;
+}
+
+.board-eliminated-overlay .elim-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--bevel);
+}
+
+.board-eliminated-overlay .elim-btn:active {
+    transform: translateY(3px);
+    box-shadow: var(--sink);
+}
+
+.board-eliminated-overlay .elim-spectate { --btn-face: var(--blue);   --btn-base: var(--blue-base); }
+
+.board-eliminated-overlay .elim-home     { --btn-face: var(--green);  --btn-base: var(--green-base); }
+
+.board-eliminated-overlay .elim-new      { --btn-face: var(--purple); --btn-base: var(--purple-base); }
+
+/* Name entry - same shell as .room-code-input, but a name, not a room code:
+   normal weight/case, no letter-spacing */
+.name-input {
+    display: block;
+    width: 100%;
+    font-family: var(--font-body, inherit);
+    font-size: 1.1em;
+    font-weight: 600;
+    color: var(--text-dark);
+    background: var(--surface-2);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-btn);
+    padding: 14px;
+    margin-bottom: 18px;
+    outline: none;
+}
+
+.name-input:focus {
+    border-color: var(--neon-cyan);
+    box-shadow: var(--shadow-depth-sm);
+}
+
+/* Quiet text action inside a modal (e.g. "forgot password") - deliberately
+   not a .btn-large, so it never competes with the modal's real actions. */
+.cloud-link-btn {
+    display: block;
+    width: 100%;
+    margin-top: 14px;
+    padding: 8px;
+    background: none;
+    border: none;
+    font-family: var(--font-body, inherit);
+    font-size: 0.95em;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-decoration: underline;
+    cursor: pointer;
+    transition: color 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.cloud-link-btn:hover { color: var(--neon-cyan); }
+
+.cloud-link-btn:active { transform: scale(0.95); }
 
 /* Fixed bottom tab bar - shown only on the 4 main hub screens (home/shop/
    profile/leaderboard), toggled via body.has-bottom-nav in showScreen()/
@@ -2857,13 +3202,16 @@
     display: none;
     justify-content: space-around;
     min-height: var(--bottom-nav-height);
-    background: var(--panel-light);
-    border-top: 1px solid rgba(255, 255, 255, 0.07);
-    box-shadow: var(--shadow-depth-lg);
+    background: var(--cream);
+    /* a carved wood lip along the top, so the bar reads as part of the
+       island frame rather than a floating sheet of paper */
+    border-top: 4px solid var(--wood-dark);
+    box-shadow: inset 0 4px 0 var(--cream-hi), 0 -8px 20px rgba(78, 49, 22, 0.28);
     padding: 8px calc(4px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(4px + env(safe-area-inset-left));
     border-radius: var(--radius-frame) var(--radius-frame) 0 0;
     z-index: 40;
 }
+
 body.has-bottom-nav .bottom-nav { display: flex; }
 
 .bottom-nav-item {
@@ -2880,13 +3228,19 @@ body.has-bottom-nav .bottom-nav { display: flex; }
     cursor: pointer;
     transition: color 0.15s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
 .bottom-nav-item .icon svg { width: 22px; height: 22px; }
+
 .bottom-nav-item .bottom-nav-label { font-size: 0.68em; font-weight: 700; }
+
 .bottom-nav-item:active { transform: scale(0.9); }
 
 .bottom-nav-item[data-screen="homeScreen"].active { color: var(--neon-lime-deep); }
+
 .bottom-nav-item[data-screen="shopScreen"].active { color: var(--neon-gold); }
+
 .bottom-nav-item[data-screen="profileScreen"].active { color: var(--neon-cyan); }
+
 .bottom-nav-item[data-screen="leaderboardScreen"].active { color: var(--neon-purple); }
 
 /* The always-visible FABs would otherwise sit underneath/overlap the bottom
@@ -2895,75 +3249,6 @@ body.has-bottom-nav .daily-fab,
 body.has-bottom-nav .music-toggle-btn {
     bottom: calc(var(--bottom-nav-height) + 16px + env(safe-area-inset-bottom));
 }
-
-/* Daily reward modal - reuses .menu-overlay/.menu-bubble; overrides for the
-   7-day track layout */
-.daily-bubble { height: auto; max-height: 84vh; overflow-y: auto; }
-
-.daily-note {
-    color: var(--text-secondary);
-    font-weight: 700;
-    text-align: center;
-    margin-bottom: 16px;
-}
-
-.daily-track {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    width: 100%;
-    margin-bottom: 20px;
-}
-
-.daily-day {
-    background: var(--surface-2);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: var(--radius-sm);
-    padding: 12px 8px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-}
-
-/* day 7 = the big finish, spans the full width */
-.daily-day:last-child { grid-column: span 2; }
-
-.daily-day.done { opacity: 0.45; }
-
-.daily-day.today {
-    border-color: var(--neon-gold, #C99A2E);
-    background: linear-gradient(160deg, rgba(255, 210, 77, 0.18), rgba(255, 138, 30, 0.08));
-    box-shadow: 0 0 0 2px rgba(201, 154, 46, 0.45);
-}
-
-.daily-num { font-size: 0.85em; font-weight: 700; color: var(--text-secondary); }
-
-.daily-reward {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-weight: 800;
-    color: var(--text-dark);
-}
-.daily-ico svg { width: 1.15em; height: 1.15em; }
-
-@media (prefers-reduced-motion: reduce) {
-    .daily-fab { animation: none; }
-}
-
-/* "בונוס התחברות" entry in the hamburger menu - stands out gold, with icon */
-.menu-link-daily {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    background: linear-gradient(160deg, rgba(255, 210, 77, 0.18), rgba(255, 138, 30, 0.1));
-    border-color: rgba(255, 210, 77, 0.35) !important;
-    color: #FFD24D;
-}
-.menu-link-daily svg { width: 20px; height: 20px; flex-shrink: 0; }
-.menu-link-daily:hover { background: linear-gradient(160deg, rgba(255, 210, 77, 0.28), rgba(255, 138, 30, 0.16)); }
 
 /* ===========================================================================
    App-wide background scenes - purchasable in the shop (see BACKGROUNDS in
@@ -2987,6 +3272,7 @@ body.has-bottom-nav .music-toggle-btn {
     opacity: 0;
     transition: opacity 0.7s ease;
 }
+
 .bg-scene.active { opacity: 1; }
 
 .bg-scrim {
@@ -2996,6 +3282,7 @@ body.has-bottom-nav .music-toggle-btn {
     opacity: 0;
     transition: opacity 0.7s ease;
 }
+
 body.has-bg-scene .bg-scrim { opacity: 1; }
 
 /* .screen elements are #app's other children - lift them above #bgScenes
@@ -3006,6 +3293,7 @@ body.has-bg-scene .bg-scrim { opacity: 1; }
 .bg-scene-fire {
     background: linear-gradient(180deg, #170c08 0%, #2c1108 45%, #5c1f0e 75%, #a8431c 100%);
 }
+
 .bg-scene-fire .ember-glow {
     position: absolute; left: 50%; bottom: -10%;
     width: 340px; height: 340px; margin-left: -170px;
@@ -3013,9 +3301,11 @@ body.has-bg-scene .bg-scrim { opacity: 1; }
     animation: emberBreathe 4s ease-in-out infinite alternate;
     filter: blur(2px);
 }
+
 @keyframes emberBreathe { from { opacity: 0.55; transform: scale(0.92); } to { opacity: 1; transform: scale(1.05); } }
 
 .bg-flames { position: absolute; bottom: -6px; left: 0; right: 0; height: 210px; display: flex; align-items: flex-end; justify-content: center; filter: blur(0.3px); }
+
 .bg-flame {
     flex: 0 0 auto;
     transform-origin: bottom center;
@@ -3024,9 +3314,13 @@ body.has-bg-scene .bg-scrim { opacity: 1; }
     box-shadow: 0 0 26px 6px rgba(255, 130, 40, 0.35);
     animation: bgFlicker 2.4s ease-in-out infinite;
 }
+
 .bg-flame.f1 { width: 96px; height: 150px; margin: 0 -18px; animation-duration: 2.1s; }
+
 .bg-flame.f2 { width: 130px; height: 190px; z-index: 1; animation-duration: 2.7s; animation-delay: -0.6s; }
+
 .bg-flame.f3 { width: 96px; height: 150px; margin: 0 -18px; animation-duration: 2.3s; animation-delay: -1.3s; }
+
 @keyframes bgFlicker {
     0%, 100% { transform: scaleY(1) scaleX(1) skewX(0deg); }
     30%      { transform: scaleY(1.06) scaleX(0.95) skewX(-2deg); }
@@ -3041,22 +3335,29 @@ body.has-bg-scene .bg-scrim { opacity: 1; }
     animation: bgEmberRise 6s ease-in infinite;
     z-index: 2;
 }
+
 @keyframes bgEmberRise { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 0.9; } 100% { transform: translateY(-420px) translateX(14px); opacity: 0; } }
 
 /* ---- buildings ---- */
 .bg-scene-buildings {
     background: linear-gradient(180deg, #0a0b10 0%, #12131d 55%, #1a1d2c 100%);
 }
+
 .bg-scene-buildings .bg-moon {
     position: absolute; top: 48px; inset-inline-end: 56px;
     width: 64px; height: 64px; border-radius: 50%;
     background: radial-gradient(circle, rgba(120, 170, 230, 0.5) 0%, rgba(120, 170, 230, 0) 72%);
     filter: blur(1px);
 }
+
 .bg-skyline { position: absolute; bottom: 0; left: 0; right: 0; display: flex; align-items: flex-end; gap: 3px; padding: 0 4px; }
+
 .bg-bldg { background: #15161f; border-top: 1px solid rgba(255, 255, 255, 0.04); position: relative; flex: 0 0 auto; }
+
 .bg-bldg .bg-win { position: absolute; width: 4px; height: 4px; background: var(--neon-gold); opacity: 0.75; animation: bgTwinkle 4.5s ease-in-out infinite; }
+
 .bg-bldg .bg-win.cyan { background: var(--neon-cyan); }
+
 @keyframes bgTwinkle { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.9; } }
 
 /* ---- grass ---- */
@@ -3065,16 +3366,18 @@ body.has-bg-scene .bg-scrim { opacity: 1; }
         repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.035) 0 34px, rgba(0, 0, 0, 0.035) 34px 68px),
         linear-gradient(180deg, #0d2417 0%, #123c22 60%, #16512b 100%);
 }
+
 .bg-pitch-arc {
     position: absolute; bottom: -70px; left: 50%; margin-left: -110px;
     width: 220px; height: 140px; border: 2px solid rgba(255, 255, 255, 0.22);
     border-radius: 50%;
 }
+
 .bg-pitch-line {
     position: absolute; bottom: 90px; left: 0; right: 0; height: 2px; background: rgba(255, 255, 255, 0.18);
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .bg-scene, .bg-scrim { transition: none; }
-    .ember-glow, .bg-flame, .bg-ember, .bg-win { animation: none; }
+.bg-scene, .bg-scrim { transition: none; }
+.ember-glow, .bg-flame, .bg-ember, .bg-win { animation: none; }
 }

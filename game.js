@@ -143,22 +143,22 @@ const TROPHIES_PER_ARENA = 200;
 // (no animation - see applyBoardTheme). textLight flips tile text to white
 // where the flat color is too dark for the default dark-on-light text.
 const ARENAS = [
-    { name: 'מזכרת בתיה',  tagline: 'מושבה חקלאית ותיקה',  motif: '🌾', tile: '#4CAF7D', accent: 'rgba(76, 175, 125, 0.35)' },   // 0-199
-    { name: 'אשדוד',        tagline: 'עיר נמל דרומית',       motif: '⚓', tile: '#2E86C1', accent: 'rgba(46, 134, 193, 0.35)', textLight: true }, // 200-399
-    { name: 'באר שבע',      tagline: 'בירת הנגב',            motif: '🏜️', tile: '#C8952E', accent: 'rgba(200, 149, 46, 0.35)' },   // 400-599
-    { name: 'חיפה',         tagline: 'עיר הכרמל',            motif: '🌲', tile: '#1F9A7A', accent: 'rgba(31, 154, 122, 0.35)', textLight: true }, // 600-799
-    { name: 'ראשון לציון',  tagline: 'עיר יין ומייסדים',     motif: '🍷', tile: '#A83B5C', accent: 'rgba(168, 59, 92, 0.35)',  textLight: true }, // 800-999
-    { name: 'תל אביב',      tagline: 'העיר שלא נחה',         motif: '🏙️', tile: '#B23F94', accent: 'rgba(178, 63, 148, 0.35)', textLight: true }, // 1000-1199
-    { name: 'ירושלים',      tagline: 'בירת הנצח',            motif: '👑', tile: '#C9A02B', accent: 'rgba(201, 160, 43, 0.35)' },   // 1200-1399
-    { name: 'אילת',         tagline: 'עיר הנופש האדומה',     motif: '🐠', tile: '#CC5A38', accent: 'rgba(204, 90, 56, 0.35)',  textLight: true }, // 1400-1599
-    { name: 'חדרה',         tagline: 'שער השרון',            motif: '🌉', tile: '#8A7355', accent: 'rgba(138, 115, 85, 0.35)', textLight: true }, // 1600-1799
-    { name: 'טבריה',        tagline: 'עיר הכנרת',            motif: '🌊', tile: '#227C8F', accent: 'rgba(34, 124, 143, 0.35)', textLight: true }, // 1800-1999
-    { name: 'אשקלון',       tagline: 'עיר חוף עתיקה',        motif: '🏖️', tile: '#3E8FA8', accent: 'rgba(62, 143, 168, 0.35)', textLight: true }, // 2000-2199
-    { name: 'נתניה',        tagline: 'עיר היהלומים',         motif: '💎', tile: '#4A5FBD', accent: 'rgba(74, 95, 189, 0.35)',  textLight: true }, // 2200-2399
-    { name: 'הרצליה',       tagline: 'עיר הייטק והים',       motif: '🏄', tile: '#5B4FCF', accent: 'rgba(91, 79, 207, 0.35)',  textLight: true }, // 2400-2599
-    { name: 'פתח תקווה',    tagline: 'אם המושבות',           motif: '🏭', tile: '#C17B34', accent: 'rgba(193, 123, 52, 0.35)' },   // 2600-2799
-    { name: 'רעננה',        tagline: 'עיר ירוקה ומטופחת',    motif: '🌳', tile: '#5E8A3A', accent: 'rgba(94, 138, 58, 0.35)',  textLight: true }, // 2800-2999
-    { name: 'רמת גן',       tagline: 'עיר הבורסה והיהלומים', motif: '💠', tile: '#7B4FB0', accent: 'rgba(123, 79, 176, 0.35)', textLight: true }  // 3000+
+    { name: 'מזכרת בתיה',  tagline: 'מושבה חקלאית ותיקה',  motif: '🌾', tile: '#F2D98B', base: '#C9AC57', accent: 'rgba(242, 217, 139, 0.35)' },   // 0-199
+    { name: 'אשדוד',        tagline: 'עיר נמל דרומית',       motif: '⚓', tile: '#4FA8D8', base: '#2F7FAC', accent: 'rgba(79, 168, 216, 0.35)', textLight: true }, // 200-399
+    { name: 'באר שבע',      tagline: 'בירת הנגב',            motif: '🏜️', tile: '#E8C468', base: '#BE9A38', accent: 'rgba(232, 196, 104, 0.35)' },   // 400-599
+    { name: 'חיפה',         tagline: 'עיר הכרמל',            motif: '🌲', tile: '#5FB552', base: '#3C8A32', accent: 'rgba(95, 181, 82, 0.35)', textLight: true }, // 600-799
+    { name: 'ראשון לציון',  tagline: 'עיר יין ומייסדים',     motif: '🍷', tile: '#C2566F', base: '#97374E', accent: 'rgba(194, 86, 111, 0.35)', textLight: true }, // 800-999
+    { name: 'תל אביב',      tagline: 'העיר שלא נחה',         motif: '🏙️', tile: '#D45FA6', base: '#A63C7D', accent: 'rgba(212, 95, 166, 0.35)', textLight: true }, // 1000-1199
+    { name: 'ירושלים',      tagline: 'בירת הנצח',            motif: '👑', tile: '#F0C244', base: '#C6971C', accent: 'rgba(240, 194, 68, 0.35)' },   // 1200-1399
+    { name: 'אילת',         tagline: 'עיר הנופש האדומה',     motif: '🐠', tile: '#F07C4F', base: '#C55628', accent: 'rgba(240, 124, 79, 0.35)',  textLight: true }, // 1400-1599
+    { name: 'חדרה',         tagline: 'שער השרון',            motif: '🌉', tile: '#C0A176', base: '#96794F', accent: 'rgba(192, 161, 118, 0.35)' },   // 1600-1799
+    { name: 'טבריה',        tagline: 'עיר הכנרת',            motif: '🌊', tile: '#46B0BE', base: '#2A8695', accent: 'rgba(70, 176, 190, 0.35)', textLight: true }, // 1800-1999
+    { name: 'אשקלון',       tagline: 'עיר חוף עתיקה',        motif: '🏖️', tile: '#6FC3DE', base: '#4497B4', accent: 'rgba(111, 195, 222, 0.35)' },   // 2000-2199
+    { name: 'נתניה',        tagline: 'עיר היהלומים',         motif: '💎', tile: '#6B7FD8', base: '#45589F', accent: 'rgba(107, 127, 216, 0.35)', textLight: true }, // 2200-2399
+    { name: 'הרצליה',       tagline: 'עיר הייטק והים',       motif: '🏄', tile: '#9B6FD4', base: '#714AA3', accent: 'rgba(155, 111, 212, 0.35)', textLight: true }, // 2400-2599
+    { name: 'פתח תקווה',    tagline: 'אם המושבות',           motif: '🏭', tile: '#E0913C', base: '#B06A1B', accent: 'rgba(224, 145, 60, 0.35)',  textLight: true }, // 2600-2799
+    { name: 'רעננה',        tagline: 'עיר ירוקה ומטופחת',    motif: '🌳', tile: '#8CC63F', base: '#689C22', accent: 'rgba(140, 198, 63, 0.35)' },   // 2800-2999
+    { name: 'רמת גן',       tagline: 'עיר הבורסה והיהלומים', motif: '💠', tile: '#8E63C9', base: '#67409A', accent: 'rgba(142, 99, 201, 0.35)', textLight: true }  // 3000+
 ];
 
 // highest arena the trophy count reaches, capped at the last defined arena.
@@ -194,8 +194,10 @@ function applyBoardTheme(boardId, themeIndex) {
     const arena = ARENAS[themeIndex] || ARENAS[0];
     el.classList.add('arena-themed');
     el.style.setProperty('--tile-bg', arena.tile);
+    // the darker slab under the tile face - what gives each tile its bevel
+    el.style.setProperty('--tile-base', arena.base);
     el.style.setProperty('--board-accent', arena.accent);
-    el.style.setProperty('--tile-text', arena.textLight ? '#fff' : 'var(--text-dark)');
+    el.style.setProperty('--tile-text', arena.textLight ? '#fff' : 'var(--ink)');
 }
 
 // Game State
