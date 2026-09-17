@@ -20,15 +20,11 @@
 
 // Fields of gameState that belong to the PLAYER rather than to the device.
 // musicEnabled is deliberately absent - a per-device preference, not progress.
-// ownedBackgrounds/equippedBackground outlived the background-skins feature:
-// nothing reads or writes them any more, but they stay on the list so a save
-// made while the shop still sold backgrounds keeps its record of what was
-// bought, instead of the next sync wiping it.
 const CLOUD_SAVE_FIELDS = [
     'playerName', 'coins', 'diamonds', 'inventory', 'totalScore', 'gamesPlayed',
     'level', 'xp', 'xpToNextLevel', 'avatarId', 'trophies', 'preferredTheme',
-    'ownedAvatars', 'ownedBackgrounds', 'equippedBackground', 'bestSingleScore',
-    'playerId', 'lastDailyClaim', 'dailyStreak', 'grantedIapTransactions'
+    'ownedAvatars', 'bestSingleScore', 'playerId', 'lastDailyClaim',
+    'dailyStreak', 'grantedIapTransactions'
 ];
 
 // Progress changes in bursts (a word found bumps score, coins and xp in the

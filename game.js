@@ -615,6 +615,10 @@ function loadGameState() {
     // redelivered before finish() completes (e.g. the app closing mid-purchase)
     if (!Array.isArray(gameState.grantedIapTransactions)) gameState.grantedIapTransactions = [];
     if (!gameState.inventory) gameState.inventory = {};
+    // drop what the removed background-skins feature left behind, so an older
+    // save stops carrying (and re-serializing) two fields nothing reads
+    delete gameState.ownedBackgrounds;
+    delete gameState.equippedBackground;
     // migrate the old single-counter hint field (pre-multi-item inventory) into the new shape
     if (typeof gameState.hints === 'number') {
         gameState.inventory.hint = gameState.hints;
