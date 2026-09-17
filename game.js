@@ -1,3 +1,20 @@
+// ---- global error visibility -----------------------------------------------
+// A failure that only reaches the browser console looks, to the player, like
+// the app silently froze or ate their tap. Surface anything uncaught as one
+// visible message instead of nothing - throttled so a burst of related
+// errors (e.g. a dropped connection failing several requests at once) shows
+// a single toast, not a wall of them.
+let _lastGlobalErrorAt = 0;
+function reportUnexpectedError(err) {
+    console.error('Unexpected error:', err);
+    const now = Date.now();
+    if (now - _lastGlobalErrorAt < 4000) return;
+    _lastGlobalErrorAt = now;
+    if (typeof showMessage === 'function') showMessage('משהו השתבש - נסה שוב', 'error');
+}
+window.addEventListener('error', e => reportUnexpectedError(e.error || e.message));
+window.addEventListener('unhandledrejection', e => reportUnexpectedError(e.reason));
+
 // Escape HTML-significant characters before interpolating any user-controlled
 // string (player names, etc.) into innerHTML - prevents stored XSS, since
 // player names get shared across real clients in multiplayer mode.
@@ -126,22 +143,22 @@ const TROPHIES_PER_ARENA = 200;
 // (no animation - see applyBoardTheme). textLight flips tile text to white
 // where the flat color is too dark for the default dark-on-light text.
 const ARENAS = [
-    { name: 'מזכרת בתיה',  tagline: 'מושבה חקלאית ותיקה',  motif: '🌾', tile: '#4CAF7D', accent: 'rgba(76, 175, 125, 0.35)' },   // 0-199
-    { name: 'אשדוד',        tagline: 'עיר נמל דרומית',       motif: '⚓', tile: '#2E86C1', accent: 'rgba(46, 134, 193, 0.35)', textLight: true }, // 200-399
-    { name: 'באר שבע',      tagline: 'בירת הנגב',            motif: '🏜️', tile: '#C8952E', accent: 'rgba(200, 149, 46, 0.35)' },   // 400-599
-    { name: 'חיפה',         tagline: 'עיר הכרמל',            motif: '🌲', tile: '#1F9A7A', accent: 'rgba(31, 154, 122, 0.35)', textLight: true }, // 600-799
-    { name: 'ראשון לציון',  tagline: 'עיר יין ומייסדים',     motif: '🍷', tile: '#A83B5C', accent: 'rgba(168, 59, 92, 0.35)',  textLight: true }, // 800-999
-    { name: 'תל אביב',      tagline: 'העיר שלא נחה',         motif: '🏙️', tile: '#B23F94', accent: 'rgba(178, 63, 148, 0.35)', textLight: true }, // 1000-1199
-    { name: 'ירושלים',      tagline: 'בירת הנצח',            motif: '👑', tile: '#C9A02B', accent: 'rgba(201, 160, 43, 0.35)' },   // 1200-1399
-    { name: 'אילת',         tagline: 'עיר הנופש האדומה',     motif: '🐠', tile: '#CC5A38', accent: 'rgba(204, 90, 56, 0.35)',  textLight: true }, // 1400-1599
-    { name: 'חדרה',         tagline: 'שער השרון',            motif: '🌉', tile: '#8A7355', accent: 'rgba(138, 115, 85, 0.35)', textLight: true }, // 1600-1799
-    { name: 'טבריה',        tagline: 'עיר הכנרת',            motif: '🌊', tile: '#227C8F', accent: 'rgba(34, 124, 143, 0.35)', textLight: true }, // 1800-1999
-    { name: 'אשקלון',       tagline: 'עיר חוף עתיקה',        motif: '🏖️', tile: '#3E8FA8', accent: 'rgba(62, 143, 168, 0.35)', textLight: true }, // 2000-2199
-    { name: 'נתניה',        tagline: 'עיר היהלומים',         motif: '💎', tile: '#4A5FBD', accent: 'rgba(74, 95, 189, 0.35)',  textLight: true }, // 2200-2399
-    { name: 'הרצליה',       tagline: 'עיר הייטק והים',       motif: '🏄', tile: '#5B4FCF', accent: 'rgba(91, 79, 207, 0.35)',  textLight: true }, // 2400-2599
-    { name: 'פתח תקווה',    tagline: 'אם המושבות',           motif: '🏭', tile: '#C17B34', accent: 'rgba(193, 123, 52, 0.35)' },   // 2600-2799
-    { name: 'רעננה',        tagline: 'עיר ירוקה ומטופחת',    motif: '🌳', tile: '#5E8A3A', accent: 'rgba(94, 138, 58, 0.35)',  textLight: true }, // 2800-2999
-    { name: 'רמת גן',       tagline: 'עיר הבורסה והיהלומים', motif: '💠', tile: '#7B4FB0', accent: 'rgba(123, 79, 176, 0.35)', textLight: true }  // 3000+
+    { name: 'מזכרת בתיה',  tagline: 'מושבה חקלאית ותיקה',  motif: '🌾', tile: '#F2D98B', base: '#C9AC57', accent: 'rgba(242, 217, 139, 0.35)' },   // 0-199
+    { name: 'אשדוד',        tagline: 'עיר נמל דרומית',       motif: '⚓', tile: '#4FA8D8', base: '#2F7FAC', accent: 'rgba(79, 168, 216, 0.35)', textLight: true }, // 200-399
+    { name: 'באר שבע',      tagline: 'בירת הנגב',            motif: '🏜️', tile: '#E8C468', base: '#BE9A38', accent: 'rgba(232, 196, 104, 0.35)' },   // 400-599
+    { name: 'חיפה',         tagline: 'עיר הכרמל',            motif: '🌲', tile: '#5FB552', base: '#3C8A32', accent: 'rgba(95, 181, 82, 0.35)', textLight: true }, // 600-799
+    { name: 'ראשון לציון',  tagline: 'עיר יין ומייסדים',     motif: '🍷', tile: '#C2566F', base: '#97374E', accent: 'rgba(194, 86, 111, 0.35)', textLight: true }, // 800-999
+    { name: 'תל אביב',      tagline: 'העיר שלא נחה',         motif: '🏙️', tile: '#D45FA6', base: '#A63C7D', accent: 'rgba(212, 95, 166, 0.35)', textLight: true }, // 1000-1199
+    { name: 'ירושלים',      tagline: 'בירת הנצח',            motif: '👑', tile: '#F0C244', base: '#C6971C', accent: 'rgba(240, 194, 68, 0.35)' },   // 1200-1399
+    { name: 'אילת',         tagline: 'עיר הנופש האדומה',     motif: '🐠', tile: '#F07C4F', base: '#C55628', accent: 'rgba(240, 124, 79, 0.35)',  textLight: true }, // 1400-1599
+    { name: 'חדרה',         tagline: 'שער השרון',            motif: '🌉', tile: '#C0A176', base: '#96794F', accent: 'rgba(192, 161, 118, 0.35)' },   // 1600-1799
+    { name: 'טבריה',        tagline: 'עיר הכנרת',            motif: '🌊', tile: '#46B0BE', base: '#2A8695', accent: 'rgba(70, 176, 190, 0.35)', textLight: true }, // 1800-1999
+    { name: 'אשקלון',       tagline: 'עיר חוף עתיקה',        motif: '🏖️', tile: '#6FC3DE', base: '#4497B4', accent: 'rgba(111, 195, 222, 0.35)' },   // 2000-2199
+    { name: 'נתניה',        tagline: 'עיר היהלומים',         motif: '💎', tile: '#6B7FD8', base: '#45589F', accent: 'rgba(107, 127, 216, 0.35)', textLight: true }, // 2200-2399
+    { name: 'הרצליה',       tagline: 'עיר הייטק והים',       motif: '🏄', tile: '#9B6FD4', base: '#714AA3', accent: 'rgba(155, 111, 212, 0.35)', textLight: true }, // 2400-2599
+    { name: 'פתח תקווה',    tagline: 'אם המושבות',           motif: '🏭', tile: '#E0913C', base: '#B06A1B', accent: 'rgba(224, 145, 60, 0.35)',  textLight: true }, // 2600-2799
+    { name: 'רעננה',        tagline: 'עיר ירוקה ומטופחת',    motif: '🌳', tile: '#8CC63F', base: '#689C22', accent: 'rgba(140, 198, 63, 0.35)' },   // 2800-2999
+    { name: 'רמת גן',       tagline: 'עיר הבורסה והיהלומים', motif: '💠', tile: '#8E63C9', base: '#67409A', accent: 'rgba(142, 99, 201, 0.35)', textLight: true }  // 3000+
 ];
 
 // highest arena the trophy count reaches, capped at the last defined arena.
@@ -177,8 +194,10 @@ function applyBoardTheme(boardId, themeIndex) {
     const arena = ARENAS[themeIndex] || ARENAS[0];
     el.classList.add('arena-themed');
     el.style.setProperty('--tile-bg', arena.tile);
+    // the darker slab under the tile face - what gives each tile its bevel
+    el.style.setProperty('--tile-base', arena.base);
     el.style.setProperty('--board-accent', arena.accent);
-    el.style.setProperty('--tile-text', arena.textLight ? '#fff' : 'var(--text-dark)');
+    el.style.setProperty('--tile-text', arena.textLight ? '#fff' : 'var(--ink)');
 }
 
 // Game State
@@ -593,6 +612,10 @@ function loadGameState() {
     if (!gameState.equippedBackground) gameState.equippedBackground = 'default';
     if (typeof gameState.musicEnabled !== 'boolean') gameState.musicEnabled = true;
     if (typeof gameState.bestSingleScore !== 'number') gameState.bestSingleScore = 0;
+    // these two are shown directly on the profile, so an older/partial save
+    // (including one restored from another device) must not render "undefined"
+    if (typeof gameState.totalScore !== 'number') gameState.totalScore = 0;
+    if (typeof gameState.gamesPlayed !== 'number') gameState.gamesPlayed = 0;
     if (typeof gameState.diamonds !== 'number') gameState.diamonds = 0;
     if (typeof gameState.dailyStreak !== 'number') gameState.dailyStreak = 0;
     if (typeof gameState.lastDailyClaim === 'undefined') gameState.lastDailyClaim = null;
@@ -621,6 +644,9 @@ function loadGameState() {
 
 function saveGameState() {
     localStorage.setItem('zabangState', JSON.stringify(gameState));
+    // Mirror progress to the player's cloud save, if they attached an account
+    // (see cloudsave.js) - debounced there, and a no-op for anonymous players.
+    if (typeof scheduleCloudSync === 'function') scheduleCloudSync();
 }
 
 // ===== Daily login reward =====
@@ -777,16 +803,24 @@ function updateMusicButtonUI() {
     btn.classList.toggle('muted', !gameState.musicEnabled);
 }
 
-// The admin/dev account. Grants infinite coins, infinite trophies, and
-// every city/theme unlocked. Recognized two ways:
-//  1. the local dev shortcut: player named 'ld2000'
-//  2. a real Firebase admin sign-in (a non-anonymous account via
-//     adminSignIn) - this is what actually matters when logging in as
-//     admin on another device, where the display name isn't 'ld2000'
+// The one real admin identity, the same UID the Security Rules bind to (see
+// database.rules.json). A UID is an identifier, not a credential - knowing it
+// grants nothing, because every admin-only write is checked server-side
+// against the signed-in account.
+const ADMIN_UID = 'kvJkfcfrT5S8OZb73GfxAXOtEET2';
+
+// The admin/dev account. Grants infinite coins, infinite trophies, and every
+// city/theme unlocked - so it has to be exactly one account, not a shape that
+// other players can fall into.
+//
+// It used to also accept "player named ld2000" and "any non-anonymous
+// sign-in". Both were holes: the first meant any player could rename
+// themselves into infinite currency, and the second means every player who
+// signs in for cloud save (see cloudsave.js) would get admin perks. Now the
+// signed-in UID has to actually be the admin's.
 function isAdminAccount() {
-    if (gameState.playerName.trim().toLowerCase() === 'ld2000') return true;
-    if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) return true;
-    return false;
+    return !!(typeof auth !== 'undefined' && auth && auth.currentUser
+        && auth.currentUser.uid === ADMIN_UID);
 }
 
 function hasInfiniteCoins() {
@@ -2186,8 +2220,10 @@ function closeInfoModal() {
     if (overlay) overlay.style.display = 'none';
 }
 
-// generic yes/no confirmation modal (the callback runs only on "yes")
-function showConfirm(message, onYes) {
+// Generic yes/no confirmation modal. onNo is optional - most callers only
+// care about "yes", but a choice between two real outcomes (restore the cloud
+// save vs keep this device's progress) needs both branches.
+function showConfirm(message, onYes, onNo) {
     const overlay = document.getElementById('confirmOverlay');
     document.getElementById('confirmText').textContent = message;
     overlay.style.display = 'flex';
@@ -2195,7 +2231,7 @@ function showConfirm(message, onYes) {
     const no = document.getElementById('confirmNoBtn');
     const close = () => { overlay.style.display = 'none'; yes.onclick = null; no.onclick = null; };
     yes.onclick = () => { close(); onYes(); };
-    no.onclick = close;
+    no.onclick = () => { close(); if (onNo) onNo(); };
 }
 
 // buys one unit of any shop item (key = SHOP_ITEMS[].key) into its own
@@ -2307,6 +2343,7 @@ function renderProfile() {
     `;
     renderAvatarPicker();
     renderSubmissions();
+    if (typeof renderCloudSaveSection === 'function') renderCloudSaveSection();
 }
 
 function renamePlayer() {

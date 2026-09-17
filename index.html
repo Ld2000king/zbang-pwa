@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#121317">
+    <meta name="theme-color" content="#7FC4E8">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -437,6 +437,10 @@
 
                 <div class="profile-stats" id="profileStats"></div>
 
+                <!-- Cloud save: opt-in account that backs up this player's own
+                     progress. Rendered by renderCloudSaveSection() in cloudsave.js -->
+                <div class="submissions-section" id="cloudSaveSection"></div>
+
                 <div class="submissions-section">
                     <h3><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15 V3"/><path d="M7 8 L12 3 L17 8"/><path d="M4 15 V19 H20 V15"/></svg></span> מילים שנשלחו לבדיקה</h3>
                     <div id="submissionsList"></div>
@@ -551,6 +555,20 @@
         </div>
     </div>
 
+    <!-- Cloud-save account modal (see cloudsave.js) -->
+    <div id="cloudAuthOverlay" class="confirm-overlay" style="display:none;">
+        <div class="confirm-box">
+            <p id="cloudAuthTitle">יצירת חשבון לגיבוי</p>
+            <input type="email" id="cloudEmailInput" class="name-input" autocomplete="email" inputmode="email" placeholder="אימייל">
+            <input type="password" id="cloudPasswordInput" class="name-input" autocomplete="current-password" placeholder="סיסמה (לפחות 6 תווים)">
+            <div class="confirm-actions">
+                <button class="btn-large blue-btn" id="cloudAuthSubmitBtn" onclick="submitCloudAuth()">צור חשבון</button>
+                <button class="close-modal-btn" onclick="closeCloudAuthModal()">ביטול</button>
+            </div>
+            <button class="cloud-link-btn" onclick="cloudResetPassword()">שכחתי סיסמה</button>
+        </div>
+    </div>
+
     <!-- Pause overlay (single-player & bots battle only; see pauseGame() in game.js) -->
     <div id="pauseOverlay" class="confirm-overlay" style="display:none;">
         <div class="confirm-box">
@@ -636,6 +654,7 @@
     <script src="words.js"></script>
     <script src="words-bulk.js"></script>
     <script src="multiplayer.js"></script>
+    <script src="cloudsave.js"></script>
     <script src="admin.js"></script>
     <script src="iap.js"></script>
     <script>

@@ -1,0 +1,40 @@
+name: CI sanity checks
+
+# Cheap, no-secrets-needed safety net: catches a syntax-broken .js file or a
+# malformed rules/JSON file before it ever reaches main (and from there,
+# GitHub Pages / production). This is not a test suite - just the minimum
+# bar "does the code even parse" that should never be allowed to merge.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  sanity-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check every .js file parses
+        run: |
+          set -e
+          find . -name node_modules -prune -o -name '*.js' -print | while read -r f; do
+            echo "Checking $f"
+            node --check "$f"
+          done
+
+      - name: Check JSON files are valid (JSON5-ish - strips // comments first)
+        run: |
+          set -e
+          for f in database.rules.json package.json manifest.json; do
+            [ -f "$f" ] || continue
+            echo "Checking $f"
+            node -e "
+              const fs = require('fs');
+              let s = fs.readFileSync('$f', 'utf8');
+              s = s.replace(/\/\/.*$/gm, '');
+              JSON.parse(s);
+              console.log('$f OK');
+            "
+          done

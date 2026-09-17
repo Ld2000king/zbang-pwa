@@ -14,8 +14,11 @@ function isAdminUser() {
     return gameState.playerName.trim().toLowerCase() === 'ld2000';
 }
 
+// Signed in as the ONE real admin account - not merely "signed in as
+// somebody". Regular players now sign in too (cloud save), so
+// "non-anonymous" no longer means "admin".
 function isSignedInAsAdmin() {
-    return !!(auth && auth.currentUser && !auth.currentUser.isAnonymous);
+    return !!(auth && auth.currentUser && auth.currentUser.uid === ADMIN_UID);
 }
 
 function adminAvailable() {

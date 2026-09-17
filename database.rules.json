@@ -152,6 +152,27 @@
       }
     },
 
+    // Per-player cloud save (see cloudsave.js): the ONLY subtree that is
+    // strictly private - a player can read and write their own save and
+    // nobody else's, admin included. The progress itself is one JSON string
+    // rather than a field-per-value, so there's a single length cap to
+    // enforce instead of a rule per game field.
+    //
+    // Note this is a convenience backup, not an anti-cheat boundary: the
+    // save is written by the player's own client, so it can only ever be as
+    // trustworthy as the localStorage it mirrors (which the player could
+    // already edit). Nothing here is used to award anything to anyone else.
+    "player_saves": {
+      "$uid": {
+        ".read":  "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "state":     { ".validate": "newData.isString() && newData.val().length <= 20000" },
+        "photo":     { ".validate": "newData.isString() && newData.val().length <= 8000 && newData.val().matches(/^data:image\\/jpeg;base64,/)" },
+        "updatedAt": { ".validate": "newData.isNumber()" },
+        "$other":    { ".validate": false }
+      }
+    },
+
     "leaderboard": {
       ".read": "auth != null",
       "$pid": {
