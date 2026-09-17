@@ -1,70 +1,111 @@
 @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@500;600;700;800;900&family=Poppins:wght@300;400;600;700;800&display=swap');
 
 :root {
-    /* Core accent palette - solid matte tones (Material 3 / iOS native feel).
-       Variable names kept from the earlier neon iteration to avoid touching
-       every call site; the VALUES are now flat, deep, premium colors instead
-       of bright neon. */
-    --neon-cyan: #4E7FD6;
-    --neon-cyan-deep: #3A65B8;
-    --neon-pink: #C24E7A;
-    --neon-magenta: #9C4394;
-    --neon-lime: #147A4A;
-    --neon-lime-deep: #2FBE85;
-    --neon-orange: #A85A1E;
-    --neon-orange-deep: #8F4A16;
-    --neon-gold: #C99A2E;
-    --neon-gold-deep: #A87F22;
-    --neon-purple: #5B4FCF;
-    --neon-purple-deep: #4A3FB0;
-    --neon-red: #B3372E;
-    --neon-red-deep: #952B23;
+    /* ===================================================================
+       TROPICAL - the island theme. See .claude/skills/tropical/SKILL.md
+       A sunlit cartoon island: carved wood frames, cream parchment panels,
+       chunky candy buttons with a hard bevel, a jungle-lagoon world behind.
+       =================================================================== */
 
-    /* Solid matte button/surface fills (flat - no gradients, per the app's
-       Material-style design). Play = emerald, Shop = deep gold,
-       Profile = royal blue, Close/Back = matte crimson. */
-    --grad-blue: var(--neon-cyan-deep);
-    --grad-green: var(--neon-lime);
-    --grad-orange: var(--neon-orange);
-    --grad-gold: var(--neon-gold);
-    --grad-purple: var(--neon-purple);
+    /* The world - the illustrated scene behind the UI. Never put body text
+       directly on these; they always sit under a cream panel. */
+    --sky: #7FC4E8;
+    --sky-low: #C9E9F7;
+    --water: #5FCEDB;
+    --water-deep: #3BA9BC;
+    --sand: #EBD6A4;
+    --sand-deep: #D4B878;
+    --jungle: #5FB13C;
+    --jungle-deep: #2F7A2A;
+    --felt: #97CC55;
+    --felt-deep: #7FB544;
+
+    /* Wood - the frame material. --wood-dark rings every single element. */
+    --wood-dark: #4E3116;
+    --wood: #8A5A2E;
+    --wood-light: #A9743F;
+
+    /* Cream - the panel material */
+    --cream: #FDF4DC;
+    --cream-2: #F6E7C0;
+    --cream-3: #EFD9A6;
+    --cream-hi: #FFFBEF;
+    --cream-mint: #E4F2C8;
+
+    /* Actions - every colored control is a face over a darker base. The base
+       is what makes the bevel; never use a face without one. */
+    --green: #7FBE3F;   --green-base: #5C9328;
+    --gold: #F7C445;    --gold-base: #D29A1C;
+    --orange: #CE7A2E;  --orange-base: #9E5219;
+    --blue: #43A0EA;    --blue-base: #2B7AC2;
+    --red: #DB4C3C;     --red-base: #AF3226;
+    --purple: #8A5CC7;  --purple-base: #6B429E;
+
+    /* Legacy aliases. The old neon and grad names are call sites all over
+       game.css; the VALUES are the island palette. Trust the values. */
+    --neon-cyan: var(--blue);
+    --neon-cyan-deep: var(--blue-base);
+    --neon-pink: #E86FA0;
+    --neon-magenta: #C75C9E;
+    --neon-lime: var(--green);
+    --neon-lime-deep: var(--green-base);
+    --neon-orange: var(--orange);
+    --neon-orange-deep: var(--orange-base);
+    --neon-gold: var(--gold);
+    --neon-gold-deep: var(--gold-base);
+    --neon-purple: var(--purple);
+    --neon-purple-deep: var(--purple-base);
+    --neon-red: var(--red);
+    --neon-red-deep: var(--red-base);
+
+    --grad-blue: var(--blue);
+    --grad-green: var(--green);
+    --grad-orange: var(--orange);
+    --grad-gold: var(--gold);
+    --grad-purple: var(--purple);
     --grad-pink: var(--neon-pink);
-    --grad-red: var(--neon-red);
+    --grad-red: var(--red);
 
-    /* Backgrounds - a flat, matte dark obsidian scale. Each surface tier is
-       just slightly lighter than the one behind it, so cards read as
-       distinct material layers without needing bright borders. */
-    --bg-deep: #121317;
-    --bg-deep-2: #0c0d10;
-    --panel-light: #1C1E24;
-    --surface-2: #262933;
-    --surface-3: #2E313D;
+    /* Surfaces - the cream ladder, replacing the old obsidian one */
+    --bg-deep: var(--sky-low);
+    --bg-deep-2: #2F7A5E;
+    --panel-light: var(--cream);
+    --surface-2: var(--cream-2);
+    --surface-3: var(--cream-3);
 
-    /* Text - light-on-dark now that surfaces are dark. text-secondary is for
-       descriptions/captions/subtitles. */
-    --text-dark: #F1F2F5;
-    --text-secondary: #A6ABB8;
+    /* Text - brown ink on cream. --text-dark stays the "primary text" name. */
+    --text-dark: #4E3116;
+    --text-secondary: #8A6A48;
     --text-light: #ffffff;
+    --ink: #4E3116;
+    --ink-2: #8A6A48;
+    --ink-on-color: #ffffff;
+    --title-fill: #FFD873;
 
-    /* Soft, low-opacity accent shadows - a gentle tint hinting at the
-       element's color, always paired with a neutral depth shadow for real,
-       physical elevation instead of a neon halo. */
-    --glow-cyan: 0 8px 22px rgba(58, 101, 184, 0.22), var(--shadow-depth-sm);
-    --glow-green: 0 8px 22px rgba(22, 135, 82, 0.22), var(--shadow-depth-sm);
-    --glow-orange: 0 8px 22px rgba(176, 101, 31, 0.22), var(--shadow-depth-sm);
-    --glow-gold: 0 8px 22px rgba(168, 127, 34, 0.22), var(--shadow-depth-sm);
-    --glow-purple: 0 8px 22px rgba(74, 63, 176, 0.22), var(--shadow-depth-sm);
-    --glow-red: 0 8px 22px rgba(149, 43, 35, 0.22), var(--shadow-depth-sm);
+    /* The signature bevel. --btn-base is resolved per element, so a color
+       class only has to set --btn-face and --btn-base. */
+    --bevel: 0 6px 0 var(--btn-base, var(--wood)), 0 10px 16px rgba(78, 49, 22, 0.32);
+    --bevel-lg: 0 8px 0 var(--btn-base, var(--wood)), 0 14px 22px rgba(78, 49, 22, 0.34);
+    --bevel-sm: 0 4px 0 var(--btn-base, var(--wood)), 0 6px 12px rgba(78, 49, 22, 0.28);
+    --sink: 0 2px 0 var(--btn-base, var(--wood)), 0 4px 8px rgba(78, 49, 22, 0.28);
+    --panel-shadow: 0 12px 28px rgba(78, 49, 22, 0.35);
 
-    /* Borders and radii - a 3-tier modern scale: compact controls, cards/
-       buttons, and big popups/the board. Hairline borders replace the old
-       3px neon outlines. */
-    --border-thick: 1px;
-    --radius-sm: 14px;
-    --radius-card: 24px;
-    --radius-btn: 18px;
-    --radius-tile: 16px;
-    --radius-frame: 28px;
+    /* Legacy glow names - now a warm brown lift with a hint of the hue */
+    --glow-cyan: 0 6px 16px rgba(43, 122, 194, 0.3), var(--shadow-depth-sm);
+    --glow-green: 0 6px 16px rgba(92, 147, 40, 0.3), var(--shadow-depth-sm);
+    --glow-orange: 0 6px 16px rgba(158, 82, 25, 0.3), var(--shadow-depth-sm);
+    --glow-gold: 0 6px 16px rgba(210, 154, 28, 0.32), var(--shadow-depth-sm);
+    --glow-purple: 0 6px 16px rgba(107, 66, 158, 0.3), var(--shadow-depth-sm);
+    --glow-red: 0 6px 16px rgba(175, 50, 38, 0.3), var(--shadow-depth-sm);
+
+    /* Borders and radii - chunkier than the old scale. Nothing here is thin. */
+    --border-thick: 3px;
+    --radius-sm: 16px;
+    --radius-card: 28px;
+    --radius-btn: 22px;
+    --radius-tile: 18px;
+    --radius-frame: 32px;
+    --radius-pill: 999px;
 
     /* Fonts */
     --font-display: 'Rubik', 'Poppins', sans-serif;
@@ -77,12 +118,12 @@
        added on top of this wherever it's used, never baked in */
     --bottom-nav-height: 62px;
 
-    /* Soft neutral depth shadows - realistic, diffused, low-opacity, for
-       physical elevation without any neon color cast */
-    --shadow-depth-sm: 0 8px 20px rgba(0, 0, 0, 0.18);
-    --shadow-depth-md: 0 10px 26px rgba(0, 0, 0, 0.22);
-    --shadow-depth-lg: 0 16px 36px rgba(0, 0, 0, 0.28);
-    --shadow-frame: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    /* Ambient shadows are brown here, never black - black reads cold
+       against cream and wood. */
+    --shadow-depth-sm: 0 4px 10px rgba(78, 49, 22, 0.20);
+    --shadow-depth-md: 0 8px 18px rgba(78, 49, 22, 0.26);
+    --shadow-depth-lg: 0 14px 30px rgba(78, 49, 22, 0.34);
+    --shadow-frame: 0 24px 60px rgba(28, 62, 40, 0.45);
 }
 
 * {
@@ -97,13 +138,12 @@ html, body {
 
 body {
     font-family: var(--font-body);
-    /* The "out of focus" backdrop that shows around the app frame on wide
-       (desktop) viewports - a flat, solid matte obsidian, distinct from the
-       app surface itself so the frame pops without any flashy gradient */
+    /* The backdrop around the app frame on wide (desktop) viewports - deep
+       jungle green, so the island frame reads as a lit clearing inside it */
     background: var(--bg-deep-2);
     min-height: 100vh;
     min-height: 100dvh;
-    color: #fff;
+    color: var(--ink);
     direction: rtl;
     overflow-x: hidden;
     -webkit-tap-highlight-color: transparent;
@@ -138,7 +178,25 @@ button {
     min-height: 100dvh;
     max-width: var(--app-max-width);
     margin: 0 auto;
-    background: var(--bg-deep);
+    /* The island world: a low sun, a few drifting cloud puffs, and an airy
+       sky-to-lagoon gradient the whole UI floats on. Deliberately light all
+       the way down - the greenery comes from the foliage in the screen
+       corners, so panels never land on a muddy mid-screen band. */
+    background-color: var(--sky-low);
+    background-image:
+        radial-gradient(38px 20px at 17% 8%, rgba(255, 255, 255, 0.92), transparent 72%),
+        radial-gradient(54px 26px at 25% 10%, rgba(255, 255, 255, 0.85), transparent 72%),
+        radial-gradient(32px 18px at 74% 15%, rgba(255, 255, 255, 0.8), transparent 72%),
+        radial-gradient(circle at 85% 5%, rgba(255, 246, 198, 0.9), transparent 32%),
+        linear-gradient(180deg,
+            var(--sky) 0%,
+            var(--sky-low) 44%,
+            #DCF3F0 66%,
+            var(--water) 88%,
+            var(--water-deep) 100%);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    background-attachment: scroll;
     box-shadow: var(--shadow-frame);
     border-radius: var(--radius-frame);
     overflow: hidden;

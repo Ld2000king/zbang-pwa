@@ -2,12 +2,12 @@
   "appId": "com.zabang.royale",
   "appName": "Zabang Royale",
   "webDir": "www",
-  "backgroundColor": "#121317",
+  "backgroundColor": "#7FC4E8",
   "ios": {
     "contentInset": "always",
-    "backgroundColor": "#121317"
+    "backgroundColor": "#7FC4E8"
   },
   "android": {
-    "backgroundColor": "#121317"
+    "backgroundColor": "#7FC4E8"
   }
 }
