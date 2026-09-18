@@ -16,7 +16,7 @@
 // Bump VERSION on every release; activate() purges all older caches.
 // ============================================================================
 
-const VERSION = 'v16';
+const VERSION = 'v17';
 const APP_CACHE = 'zabang-app-' + VERSION;       // same-origin shell + code
 const RUNTIME_CACHE = 'zabang-runtime-' + VERSION; // fonts + CDN statics
 
@@ -32,6 +32,26 @@ const PRECACHE = [
     './words.js',
     './words-bulk.js',
     './avatars.js',
+    './assets/avatars/dan.webp',
+    './assets/avatars/maya.webp',
+    './assets/avatars/tom.webp',
+    './assets/avatars/noa.webp',
+    './assets/avatars/ari.webp',
+    './assets/avatars/shira.webp',
+    './assets/avatars/cool.webp',
+    './assets/avatars/grandpa.webp',
+    './assets/avatars/ninja.webp',
+    './assets/avatars/robot.webp',
+    './assets/avatars/cat.webp',
+    './assets/avatars/dog.webp',
+    './assets/avatars/alien.webp',
+    './assets/avatars/wolf.webp',
+    './assets/avatars/ariel.webp',
+    './assets/avatars/king.webp',
+    './assets/avatars/cyber.webp',
+    './assets/avatars/flame.webp',
+    './assets/avatars/hero.webp',
+    './assets/avatars/galaxy.webp',
     './icons.js',
     './firebase-config.js',
     './multiplayer.js',
