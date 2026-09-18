@@ -205,7 +205,8 @@ let gameState = {
     preferredTheme: 0,
     ownedAvatars: [],
     musicEnabled: true,  // actual playback still gated on a user gesture, see initMusic()
-    bestSingleScore: 0,  // personal best single-player score (shown on the leaderboard)
+    bestSingleScore: 0,  // personal best on the 1-minute ("quick") board
+    bestSingleScorePrecise: 0, // personal best on the 2-minute ("precise") board
     playerId: null,      // stable per-device id for the global leaderboard entry
     lastDailyClaim: null, // 'YYYY-MM-DD' of the last claimed daily reward
     dailyStreak: 0        // consecutive-day login streak
@@ -596,6 +597,7 @@ function loadGameState() {
     if (!Array.isArray(gameState.ownedAvatars)) gameState.ownedAvatars = [];
     if (typeof gameState.musicEnabled !== 'boolean') gameState.musicEnabled = true;
     if (typeof gameState.bestSingleScore !== 'number') gameState.bestSingleScore = 0;
+    if (typeof gameState.bestSingleScorePrecise !== 'number') gameState.bestSingleScorePrecise = 0;
     // these two are shown directly on the profile, so an older/partial save
     // (including one restored from another device) must not render "undefined"
     if (typeof gameState.totalScore !== 'number') gameState.totalScore = 0;
@@ -1519,10 +1521,13 @@ function endRound(mode) {
         gameState.gamesPlayed++;
         // A new personal best unlocks the OPT-IN "add to זבאנג רויאל" button on
         // the result screen - we no longer auto-submit. Only the best score can
-        // ever be submitted, and only if the player chooses to.
-        const prevBest = gameState.bestSingleScore || 0;
+        // ever be submitted, and only if the player chooses to. Quick (1-minute)
+        // and precise (2-minute) games keep separate bests/leaderboards, since
+        // their scores aren't comparable.
+        const bestKey = leaderboardBestKey(currentGame.singleMode);
+        const prevBest = gameState[bestKey] || 0;
         currentGame.isNewBest = currentGame.score > prevBest && currentGame.score > 0;
-        if (currentGame.isNewBest) gameState.bestSingleScore = currentGame.score;
+        if (currentGame.isNewBest) gameState[bestKey] = currentGame.score;
         saveGameState();
         showGameOverDialog();
     } else {
@@ -1565,33 +1570,75 @@ function showGameOverDialog() {
 // nothing is published without the player choosing to.
 // NOTE: like all scores in this client-authoritative game, this is spoofable -
 // fine for a casual leaderboard, not a competitive-stakes one.
+//
+// Quick (1-minute) and precise (2-minute) games keep entirely separate boards
+// (their scores aren't comparable), stored at two different Realtime Database
+// roots - see leaderboardPath().
+function leaderboardBestKey(singleMode) {
+    return singleMode === 'precise' ? 'bestSingleScorePrecise' : 'bestSingleScore';
+}
+
+function leaderboardPath(singleMode) {
+    return singleMode === 'precise' ? 'leaderboard_precise' : 'leaderboard';
+}
+
 function submitScoreToLeaderboard() {
     if (typeof FIREBASE_READY === 'undefined' || !FIREBASE_READY || !db || !gameState.playerId) return;
     const btn = document.getElementById('srLeaderboardBtn');
     if (btn) { btn.disabled = true; btn.innerHTML = '✓ נוסף לזבאנג רויאל'; }
-    if (typeof authReady !== 'undefined') {
-        // uid binds this row to the writer's Firebase Auth UID (see the
-        // Security Rules): without it, any signed-in visitor could overwrite
-        // another player's row instead of only their own.
-        authReady.then(user => db.ref('leaderboard/' + gameState.playerId).set({
-            uid: user.uid,
-            name: gameState.playerName,
-            score: gameState.bestSingleScore,
-            avatarId: networkSafeAvatarId(),
-            updatedAt: firebase.database.ServerValue.TIMESTAMP
-        })
-            .then(() => showMessage('נוסף לזבאנג רויאל!', 'success'))
-            .catch(err => {
-                console.warn('Leaderboard write failed:', err.message);
-                showMessage('השמירה נכשלה, נסה שוב', 'error');
-                if (btn) { btn.disabled = false; btn.innerHTML = '🏆 הוסף שיא לזבאנג רויאל'; }
-            }));
-    }
+    if (typeof authReady === 'undefined') return;
+
+    const singleMode = currentGame.singleMode;
+    const path = leaderboardPath(singleMode);
+    const score = gameState[leaderboardBestKey(singleMode)];
+
+    authReady.then(user => writeLeaderboardEntry(path, gameState.playerId, user, score));
 }
 
-function showLeaderboard() {
+// Separated from submitScoreToLeaderboard() so a stale row (its "uid" no
+// longer matching this session's auth uid - e.g. after signing out of a
+// cloud account back to a fresh anonymous session, or restoring a cloud save
+// onto a new device/browser) can self-heal instead of failing forever: on a
+// PERMISSION_DENIED we mint a brand-new row under a fresh playerId and retry
+// once, rather than leaving the player permanently unable to submit.
+function writeLeaderboardEntry(path, pid, user, score, isRetry) {
+    return db.ref(path + '/' + pid).set({
+        uid: user.uid,
+        name: gameState.playerName,
+        score: score,
+        avatarId: networkSafeAvatarId(),
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+    })
+        .then(() => showMessage('נוסף לזבאנג רויאל!', 'success'))
+        .catch(err => {
+            if (!isRetry && err.code === 'PERMISSION_DENIED') {
+                gameState.playerId = db.ref().push().key;
+                saveGameState();
+                return writeLeaderboardEntry(path, gameState.playerId, user, score, true);
+            }
+            console.warn('Leaderboard write failed:', err.message);
+            showMessage('השמירה נכשלה, נסה שוב', 'error');
+            const btn = document.getElementById('srLeaderboardBtn');
+            if (btn) { btn.disabled = false; btn.innerHTML = '🏆 הוסף שיא לזבאנג רויאל'; }
+        });
+}
+
+// Which board is currently shown on the leaderboard screen.
+let currentLeaderboardMode = 'quick';
+
+function showLeaderboard(mode) {
+    if (mode === 'quick' || mode === 'precise') currentLeaderboardMode = mode;
     showScreen('leaderboardScreen');
+    renderLeaderboardTabs();
     renderLeaderboard();
+}
+
+function renderLeaderboardTabs() {
+    const quickTab = document.getElementById('lbTabQuick');
+    const preciseTab = document.getElementById('lbTabPrecise');
+    if (!quickTab || !preciseTab) return;
+    quickTab.classList.toggle('active', currentLeaderboardMode === 'quick');
+    preciseTab.classList.toggle('active', currentLeaderboardMode === 'precise');
 }
 
 // The rows currently on screen, so the per-row admin edit button can look a
@@ -1619,7 +1666,8 @@ function renameLeaderboardEntry(id) {
     if (!cleaned) { showMessage('שם לא תקין', 'error'); return; }
 
     if (typeof authReady === 'undefined') return;
-    authReady.then(() => db.ref('leaderboard/' + id + '/name').set(cleaned)
+    const path = leaderboardPath(currentLeaderboardMode);
+    authReady.then(() => db.ref(path + '/' + id + '/name').set(cleaned)
         .then(() => {
             showMessage('השם עודכן!', 'success');
             renderLeaderboard();
@@ -1638,7 +1686,10 @@ function renderLeaderboard() {
         return;
     }
     listEl.innerHTML = '<div class="mp-spinner"></div>';
-    db.ref('leaderboard').once('value').then(snap => {
+    const path = leaderboardPath(currentLeaderboardMode);
+    const requestedMode = currentLeaderboardMode;
+    db.ref(path).once('value').then(snap => {
+        if (requestedMode !== currentLeaderboardMode) return; // tab switched while loading
         const rows = Object.entries(snap.val() || {})
             .map(([id, e]) => ({ id, name: e.name || 'שחקן', score: e.score || 0, avatarId: e.avatarId }))
             .sort((a, b) => b.score - a.score)
@@ -1668,6 +1719,7 @@ function renderLeaderboard() {
             </div>`;
         }).join('');
     }).catch(err => {
+        if (requestedMode !== currentLeaderboardMode) return;
         listEl.innerHTML = '<p class="no-subs">שגיאה בטעינת הטבלה</p>';
         console.warn('Leaderboard read failed (add a leaderboard Security Rule):', err.message);
     });
@@ -2251,7 +2303,8 @@ function renderProfile() {
         <p><strong>רצף התחברות:</strong> ${gameState.dailyStreak || 0} ימים</p>
         <p><strong>עיר:</strong> ${currentArena().motif} ${currentArena().name} — ${currentArena().tagline}</p>
         <p><strong>ניקוד כולל:</strong> ${gameState.totalScore}</p>
-        <p><strong>שיא משחק יחיד:</strong> ${gameState.bestSingleScore || 0}</p>
+        <p><strong>שיא משחק מהיר (דקה):</strong> ${gameState.bestSingleScore || 0}</p>
+        <p><strong>שיא משחק מדוייק (2 דקות):</strong> ${gameState.bestSingleScorePrecise || 0}</p>
         <p><strong>משחקים:</strong> ${gameState.gamesPlayed}</p>
     `;
     renderAvatarPicker();
