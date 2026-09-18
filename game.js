@@ -134,8 +134,8 @@ const TROPHIES_PER_ARENA = 200;
 const ARENAS = [
     { name: 'מזכרת בתיה',  tagline: 'מושבה חקלאית ותיקה',  motif: '🌾', tile: '#F2D98B', base: '#C9AC57', accent: 'rgba(242, 217, 139, 0.35)' },   // 0-199
     { name: 'אשדוד',        tagline: 'עיר נמל דרומית',       motif: '⚓', tile: '#4FA8D8', base: '#2F7FAC', accent: 'rgba(79, 168, 216, 0.35)', textLight: true }, // 200-399
-    { name: 'באר שבע',      tagline: 'בירת הנגב',            motif: '🏜️', tile: '#E8C468', base: '#BE9A38', accent: 'rgba(232, 196, 104, 0.35)' },   // 400-599
-    { name: 'חיפה',         tagline: 'עיר הכרמל',            motif: '🌲', tile: '#5FB552', base: '#3C8A32', accent: 'rgba(95, 181, 82, 0.35)', textLight: true }, // 600-799
+    { name: 'באר שבע',      tagline: 'בירת הנגב',            motif: '🏜️', tile: '#D98C4A', base: '#A8672E', accent: 'rgba(217, 140, 74, 0.35)' },   // 400-599 - sandy terracotta, was too close to מזכרת בתיה's yellow
+    { name: 'חיפה',         tagline: 'עיר הכרמל',            motif: '🌲', tile: '#2C6B3F', base: '#1B4A29', accent: 'rgba(44, 107, 63, 0.35)', textLight: true }, // 600-799 - darkened forest green so white letters read clearly against the felt
     { name: 'ראשון לציון',  tagline: 'עיר יין ומייסדים',     motif: '🍷', tile: '#C2566F', base: '#97374E', accent: 'rgba(194, 86, 111, 0.35)', textLight: true }, // 800-999
     { name: 'תל אביב',      tagline: 'העיר שלא נחה',         motif: '🏙️', tile: '#D45FA6', base: '#A63C7D', accent: 'rgba(212, 95, 166, 0.35)', textLight: true }, // 1000-1199
     { name: 'ירושלים',      tagline: 'בירת הנצח',            motif: '👑', tile: '#F0C244', base: '#C6971C', accent: 'rgba(240, 194, 68, 0.35)' },   // 1200-1399
@@ -146,7 +146,7 @@ const ARENAS = [
     { name: 'נתניה',        tagline: 'עיר היהלומים',         motif: '💎', tile: '#6B7FD8', base: '#45589F', accent: 'rgba(107, 127, 216, 0.35)', textLight: true }, // 2200-2399
     { name: 'הרצליה',       tagline: 'עיר הייטק והים',       motif: '🏄', tile: '#9B6FD4', base: '#714AA3', accent: 'rgba(155, 111, 212, 0.35)', textLight: true }, // 2400-2599
     { name: 'פתח תקווה',    tagline: 'אם המושבות',           motif: '🏭', tile: '#E0913C', base: '#B06A1B', accent: 'rgba(224, 145, 60, 0.35)',  textLight: true }, // 2600-2799
-    { name: 'רעננה',        tagline: 'עיר ירוקה ומטופחת',    motif: '🌳', tile: '#8CC63F', base: '#689C22', accent: 'rgba(140, 198, 63, 0.35)' },   // 2800-2999
+    { name: 'רעננה',        tagline: 'עיר ירוקה ומטופחת',    motif: '🌳', tile: '#4C7A28', base: '#33551A', accent: 'rgba(76, 122, 40, 0.35)', textLight: true },   // 2800-2999 - darker olive green with white letters so it doesn't wash out against the felt
     { name: 'רמת גן',       tagline: 'עיר הבורסה והיהלומים', motif: '💠', tile: '#8E63C9', base: '#67409A', accent: 'rgba(142, 99, 201, 0.35)', textLight: true }  // 3000+
 ];
 
