@@ -28,11 +28,23 @@ const FIREBASE_READY = !firebaseConfig.databaseURL.startsWith('PASTE_');
 let db = null;
 let auth = null;
 
-// resolves once we have a signed-in user (anonymous by default). Every
-// write that Security Rules protect (multiplayer rooms, word submissions)
-// should wait on this before touching Firebase.
+// Resolves once we have a signed-in user (anonymous by default). Every
+// write that Security Rules protect (multiplayer rooms, word submissions,
+// leaderboard) should wait on this before touching Firebase.
+//
+// authReady is re-pointed to a fresh, already-resolved promise on EVERY
+// auth change, not just the first - a plain one-shot Promise can only ever
+// resolve once, so it would stay permanently frozen on whichever user was
+// signed in first. Since every call site does `authReady.then(...)` inline
+// (never caches the promise object), each one picks up whatever `authReady`
+// currently points to. Without this, any write made after a later identity
+// change (admin sign-in replacing anonymous, linking/signing into a cloud
+// account, signing out back to a fresh anonymous session) would still embed
+// the STALE first uid, which no longer matches the live auth.uid the
+// Security Rules check - silently failing every such write with
+// PERMISSION_DENIED forever after (this is what broke "add to leaderboard").
 let authReadyResolve;
-const authReady = new Promise(resolve => { authReadyResolve = resolve; });
+let authReady = new Promise(resolve => { authReadyResolve = resolve; });
 
 if (FIREBASE_READY && typeof firebase !== 'undefined') {
     firebase.initializeApp(firebaseConfig);
@@ -40,7 +52,13 @@ if (FIREBASE_READY && typeof firebase !== 'undefined') {
     auth = firebase.auth();
 
     auth.onAuthStateChanged(user => {
-        if (user) authReadyResolve(user);
+        if (!user) return;
+        if (authReadyResolve) {
+            authReadyResolve(user);
+            authReadyResolve = null; // only the first change needs to unblock the initial promise
+        } else {
+            authReady = Promise.resolve(user);
+        }
     });
 
     // Anonymous sign-in gives every regular player a stable, Rules-verifiable

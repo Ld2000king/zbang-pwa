@@ -9,7 +9,7 @@
   //   auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2' is the real UID of the admin
   //   Auth account (the email/password account used by adminSignIn() in
   //   admin.js, liavdimri12@gmail.com). If that account is ever recreated,
-  //   swap its new UID into all six spots below and redeploy. Find it in
+  //   swap its new UID into all seven spots below and redeploy. Find it in
   //   Console -> Authentication -> Users -> User UID.
   //
   // IDENTITY BINDING (now active):
@@ -36,12 +36,18 @@
   //       be extended (never cleared, except by the host on a round reset), so
   //       a frozen player really is out of the round.
   //
-  //   /leaderboard keys are the game's own playerId (a push key, not the auth
-  //   UID), but each entry also carries "uid" = the writer's Firebase Auth UID
-  //   (set by submitScoreToLeaderboard() in game.js). A brand-new row may be
-  //   created by anyone (self-submission is opt-in), but once it exists, only
-  //   the original writer (matching uid) or the admin UID may modify it - so
-  //   one player can no longer overwrite another player's row.
+  //   /leaderboard (quick, 1-minute games) and /leaderboard_precise (precise,
+  //   2-minute games) key their rows by the game's own playerId (a push key,
+  //   not the auth UID), but each entry also carries "uid" = the writer's
+  //   Firebase Auth UID (set by writeLeaderboardEntry() in game.js). A
+  //   brand-new row may be created by anyone (self-submission is opt-in), but
+  //   once it exists, only the original writer (matching uid) or the admin
+  //   UID may modify it - so one player can no longer overwrite another
+  //   player's row. If a row's owning uid ever goes stale (e.g. the player
+  //   signed out of a cloud account back to a fresh anonymous session, or
+  //   restored a cloud save onto a new device/browser), writeLeaderboardEntry()
+  //   self-heals by minting a fresh playerId and retrying as a new row rather
+  //   than failing forever.
   //
   // REMAINING TRUST NOTES (inherent to host-authoritative P2P, not fixable
   // with Rules alone):
@@ -173,6 +179,10 @@
       }
     },
 
+    // Two separate boards - quick (1-minute) games at /leaderboard, precise
+    // (2-minute) games at /leaderboard_precise (see leaderboardPath() in
+    // game.js). Same shape and rules for both; scores from the two modes
+    // aren't comparable so they never share a tree.
     "leaderboard": {
       ".read": "auth != null",
       "$pid": {
@@ -181,6 +191,19 @@
         // player who created it (uid match) or the admin may modify it -
         // this is what makes renameLeaderboardEntry() in game.js actually
         // admin-only instead of anyone being able to edit any row.
+        ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && (data.child('uid').val() === auth.uid || auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2')))",
+        "uid":       { ".validate": "newData.isString() && newData.val() === auth.uid" },
+        "name":      { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "score":     { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "avatarId":  { ".validate": "newData.isString() || newData.isNumber()" },
+        "updatedAt": { ".validate": "newData.isNumber()" },
+        "$other":    { ".validate": false }
+      }
+    },
+
+    "leaderboard_precise": {
+      ".read": "auth != null",
+      "$pid": {
         ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && (data.child('uid').val() === auth.uid || auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2')))",
         "uid":       { ".validate": "newData.isString() && newData.val() === auth.uid" },
         "name":      { ".validate": "newData.isString() && newData.val().length <= 40" },
