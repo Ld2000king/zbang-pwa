@@ -28,8 +28,11 @@ name: Weekly Realtime Database backup
 # This OVERWRITES the live database with the backup's contents - only do
 # this when you actually mean to roll the data back.
 on:
-  schedule:
-    - cron: '17 3 * * 2' # every Tuesday ~03:17 UTC (~06:17 Israel time) - an off-the-hour time to avoid GitHub's on-the-hour scheduling congestion
+  # The weekly schedule is switched off for now (backups aren't needed yet, and
+  # every scheduled run was failing because the secrets above were never set).
+  # To turn it back on: finish the setup above, then uncomment these two lines.
+  # schedule:
+  #   - cron: '17 3 * * 2' # every Tuesday ~03:17 UTC (~06:17 Israel time) - an off-the-hour time to avoid GitHub's on-the-hour scheduling congestion
   workflow_dispatch: {} # lets you trigger a manual backup/test run any time
 
 jobs:
