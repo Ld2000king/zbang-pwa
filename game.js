@@ -2023,6 +2023,10 @@ function endBattleRound() {
     // can be visible - bots mode never offers a matchmaking "play again"
     const playAgainBtn = document.getElementById('playAgainRandomBtn');
     if (playAgainBtn) playAgainBtn.style.display = 'none';
+    const playAgainFriendsBtn = document.getElementById('playAgainFriendsBtn');
+    if (playAgainFriendsBtn) playAgainFriendsBtn.style.display = 'none';
+    const playAgainFriendsWaiting = document.getElementById('playAgainFriendsWaiting');
+    if (playAgainFriendsWaiting) playAgainFriendsWaiting.style.display = 'none';
 
     // Only the player + still-active bots compete for the round's elimination.
     // (Including already-eliminated bots let their frozen low score win the
