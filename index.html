@@ -268,6 +268,12 @@
                 <p class="mp-hint">קוד החדר - שתפו עם חברים:</p>
                 <div class="room-code-display" id="lobbyRoomCode" onclick="copyRoomCode()" title="לחצו להעתקה">-----</div>
                 <p class="mp-copied" id="lobbyCopied" style="display:none;">הקוד הועתק!</p>
+                <h3 class="lobby-players-title">משך כל סיבוב:</h3>
+                <div class="lb-tabs" id="lobbyDurationTabs" style="display:none;">
+                    <button class="lb-tab" id="lobbyDur60" onclick="hostSetRoundDuration(60)">דקה</button>
+                    <button class="lb-tab" id="lobbyDur120" onclick="hostSetRoundDuration(120)">2 דקות</button>
+                </div>
+                <p class="mp-hint" id="lobbyDurationLabel" style="display:none;"></p>
                 <h3 class="lobby-players-title">שחקנים בחדר:</h3>
                 <div class="players-status lobby-players" id="lobbyPlayers"></div>
                 <button class="btn-large blue-btn" id="lobbyStartBtn" onclick="hostStartMultiplayerGame()" style="display:none;">התחל משחק ›</button>
@@ -371,8 +377,8 @@
                 <p id="victorySubtitle">שרדת את כל 5 הסיבובים!</p>
                 <div class="victory-rewards" id="victoryRewards"></div>
                 <button class="btn-large green-btn" id="playAgainRandomBtn" onclick="playAgainRandom()" style="display:none;"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 a8 8 0 1 1 2.6 5.9"/><path d="M4 18 V13 H9"/></svg></span> שחק שוב</button>
-                <button class="btn-large green-btn" id="playAgainFriendsBtn" onclick="hostRematchFriends()" style="display:none;"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 a8 8 0 1 1 2.6 5.9"/><path d="M4 18 V13 H9"/></svg></span> שחק שוב</button>
-                <p class="mp-waiting" id="playAgainFriendsWaiting" style="display:none;">ממתין למארח שיתחיל משחק חדש באותו חדר...</p>
+                <button class="btn-large green-btn" id="playAgainFriendsBtn" onclick="friendsPlayAgain()" style="display:none;"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 a8 8 0 1 1 2.6 5.9"/><path d="M4 18 V13 H9"/></svg></span> שחק שוב</button>
+                <p class="mp-waiting" id="playAgainFriendsWaiting" style="display:none;">ממתין לחזרה ללובי...</p>
                 <button class="btn-large blue-btn" onclick="goHome()"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></span> מסך הבית</button>
             </div>
         </div>

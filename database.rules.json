@@ -90,7 +90,9 @@
         "matchType":        { ".validate": "newData.isString() && newData.val().matches(/^(friends|random)$/)" },
         "boardTheme":       { ".validate": "newData.isNumber()" },
         "totalRounds":      { ".validate": "newData.isNumber() && newData.val() >= 0" },
-        "roundDurationSec": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        // set at creation; afterwards only the host may change it (the lobby's
+        // 1-minute / 2-minute picker)
+        "roundDurationSec": { ".validate": "newData.isNumber() && newData.val() >= 0", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
         "createdAt":        { ".validate": "newData.isNumber()" },
 
         "players": {
@@ -112,6 +114,9 @@
             "photoData":   { ".validate": "newData.isString() && newData.val().length <= 8000 && newData.val().matches(/^data:image\\/jpeg;base64,/)" },
             "eliminated":  { ".validate": "newData.isBoolean()", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
             "connected":   { ".validate": "newData.isBoolean()" },
+            // "play again" request from a guest at the end screen. The owner
+            // writes it (via parent); the host clears it when it resets the room.
+            "rematch":     { ".validate": "newData.isBoolean()", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
 
             // owner (via parent) writes it; host also writes it to reset to 0
             // each round - so grant host here too.
