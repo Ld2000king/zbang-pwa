@@ -23,7 +23,9 @@ const MP = {
     autoStarting: false, // guards against double-firing the random-match auto-start
     resultApplied: false, // guards against re-awarding coins/trophies on repeat 'finished' snapshots
     _freezeNotifiedFor: 0, // freezeUntil value already announced, so each freeze alerts once
-    spectating: false // eliminated player chose "watch the rest" - hides the elimination overlay
+    spectating: false, // eliminated player chose "watch the rest" - hides the elimination overlay
+    rematchRequested: false, // I pressed "play again" as a guest and am waiting for the host's client to reset the room
+    rematching: false // host-side guard so a repeat 'finished' snapshot can't fire the room reset twice
 };
 
 const ROUND_SECONDS = 60;
@@ -284,6 +286,13 @@ function onRoomUpdate(room) {
     } else if (room.status === 'finished') {
         stopMultiplayerTimer();
         showMultiplayerResult(room);
+        // a guest pressed "play again" - only the host may reset the room, so
+        // the host's client does it on their behalf
+        if (MP.isHost && room.matchType !== 'random' && !MP.rematching) {
+            const guestWantsRematch = Object.entries(room.players || {})
+                .some(([pid, p]) => pid !== MP.playerId && p.rematch === true && p.connected !== false);
+            if (guestWantsRematch) hostRematchFriends();
+        }
     }
 }
 
@@ -315,6 +324,26 @@ function renderLobby(room) {
         : 'block';
     if (MP.isHost && !canStart) waiting.textContent = 'ממתין לשחקנים נוספים שיצטרפו...';
     else if (!MP.isHost) waiting.textContent = 'ממתין למארח שיתחיל את המשחק...';
+
+    // round length: the host picks it, everyone else just sees the choice
+    const duration = room.roundDurationSec || ROUND_SECONDS;
+    const tabs = document.getElementById('lobbyDurationTabs');
+    const label = document.getElementById('lobbyDurationLabel');
+    tabs.style.display = MP.isHost ? 'flex' : 'none';
+    label.style.display = MP.isHost ? 'none' : 'block';
+    label.textContent = duration >= 120 ? '2 דקות' : 'דקה';
+    document.getElementById('lobbyDur60').classList.toggle('active', duration < 120);
+    document.getElementById('lobbyDur120').classList.toggle('active', duration >= 120);
+}
+
+// host only: choose how long each round lasts (1 or 2 minutes) before starting
+function hostSetRoundDuration(seconds) {
+    if (!MP.isHost || !MP.roomRef || !MP.room || MP.room.status !== 'waiting') return;
+    if (seconds !== 60 && seconds !== 120) return;
+    MP.roomRef.child('roundDurationSec').set(seconds).catch(err => {
+        console.error('Failed to set round length:', err);
+        showMessage('שגיאה בשינוי משך הסיבוב - נסה שוב', 'error');
+    });
 }
 
 function copyRoomCode() {
@@ -655,12 +684,13 @@ function showMultiplayerResult(room) {
     const playAgainBtn = document.getElementById('playAgainRandomBtn');
     if (playAgainBtn) playAgainBtn.style.display = isRandom1v1 ? 'block' : 'none';
 
-    // friends rooms: the host restarts in the same room (same code); guests
-    // are pulled into the lobby automatically once the host does
+    // friends rooms: anyone can press "play again" and the whole room goes back
+    // to its lobby (same code, same people). A guest's press is carried out by
+    // the host's client; once pressed, the button turns into a waiting note.
     const playAgainFriendsBtn = document.getElementById('playAgainFriendsBtn');
     const playAgainFriendsWaiting = document.getElementById('playAgainFriendsWaiting');
-    if (playAgainFriendsBtn) playAgainFriendsBtn.style.display = (!isRandom1v1 && MP.isHost) ? 'block' : 'none';
-    if (playAgainFriendsWaiting) playAgainFriendsWaiting.style.display = (!isRandom1v1 && !MP.isHost) ? 'block' : 'none';
+    if (playAgainFriendsBtn) playAgainFriendsBtn.style.display = (!isRandom1v1 && !MP.rematchRequested) ? 'block' : 'none';
+    if (playAgainFriendsWaiting) playAgainFriendsWaiting.style.display = (!isRandom1v1 && MP.rematchRequested) ? 'block' : 'none';
 
     // the room's 'finished' snapshot can re-fire (e.g. an opponent's presence
     // flag changing) - only apply coins/trophies once per match
@@ -704,7 +734,8 @@ function playAgainRandom() {
 // the same code and the same people. Everyone still on the end screen follows
 // via the shared listener (see the 'waiting' branch of onRoomUpdate).
 function hostRematchFriends() {
-    if (!MP.isHost || !MP.roomRef || !MP.room) return;
+    if (!MP.isHost || !MP.roomRef || !MP.room || MP.rematching) return;
+    MP.rematching = true;
     const updates = {
         status: 'waiting',
         currentRound: 0,
@@ -721,10 +752,31 @@ function hostRematchFriends() {
         updates['players/' + pid + '/score'] = 0;
         updates['players/' + pid + '/foundWords'] = null;
         updates['players/' + pid + '/freezeUntil'] = 0;
+        updates['players/' + pid + '/rematch'] = null;
     });
     MP.roomRef.update(updates).catch(err => {
+        MP.rematching = false;
         console.error('Failed to restart room:', err);
         showMessage('שגיאה בהתחלת משחק חדש - נסה שוב', 'error');
+    });
+}
+
+// the "play again" button on the friends end screen - same button for everyone
+function friendsPlayAgain() {
+    if (MP.isHost) { hostRematchFriends(); return; }
+    if (!MP.room || !MP.roomCode || !MP.playerId) return;
+    const host = (MP.room.players || {})[MP.room.hostId];
+    if (!host || host.connected === false) { showMessage('המארח יצא מהחדר', 'warning'); return; }
+    // a guest can't reset the room (only the host may), so leave a request on
+    // my own player node - the host's client picks it up and does the reset
+    MP.rematchRequested = true;
+    document.getElementById('playAgainFriendsBtn').style.display = 'none';
+    document.getElementById('playAgainFriendsWaiting').style.display = 'block';
+    db.ref('rooms/' + MP.roomCode + '/players/' + MP.playerId + '/rematch').set(true).catch(err => {
+        console.error('Rematch request failed:', err);
+        MP.rematchRequested = false;
+        showMultiplayerResult(MP.room);
+        showMessage('הבקשה נכשלה - נסה שוב', 'error');
     });
 }
 
@@ -735,6 +787,8 @@ function resetLocalMatchState() {
     MP.lastRound = 0;
     MP.resultApplied = false;
     MP.spectating = false;
+    MP.rematchRequested = false;
+    MP.rematching = false;
     MP._freezeNotifiedFor = 0;
     renderEliminatedOverlay(false);
     showScreen('mpLobbyScreen');
@@ -990,6 +1044,8 @@ function leaveMultiplayerRoom() {
     MP.resultApplied = false;
     MP._freezeNotifiedFor = 0;
     MP.spectating = false;
+    MP.rematchRequested = false;
+    MP.rematching = false;
     renderEliminatedOverlay(false);
     if (currentGame.mode === 'multiplayer') currentGame.mode = null;
 }
