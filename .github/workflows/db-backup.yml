@@ -1,9 +1,9 @@
-name: Daily Realtime Database backup
+name: Weekly Realtime Database backup
 
 # Firebase's own automated-backup feature (scheduled exports to Cloud
 # Storage) requires the paid Blaze plan - this project deliberately stays on
-# the free Spark plan, so this workflow is the free substitute: once a day
-# it fetches the ENTIRE Realtime Database as one JSON snapshot and keeps it
+# the free Spark plan, so this workflow is the free substitute: once a week
+# (every Tuesday) it fetches the ENTIRE Realtime Database as one JSON snapshot and keeps it
 # as a downloadable workflow artifact for 90 days.
 #
 # ONE-TIME SETUP REQUIRED (nothing here works until this is done):
@@ -17,7 +17,7 @@ name: Daily Realtime Database backup
 #      URL (the same value as databaseURL in firebase-config.js), e.g.
 #      https://zbang-royale-default-rtdb.firebaseio.com
 #   4. After adding both secrets, run this workflow once by hand (Actions ->
-#      Daily Realtime Database backup -> Run workflow) and confirm it
+#      Weekly Realtime Database backup -> Run workflow) and confirm it
 #      succeeds and the artifact actually contains real data - this was
 #      never run against the real project during development, so verify it
 #      before trusting it as your safety net.
@@ -29,7 +29,7 @@ name: Daily Realtime Database backup
 # this when you actually mean to roll the data back.
 on:
   schedule:
-    - cron: '17 3 * * *' # ~03:17 UTC daily - an off-the-hour time to avoid GitHub's on-the-hour scheduling congestion
+    - cron: '17 3 * * 2' # every Tuesday ~03:17 UTC (~06:17 Israel time) - an off-the-hour time to avoid GitHub's on-the-hour scheduling congestion
   workflow_dispatch: {} # lets you trigger a manual backup/test run any time
 
 jobs:
