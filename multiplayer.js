@@ -226,6 +226,9 @@ function onRoomUpdate(room) {
         if (room.matchType === 'random') {
             handleRandomWaitingRoom(room);
         } else {
+            // a match already ran in this room: the host pressed "play again",
+            // so pull everyone still on the end screen back into the lobby
+            if (MP.lastRound !== 0 || MP.resultApplied) resetLocalMatchState();
             renderLobby(room);
         }
         return;
@@ -289,9 +292,13 @@ function onRoomUpdate(room) {
 function renderLobby(room) {
     document.getElementById('lobbyRoomCode').textContent = MP.roomCode;
 
+    // players who left after the previous match stay in the room data (only
+    // their own client can delete their node) - don't show or count them
+    const lobbyPlayers = Object.entries(room.players || {}).filter(([, p]) => p.connected !== false);
+
     const listEl = document.getElementById('lobbyPlayers');
     listEl.innerHTML = '';
-    Object.entries(room.players || {}).forEach(([pid, p]) => {
+    lobbyPlayers.forEach(([pid, p]) => {
         const isSelf = pid === MP.playerId;
         listEl.innerHTML += `<div class="player-status${isSelf ? ' self' : ''}">
             <div class="status-avatar">${avatarMarkupForPlayer(pid, p)}</div>
@@ -301,7 +308,7 @@ function renderLobby(room) {
 
     const startBtn = document.getElementById('lobbyStartBtn');
     const waiting = document.getElementById('lobbyWaiting');
-    const canStart = MP.isHost && Object.keys(room.players || {}).length >= 2;
+    const canStart = MP.isHost && lobbyPlayers.length >= 2;
     startBtn.style.display = canStart ? 'block' : 'none';
     waiting.style.display = MP.isHost
         ? (canStart ? 'none' : 'block')
@@ -648,6 +655,13 @@ function showMultiplayerResult(room) {
     const playAgainBtn = document.getElementById('playAgainRandomBtn');
     if (playAgainBtn) playAgainBtn.style.display = isRandom1v1 ? 'block' : 'none';
 
+    // friends rooms: the host restarts in the same room (same code); guests
+    // are pulled into the lobby automatically once the host does
+    const playAgainFriendsBtn = document.getElementById('playAgainFriendsBtn');
+    const playAgainFriendsWaiting = document.getElementById('playAgainFriendsWaiting');
+    if (playAgainFriendsBtn) playAgainFriendsBtn.style.display = (!isRandom1v1 && MP.isHost) ? 'block' : 'none';
+    if (playAgainFriendsWaiting) playAgainFriendsWaiting.style.display = (!isRandom1v1 && !MP.isHost) ? 'block' : 'none';
+
     // the room's 'finished' snapshot can re-fire (e.g. an opponent's presence
     // flag changing) - only apply coins/trophies once per match
     const alreadyApplied = MP.resultApplied;
@@ -684,6 +698,46 @@ function showMultiplayerResult(room) {
 function playAgainRandom() {
     leaveMultiplayerRoom(); // detach the finished room's listener, clear matchmaking state
     findRandomGame();
+}
+
+// Friends rooms: the host sends the finished room back to its lobby, keeping
+// the same code and the same people. Everyone still on the end screen follows
+// via the shared listener (see the 'waiting' branch of onRoomUpdate).
+function hostRematchFriends() {
+    if (!MP.isHost || !MP.roomRef || !MP.room) return;
+    const updates = {
+        status: 'waiting',
+        currentRound: 0,
+        winnerId: null,
+        loserId: null,
+        isDraw: null,
+        board: null,
+        roundStartTime: null
+    };
+    Object.entries(MP.room.players || {}).forEach(([pid, p]) => {
+        // anyone who left after the match is parked as eliminated so they can't
+        // be counted as an active player (or picked as the loser) next match
+        updates['players/' + pid + '/eliminated'] = p.connected === false;
+        updates['players/' + pid + '/score'] = 0;
+        updates['players/' + pid + '/foundWords'] = null;
+        updates['players/' + pid + '/freezeUntil'] = 0;
+    });
+    MP.roomRef.update(updates).catch(err => {
+        console.error('Failed to restart room:', err);
+        showMessage('שגיאה בהתחלת משחק חדש - נסה שוב', 'error');
+    });
+}
+
+// clear everything a finished match left behind on this client, then show the lobby
+function resetLocalMatchState() {
+    stopMultiplayerTimer();
+    currentGame.gameActive = false;
+    MP.lastRound = 0;
+    MP.resultApplied = false;
+    MP.spectating = false;
+    MP._freezeNotifiedFor = 0;
+    renderEliminatedOverlay(false);
+    showScreen('mpLobbyScreen');
 }
 
 // ---- word submission (called from game.js endDrag) -------------------------
