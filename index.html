@@ -49,7 +49,7 @@
                     </div>
                 </div>
 
-                <button class="arena-banner" onclick="openArenaScreen()" aria-label="בחירת זירה">
+                <button class="arena-banner" onclick="openArenaScreen('homeScreen')" aria-label="בחירת ערכת נושא">
                     <span class="arena-banner-motif" id="homeCityMotif">🌾</span>
                     <div class="arena-banner-text">
                         <span class="arena-banner-label">עיר</span>
@@ -77,12 +77,20 @@
             </div>
         </div>
 
-        <!-- Arena picker: swipeable carousel over the "preferred board" cities -->
+        <!-- City theme picker: swipeable carousel over the cities. The chosen
+             city dresses the whole game (see themes.js) -->
         <div id="arenaScreen" class="screen">
             <div class="profile-container arena-screen-container">
                 <button class="exit-btn icon" onclick="closeArenaScreen()" aria-label="חזרה"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></button>
-                <h2>בחירת זירה</h2>
-                <p class="mp-hint">כל 200 גביעים פותחים עיר חדשה - בחרו את לוח הבית שלכם.</p>
+                <h2>ערכת נושא</h2>
+                <p class="mp-hint">כל 200 גביעים פותחים עיר חדשה, וכל עיר מלבישה את כל המשחק. מי שיורד בגביעים לעיר נמוכה יותר מאבד את הערים שמעליה עד שיעלה שוב.</p>
+                <label class="theme-auto-row" for="themeAutoToggle">
+                    <span>
+                        <span class="theme-auto-title">לפי העיר שלי</span>
+                        <span class="theme-auto-hint">מתחלפת לבד בכל עיר חדשה</span>
+                    </span>
+                    <input type="checkbox" id="themeAutoToggle" class="switch" role="switch" onchange="onThemeAutoToggle(this.checked)">
+                </label>
                 <div class="arena-carousel" id="arenaCarousel"></div>
                 <div class="arena-dots" id="arenaDots"></div>
             </div>
@@ -403,6 +411,8 @@
             <div class="profile-container">
                 <h2><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21 c0 -4.5 3.5 -7 8 -7 s8 2.5 8 7 Z"/></svg></span> הפרופיל שלך</h2>
 
+                <button class="theme-row" id="profileThemeRow" onclick="openArenaScreen('profileScreen')" aria-label="החלפת ערכת נושא"></button>
+
                 <div class="profile-avatar-section">
                     <div class="current-avatar" id="currentAvatar"></div>
                     <p class="avatar-section-title">בחר דמות:</p>
@@ -629,6 +639,7 @@
     <script src="firebase-config.js"></script>
     <script src="avatars.js"></script>
     <script src="icons.js"></script>
+    <script src="themes.js"></script>
     <script src="game.js"></script>
     <script src="words.js"></script>
     <script src="words-bulk.js"></script>
