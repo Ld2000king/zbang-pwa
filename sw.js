@@ -13,10 +13,11 @@
 //   * Google Fonts + the Firebase SDK CDN use cache-first (immutable, versioned
 //     URLs) for fast loads and offline availability.
 //
-// Bump VERSION on every release; activate() purges all older caches.
+// Bump VERSION on every release (and the ?v= on the css/js tags in
+// index.html to match); activate() purges all older caches.
 // ============================================================================
 
-const VERSION = 'v18';
+const VERSION = 'v19';
 const APP_CACHE = 'zabang-app-' + VERSION;       // same-origin shell + code
 const RUNTIME_CACHE = 'zabang-runtime-' + VERSION; // fonts + CDN statics
 
@@ -148,14 +149,18 @@ self.addEventListener('fetch', (event) => {
 // launch never shows a blank screen.
 async function networkFirst(req) {
     try {
-        const res = await fetch(req);
+        // no-cache: always revalidate with the server instead of taking the
+        // browser's HTTP-cached copy (GitHub Pages caches for 10 minutes),
+        // so a deploy never serves a new index.html next to an old game.js
+        const res = await fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' });
         if (res && res.ok) {
             const copy = res.clone();
             caches.open(APP_CACHE).then((cache) => cache.put(req, copy));
         }
         return res;
     } catch (e) {
-        const cached = await caches.match(req);
+        // ignoreSearch: the page asks for game.js?v=N, the precache holds game.js
+        const cached = await caches.match(req, { ignoreSearch: true });
         if (cached) return cached;
         if (req.mode === 'navigate') {
             const shell = await caches.match('./index.html');

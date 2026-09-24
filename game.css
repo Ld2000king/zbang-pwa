@@ -6,6 +6,20 @@
     z-index: 1; /* above the ambient glow layer */
 }
 
+/* The active city's painted skyline, framed behind the title so the theme
+   reads at a glance - the copy along the bottom of #app is mostly covered
+   by the menu buttons on this screen. It bleeds through the screen's side
+   padding and its ground line lands just under the player card's top edge. */
+.home-skyline {
+    position: absolute;
+    top: -20px;
+    inset-inline: -20px;
+    height: 200px;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--city-scene) center bottom / 100% auto no-repeat;
+}
+
 /* Jungle foliage crowding in from the bottom corners of the home screen, so
    the menu reads as a clearing on the island. Pure decoration - pointer-events
    off, sits behind .home-content, clipped by #app's overflow:hidden. */
@@ -75,15 +89,20 @@
     50%      { transform: translateY(-6px) rotate(1deg); }
 }
 
-/* Brown ink with a cream halo, because this sits straight on the pale sky
-   rather than inside a panel */
+/* A small cream name plate, because it sits over the city skyline, which
+   can be light or dark depending on the city */
 .subtitle {
+    display: table;
+    margin: 0 auto 26px;
+    padding: 4px 16px;
     text-align: center;
-    color: var(--world-ink);
+    color: var(--ink);
     font-weight: 700;
-    font-size: 1.2em;
-    margin-bottom: 30px;
-    text-shadow: 0 2px 0 var(--world-halo);
+    font-size: 1.05em;
+    background: var(--cream);
+    border: 3px solid var(--wood-dark);
+    border-radius: var(--radius-pill);
+    box-shadow: inset 0 2px 0 var(--cream-hi), var(--shadow-depth-sm);
 }
 
 /* The wood frame material: a cream panel inside a carved brown ring */
