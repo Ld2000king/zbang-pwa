@@ -162,11 +162,11 @@ function currentArena() {
     return ARENAS[getArenaIndex(gameState.trophies)];
 }
 
-// The highest city the player has ever reached. City themes unlock by this
-// peak, not by the current count, so losing trophies never takes a theme
-// away (the whole game would otherwise change color mid-session).
+// The city the player is in right now. City themes are open up to this city
+// only: dropping to a lower arena locks the higher themes again until the
+// player climbs back.
 function unlockedArenaIndex() {
-    return getArenaIndex(Math.max(gameState.highestTrophies || 0, gameState.trophies || 0));
+    return getArenaIndex(gameState.trophies);
 }
 
 function isThemeUnlocked(themeIndex) {
@@ -215,7 +215,6 @@ let gameState = {
     xpToNextLevel: 100,
     avatarId: 'dan',
     trophies: 0,
-    highestTrophies: 0,  // peak trophy count - decides which city themes are unlocked
     preferredTheme: 0,   // city theme picked by hand (used when themeAuto is off)
     themeAuto: true,     // true = the theme follows the newest unlocked city
     ownedAvatars: [],
@@ -609,8 +608,7 @@ function loadGameState() {
     if (!gameState.avatarId) gameState.avatarId = 'dan';
     if (typeof gameState.trophies !== 'number') gameState.trophies = 0;
     if (typeof gameState.preferredTheme !== 'number') gameState.preferredTheme = 0;
-    if (typeof gameState.highestTrophies !== 'number') gameState.highestTrophies = 0;
-    gameState.highestTrophies = Math.max(gameState.highestTrophies, gameState.trophies);
+    delete gameState.highestTrophies; // briefly used to unlock themes by peak - no longer read
     // saves from before full-game themes: a player who had hand-picked a
     // board other than their current city keeps that pick; everyone else
     // starts on automatic
@@ -856,16 +854,18 @@ function trophiesText() {
 function awardTrophies(delta, label) {
     const unlockedBefore = unlockedArenaIndex();
     gameState.trophies = Math.max(0, (gameState.trophies || 0) + delta);
-    gameState.highestTrophies = Math.max(gameState.highestTrophies || 0, gameState.trophies);
     saveGameState();
     updateHomeUI();
     const unlockedNow = unlockedArenaIndex();
     if (unlockedNow > unlockedBefore) {
         const city = ARENAS[unlockedNow];
         showMessage(gameState.themeAuto !== false
-            ? `עיר חדשה נפתחה: ${city.motif} ${city.name}! המשחק עבר לערכת הנושא שלה`
-            : `עיר חדשה נפתחה: ${city.motif} ${city.name}! אפשר לבחור אותה בפרופיל`, 'success');
+            ? `הגעת ל${city.name} ${city.motif}! המשחק עבר לערכת הנושא שלה`
+            : `הגעת ל${city.name} ${city.motif}! אפשר לבחור אותה בפרופיל`, 'success');
         launchConfetti();
+    } else if (unlockedNow < unlockedBefore) {
+        const city = ARENAS[unlockedNow];
+        showMessage(`ירדת ל${city.name} ${city.motif} - הערים שמעליה נעולות עד שתעלה שוב`, 'error');
     } else if (delta !== 0) {
         showMessage(`${delta > 0 ? '+' : ''}${delta} גביעים (${label})`, delta > 0 ? 'success' : 'error');
     }
@@ -972,10 +972,9 @@ function renderArenaCarousel() {
     track.querySelectorAll('.arena-card').forEach(c => arenaObserver.observe(c));
 }
 
-// trophies still missing to unlock city idx, measured from the peak
+// trophies still missing to unlock city idx
 function trophiesToUnlock(idx) {
-    const best = Math.max(gameState.highestTrophies || 0, gameState.trophies || 0);
-    return Math.max(0, (idx * TROPHIES_PER_ARENA) - best);
+    return Math.max(0, (idx * TROPHIES_PER_ARENA) - (gameState.trophies || 0));
 }
 
 function onArenaCardTap(idx) {
@@ -2366,7 +2365,6 @@ function renderProfile() {
         <p><strong>גביעים:</strong> ${trophiesText()}</p>
         <p><strong>רצף התחברות:</strong> ${gameState.dailyStreak || 0} ימים</p>
         <p><strong>עיר:</strong> ${currentArena().motif} ${currentArena().name} — ${currentArena().tagline}</p>
-        <p><strong>שיא גביעים:</strong> ${isAdminAccount() ? '∞' : Math.max(gameState.highestTrophies || 0, gameState.trophies || 0)}</p>
         <p><strong>ניקוד כולל:</strong> ${gameState.totalScore}</p>
         <p><strong>שיא משחק מהיר (דקה):</strong> ${gameState.bestSingleScore || 0}</p>
         <p><strong>שיא משחק מדוייק (2 דקות):</strong> ${gameState.bestSingleScorePrecise || 0}</p>

@@ -348,8 +348,7 @@
     try {
         const saved = JSON.parse(localStorage.getItem('zabangState') || 'null');
         if (saved) {
-            const peak = Math.max(saved.highestTrophies || 0, saved.trophies || 0);
-            const unlocked = Math.min(Math.floor(peak / 200), CITY_THEMES.length - 1);
+            const unlocked = Math.min(Math.floor((saved.trophies || 0) / 200), CITY_THEMES.length - 1);
             const idx = saved.themeAuto === false ? Math.min(saved.preferredTheme || 0, unlocked) : unlocked;
             applyCityTheme(idx);
         }
