@@ -35,6 +35,14 @@
 
     // ---- one skyline per city ----
     const SCENES = {
+        // the classic island - only drawn on its picker card; in the game the
+        // island look is the stylesheet's own defaults (no skyline at all)
+        island: () => c(200, 30, 14, '#FFF1B0') +
+            r(0, 96, 240, 54, '#5FCEDB') + waves(108, '#C9F1F5') +
+            path('M40 150 Q80 104 150 112 Q200 118 230 150z', '#EBD6A4') +
+            path('M60 150 Q96 122 150 126 Q190 130 210 150z', '#D4B878') +
+            palm(120, 118, 0.9, '#8A5A2E', '#5FB13C') + palm(160, 122, 0.7, '#8A5A2E', '#2F7A2A') +
+            c(12, 142, 22, '#2F7A2A') + c(34, 150, 18, '#5FB13C') + c(228, 146, 20, '#5FB13C'),
         mazkeret: () => c(196, 34, 14, '#FFE69A') +
             path('M0 92 Q60 70 120 86 T240 80 V150 H0z', '#B9C98A') +
             r(150, 58, 16, 18, '#E7E0CC', 2) + r(148, 54, 20, 6, '#B5462F', 2) + r(153, 76, 2, 26, '#6B4A2A') + r(161, 76, 2, 26, '#6B4A2A') +
@@ -327,16 +335,31 @@
         };
     }
 
+    // index -1 is the classic island theme, open to everyone: it clears every
+    // city override so the stylesheet's own island tokens show through.
+    const ISLAND = -1;
+    const TOKEN_NAMES = Object.keys(cityTokens(CITY_THEMES[0]));
     let appliedIndex = null;
     function applyCityTheme(index) {
-        const i = Math.max(0, Math.min(index | 0, CITY_THEMES.length - 1));
+        const i = index === ISLAND ? ISLAND : Math.max(0, Math.min(index | 0, CITY_THEMES.length - 1));
         if (i === appliedIndex) return;
         appliedIndex = i;
-        const t = CITY_THEMES[i];
-        const style = document.documentElement.style;
-        Object.entries(cityTokens(t)).forEach(([k, v]) => style.setProperty(k, v));
+        const root = document.documentElement;
         const meta = document.querySelector('meta[name="theme-color"]');
+        root.dataset.city = i === ISLAND ? 'island' : CITY_THEMES[i].scene;
+        if (i === ISLAND) {
+            TOKEN_NAMES.forEach(k => root.style.removeProperty(k));
+            if (meta) meta.setAttribute('content', '#7FC4E8');
+            return;
+        }
+        const t = CITY_THEMES[i];
+        Object.entries(cityTokens(t)).forEach(([k, v]) => root.style.setProperty(k, v));
         if (meta) meta.setAttribute('content', t.sky);
+    }
+
+    function islandSceneUrl() {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="150" viewBox="0 0 240 150">${SCENES.island()}</svg>`;
+        return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
     }
 
     // Best-effort early paint from the saved state, so the page doesn't flash
@@ -346,12 +369,16 @@
         const saved = JSON.parse(localStorage.getItem('zabangState') || 'null');
         if (saved) {
             const unlocked = Math.min(Math.floor((saved.trophies || 0) / 200), CITY_THEMES.length - 1);
-            const idx = saved.themeAuto === false ? Math.min(saved.preferredTheme || 0, unlocked) : unlocked;
+            const idx = saved.themeAuto !== false ? unlocked
+                : saved.preferredTheme === ISLAND ? ISLAND
+                : Math.min(saved.preferredTheme || 0, unlocked);
             applyCityTheme(idx);
         }
     } catch (err) { /* no saved state or storage blocked - the load handler applies it */ }
 
     window.CITY_THEMES = CITY_THEMES;
     window.citySceneUrl = citySceneUrl;
+    window.islandSceneUrl = islandSceneUrl;
+    window.ISLAND_THEME = ISLAND;
     window.applyCityTheme = applyCityTheme;
 })();
