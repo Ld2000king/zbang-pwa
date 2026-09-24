@@ -16,7 +16,7 @@
 // Bump VERSION on every release; activate() purges all older caches.
 // ============================================================================
 
-const VERSION = 'v17';
+const VERSION = 'v18';
 const APP_CACHE = 'zabang-app-' + VERSION;       // same-origin shell + code
 const RUNTIME_CACHE = 'zabang-runtime-' + VERSION; // fonts + CDN statics
 
@@ -53,6 +53,7 @@ const PRECACHE = [
     './assets/avatars/hero.webp',
     './assets/avatars/galaxy.webp',
     './icons.js',
+    './themes.js',
     './firebase-config.js',
     './multiplayer.js',
     './admin.js',

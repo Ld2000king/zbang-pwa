@@ -138,9 +138,9 @@ async function createRoom(opts = {}) {
     }
     MP.roomCode = code;
 
-    // Board skin for the whole match. Random 1v1: the arena of the creator's
-    // current trophy tier. Friends: the host's chosen preferred theme. Both
-    // players then render the same skin from this shared room field.
+    // Kept for older clients still in the wild, which read this field to skin
+    // the board. Current clients ignore it and show each player's own city
+    // theme (see the round render below).
     const boardTheme = MP.matchType === 'random'
         ? getArenaIndex(gameState.trophies)
         : preferredThemeIndex();
@@ -258,7 +258,9 @@ function onRoomUpdate(room) {
             document.getElementById('roundBadge').textContent = `סיבוב ${room.currentRound}/${room.totalRounds}`;
             document.getElementById('playerBattleScore').textContent = currentGame.playerScore;
             renderBoard('battleBoard');
-            applyBoardTheme('battleBoard', room.boardTheme || 0);
+            // each player sees the board in their OWN city theme (the room's
+            // shared boardTheme field is still written, but no longer read)
+            applyBoardTheme('battleBoard', preferredThemeIndex());
             // "shuffle opponents' score" makes no sense against real people - hide it.
             // Pause is also disabled in multiplayer (can't freeze real opponents'
             // clocks), so hide the pause button and keep the direct home button.

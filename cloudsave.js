@@ -22,7 +22,7 @@
 // musicEnabled is deliberately absent - a per-device preference, not progress.
 const CLOUD_SAVE_FIELDS = [
     'playerName', 'coins', 'diamonds', 'inventory', 'totalScore', 'gamesPlayed',
-    'level', 'xp', 'xpToNextLevel', 'avatarId', 'trophies', 'preferredTheme',
+    'level', 'xp', 'xpToNextLevel', 'avatarId', 'trophies', 'highestTrophies', 'preferredTheme', 'themeAuto',
     'ownedAvatars', 'bestSingleScore', 'bestSingleScorePrecise', 'playerId', 'lastDailyClaim',
     'dailyStreak', 'grantedIapTransactions'
 ];
