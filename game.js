@@ -230,8 +230,9 @@ let gameState = {
     xpToNextLevel: 100,
     avatarId: 'dan',
     trophies: 0,
-    preferredTheme: 0,   // city theme picked by hand (used when themeAuto is off)
-    themeAuto: true,     // true = the theme follows the newest unlocked city
+    preferredTheme: -1,  // theme picked by hand (used when themeAuto is off); -1 = the island
+    themeAuto: false,    // true = the theme follows the newest unlocked city.
+                         // New players start on the classic island instead.
     ownedAvatars: [],
     musicEnabled: true,  // actual playback still gated on a user gesture, see initMusic()
     bestSingleScore: 0,  // personal best on the 1-minute ("quick") board
