@@ -12,8 +12,10 @@
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <link rel="icon" type="image/png" href="icon-192.png">
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="game.css">
+    <!-- ?v= must match VERSION in sw.js - bump both on every release, so a
+         fresh index.html can never be paired with an older cached script -->
+    <link rel="stylesheet" href="style.css?v=19">
+    <link rel="stylesheet" href="game.css?v=19">
 </head>
 <body>
     <div id="app">
@@ -22,6 +24,8 @@
             <button class="help-btn icon" onclick="showInstructions()" title="הוראות משחק"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.5 a2.8 2.8 0 1 1 4.3 2.4 c-0.9 0.6 -1.5 1.1 -1.5 2.1"/><circle cx="12" cy="17" r="0.1" fill="currentColor" stroke-width="2.5"/></svg></button>
             <button class="menu-btn icon" onclick="openMenu()" aria-label="תפריט" title="תפריט"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
             <div class="home-content">
+                <!-- the active city's skyline behind the title (see themes.js) -->
+                <div class="home-skyline" aria-hidden="true"></div>
                 <h1 class="main-title">זבאנג רויאל</h1>
                 <p class="subtitle">משחק מילים בעברית</p>
 
@@ -636,17 +640,17 @@
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
-    <script src="firebase-config.js"></script>
-    <script src="avatars.js"></script>
-    <script src="icons.js"></script>
-    <script src="themes.js"></script>
-    <script src="game.js"></script>
-    <script src="words.js"></script>
-    <script src="words-bulk.js"></script>
-    <script src="multiplayer.js"></script>
-    <script src="cloudsave.js"></script>
-    <script src="admin.js"></script>
-    <script src="iap.js"></script>
+    <script src="firebase-config.js?v=19"></script>
+    <script src="avatars.js?v=19"></script>
+    <script src="icons.js?v=19"></script>
+    <script src="themes.js?v=19"></script>
+    <script src="game.js?v=19"></script>
+    <script src="words.js?v=19"></script>
+    <script src="words-bulk.js?v=19"></script>
+    <script src="multiplayer.js?v=19"></script>
+    <script src="cloudsave.js?v=19"></script>
+    <script src="admin.js?v=19"></script>
+    <script src="iap.js?v=19"></script>
     <script>
         // Register service worker for offline play & installability, but NOT
         // inside the Capacitor native shell: there the webview already bundles

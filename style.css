@@ -29,9 +29,6 @@
     --cloud: rgba(255, 255, 255, 0.85);
     --sun-glow: rgba(255, 246, 198, 0.9);
     --city-scene: none;
-    /* text that sits straight on the sky instead of on a cream panel */
-    --world-ink: #4E3116;
-    --world-halo: #FFFBEF;
 
     /* Wood - the frame material. --wood-dark rings every single element. */
     --wood-dark: #4E3116;

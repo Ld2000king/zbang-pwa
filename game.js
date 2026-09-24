@@ -891,9 +891,10 @@ function updateHomeUI() {
     if (taglineEl) taglineEl.textContent = arena.tagline;
     const motifEl = document.getElementById('homeCityMotif');
     if (motifEl) motifEl.textContent = arena.motif;
-    // the banner expresses the current city's identity via a soft accent tint
+    // the banner's tint follows the active theme, so it matches the rest of
+    // the screen even when the player picked a different city by hand
     const bannerEl = document.querySelector('.arena-banner');
-    if (bannerEl) bannerEl.style.setProperty('--banner-accent', arena.accent);
+    if (bannerEl) bannerEl.style.setProperty('--banner-accent', ARENAS[preferredThemeIndex()].accent);
 }
 
 // Arena picker screen - swipeable card carousel over ARENAS, replacing the
@@ -994,7 +995,7 @@ function onThemeSelect(value) {
     gameState.preferredTheme = idx;
     gameState.themeAuto = false;
     saveGameState();
-    applyActiveTheme();
+    updateHomeUI();
 }
 
 function onThemeAutoToggle(checked) {
@@ -1003,7 +1004,7 @@ function onThemeAutoToggle(checked) {
     // automatic off again doesn't jump back to an old choice
     if (!checked) gameState.preferredTheme = unlockedArenaIndex();
     saveGameState();
-    applyActiveTheme();
+    updateHomeUI();
     renderArenaCarousel();
     showMessage(checked ? 'ערכת הנושא תתחלף לבד בכל עיר חדשה' : 'ערכת הנושא נשארת קבועה', 'info');
 }
