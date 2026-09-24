@@ -20,6 +20,19 @@
     --felt: #97CC55;
     --felt-deep: #7FB544;
 
+    /* The rest of the world. themes.js overwrites all of these (and most of
+       the tokens around them) per city - see applyCityTheme(). --city-scene
+       is the city's painted skyline along the bottom of #app. */
+    --horizon: #DCF3F0;
+    --world-floor: var(--water);
+    --world-floor-deep: var(--water-deep);
+    --cloud: rgba(255, 255, 255, 0.85);
+    --sun-glow: rgba(255, 246, 198, 0.9);
+    --city-scene: none;
+    /* text that sits straight on the sky instead of on a cream panel */
+    --world-ink: #4E3116;
+    --world-halo: #FFFBEF;
+
     /* Wood - the frame material. --wood-dark rings every single element. */
     --wood-dark: #4E3116;
     --wood: #8A5A2E;
@@ -184,18 +197,22 @@ button {
        corners, so panels never land on a muddy mid-screen band. */
     background-color: var(--sky-low);
     background-image:
-        radial-gradient(38px 20px at 17% 8%, rgba(255, 255, 255, 0.92), transparent 72%),
-        radial-gradient(54px 26px at 25% 10%, rgba(255, 255, 255, 0.85), transparent 72%),
-        radial-gradient(32px 18px at 74% 15%, rgba(255, 255, 255, 0.8), transparent 72%),
-        radial-gradient(circle at 85% 5%, rgba(255, 246, 198, 0.9), transparent 32%),
+        var(--city-scene),
+        radial-gradient(38px 20px at 17% 8%, var(--cloud), transparent 72%),
+        radial-gradient(54px 26px at 25% 10%, var(--cloud), transparent 72%),
+        radial-gradient(32px 18px at 74% 15%, var(--cloud), transparent 72%),
+        radial-gradient(circle at 85% 5%, var(--sun-glow), transparent 32%),
         linear-gradient(180deg,
             var(--sky) 0%,
             var(--sky-low) 44%,
-            #DCF3F0 66%,
-            var(--water) 88%,
-            var(--water-deep) 100%);
+            var(--horizon) 66%,
+            var(--world-floor) 88%,
+            var(--world-floor-deep) 100%);
     background-repeat: no-repeat;
-    background-size: 100% 100%;
+    /* the skyline hugs the bottom edge at full width; the sky fills the rest */
+    background-position: center bottom, 0 0, 0 0, 0 0, 0 0, 0 0;
+    background-size: 100% auto, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+    transition: background-color 0.4s ease;
     background-attachment: scroll;
     box-shadow: var(--shadow-frame);
     border-radius: var(--radius-frame);

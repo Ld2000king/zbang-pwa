@@ -162,15 +162,28 @@ function currentArena() {
     return ARENAS[getArenaIndex(gameState.trophies)];
 }
 
-// themes unlocked = every arena up to and including the current one
-function isThemeUnlocked(themeIndex) {
-    return themeIndex <= getArenaIndex(gameState.trophies);
+// The city the player is in right now. City themes are open up to this city
+// only: dropping to a lower arena locks the higher themes again until the
+// player climbs back.
+function unlockedArenaIndex() {
+    return getArenaIndex(gameState.trophies);
 }
 
-// the player's preferred theme, clamped to what they've actually unlocked
-// (trophies can drop on a loss and re-lock a previously chosen theme)
+function isThemeUnlocked(themeIndex) {
+    return themeIndex <= unlockedArenaIndex();
+}
+
+// The city theme the whole game is dressed in right now. Automatic mode
+// follows the newest unlocked city; otherwise it's the player's own pick
+// from the theme screen, clamped to what they've unlocked.
 function preferredThemeIndex() {
-    return Math.min(gameState.preferredTheme || 0, getArenaIndex(gameState.trophies));
+    if (gameState.themeAuto !== false) return unlockedArenaIndex();
+    return Math.min(gameState.preferredTheme || 0, unlockedArenaIndex());
+}
+
+// Re-skins every screen with the active city theme (see themes.js)
+function applyActiveTheme() {
+    if (typeof applyCityTheme === 'function') applyCityTheme(preferredThemeIndex());
 }
 
 // Applies an arena skin to a board container by writing the city's flat tile
@@ -202,7 +215,8 @@ let gameState = {
     xpToNextLevel: 100,
     avatarId: 'dan',
     trophies: 0,
-    preferredTheme: 0,
+    preferredTheme: 0,   // city theme picked by hand (used when themeAuto is off)
+    themeAuto: true,     // true = the theme follows the newest unlocked city
     ownedAvatars: [],
     musicEnabled: true,  // actual playback still gated on a user gesture, see initMusic()
     bestSingleScore: 0,  // personal best on the 1-minute ("quick") board
@@ -594,6 +608,15 @@ function loadGameState() {
     if (!gameState.avatarId) gameState.avatarId = 'dan';
     if (typeof gameState.trophies !== 'number') gameState.trophies = 0;
     if (typeof gameState.preferredTheme !== 'number') gameState.preferredTheme = 0;
+    delete gameState.highestTrophies; // briefly used to unlock themes by peak - no longer read
+    // saves from before full-game themes: a player who had hand-picked a
+    // board other than their current city keeps that pick; everyone else
+    // starts on automatic
+    if (typeof gameState.themeAuto !== 'boolean') {
+        const pickedByHand = gameState.preferredTheme > 0
+            && gameState.preferredTheme !== getArenaIndex(gameState.trophies);
+        gameState.themeAuto = !pickedByHand;
+    }
     if (!Array.isArray(gameState.ownedAvatars)) gameState.ownedAvatars = [];
     if (typeof gameState.musicEnabled !== 'boolean') gameState.musicEnabled = true;
     if (typeof gameState.bestSingleScore !== 'number') gameState.bestSingleScore = 0;
@@ -829,15 +852,27 @@ function trophiesText() {
 // (see showMultiplayerResult in multiplayer.js) - never let them go negative,
 // same convention as most trophy/rank systems.
 function awardTrophies(delta, label) {
+    const unlockedBefore = unlockedArenaIndex();
     gameState.trophies = Math.max(0, (gameState.trophies || 0) + delta);
     saveGameState();
     updateHomeUI();
-    if (delta !== 0) {
+    const unlockedNow = unlockedArenaIndex();
+    if (unlockedNow > unlockedBefore) {
+        const city = ARENAS[unlockedNow];
+        showMessage(gameState.themeAuto !== false
+            ? `הגעת ל${city.name} ${city.motif}! המשחק עבר לערכת הנושא שלה`
+            : `הגעת ל${city.name} ${city.motif}! אפשר לבחור אותה בפרופיל`, 'success');
+        launchConfetti();
+    } else if (unlockedNow < unlockedBefore) {
+        const city = ARENAS[unlockedNow];
+        showMessage(`ירדת ל${city.name} ${city.motif} - הערים שמעליה נעולות עד שתעלה שוב`, 'error');
+    } else if (delta !== 0) {
         showMessage(`${delta > 0 ? '+' : ''}${delta} גביעים (${label})`, delta > 0 ? 'success' : 'error');
     }
 }
 
 function updateHomeUI() {
+    applyActiveTheme();
     document.getElementById('playerName').textContent = gameState.playerName;
     document.getElementById('homeCoins').textContent = coinsText();
     document.getElementById('homeTrophies').textContent = trophiesText();
@@ -865,8 +900,10 @@ function updateHomeUI() {
 // old <select> dropdown. Cards reuse onThemeSelect()'s existing lock-check/
 // save logic; only the picker UI itself is new.
 let arenaObserver = null;
+let arenaReturnScreen = 'homeScreen';
 
-function openArenaScreen() {
+function openArenaScreen(returnTo) {
+    arenaReturnScreen = returnTo || 'homeScreen';
     showScreen('arenaScreen');
     renderArenaCarousel();
     // land on the player's current selection instead of always card 0
@@ -876,7 +913,8 @@ function openArenaScreen() {
 }
 
 function closeArenaScreen() {
-    showScreen('homeScreen');
+    if (arenaReturnScreen === 'profileScreen') goToProfile();
+    else goHome();
 }
 
 function renderArenaCarousel() {
@@ -884,23 +922,26 @@ function renderArenaCarousel() {
     const dots = document.getElementById('arenaDots');
     if (!track || !dots) return;
     const pref = preferredThemeIndex();
+    const autoToggle = document.getElementById('themeAutoToggle');
+    if (autoToggle) autoToggle.checked = gameState.themeAuto !== false;
 
     track.innerHTML = ARENAS.map((a, i) => {
         const locked = !isThemeUnlocked(i);
         const current = i === pref;
         const motifColor = a.textLight ? '#fff' : 'var(--text-dark)';
+        const theme = (typeof CITY_THEMES !== 'undefined') ? CITY_THEMES[i] : null;
+        const art = theme ? `--arena-scene:${citySceneUrl(i).replace(/"/g, "'")}; --arena-sky:${theme.sky}; --arena-sky-low:${theme.skyLow};` : '';
         let bodyExtra;
         if (locked) {
-            const needed = (i * TROPHIES_PER_ARENA) - (gameState.trophies || 0);
-            bodyExtra = `<p class="arena-card-req">${needed.toLocaleString('he-IL')} גביעים נוספים לפתיחה</p>`;
+            bodyExtra = `<p class="arena-card-req">${trophiesToUnlock(i).toLocaleString('he-IL')} גביעים נוספים לפתיחה</p>`;
         } else if (current) {
-            bodyExtra = `<span class="arena-card-badge">✓ בלוח שלך</span>`;
+            bodyExtra = `<span class="arena-card-badge">✓ ערכת הנושא שלך</span>`;
         } else {
             bodyExtra = `<button class="arena-card-select-btn" onclick="onArenaCardTap(${i})">בחירה</button>`;
         }
         return `
             <div class="arena-card${locked ? ' arena-locked' : ''}${current ? ' arena-current' : ''}"
-                 style="--arena-tile:${a.tile}; --arena-accent:${a.accent}; --arena-motif-color:${motifColor};"
+                 style="--arena-tile:${a.tile}; --arena-accent:${a.accent}; --arena-motif-color:${motifColor}; ${art}"
                  data-index="${i}"
                  ${locked ? `onclick="onArenaCardLockedTap(${i})"` : ''}>
                 <div class="arena-card-art">
@@ -931,22 +972,40 @@ function renderArenaCarousel() {
     track.querySelectorAll('.arena-card').forEach(c => arenaObserver.observe(c));
 }
 
+// trophies still missing to unlock city idx
+function trophiesToUnlock(idx) {
+    return Math.max(0, (idx * TROPHIES_PER_ARENA) - (gameState.trophies || 0));
+}
+
 function onArenaCardTap(idx) {
     onThemeSelect(idx);
     renderArenaCarousel();
-    showMessage(`נבחר: ${ARENAS[idx].motif} ${ARENAS[idx].name}`, 'success');
+    showMessage(`ערכת הנושא: ${ARENAS[idx].motif} ${ARENAS[idx].name}`, 'success');
 }
 
 function onArenaCardLockedTap(idx) {
-    const needed = (idx * TROPHIES_PER_ARENA) - (gameState.trophies || 0);
-    showMessage(`עיר נעולה - ${needed.toLocaleString('he-IL')} גביעים נוספים לפתיחה`, 'warning');
+    showMessage(`עיר נעולה - ${trophiesToUnlock(idx).toLocaleString('he-IL')} גביעים נוספים לפתיחה`, 'warning');
 }
 
+// picking a city by hand turns automatic mode off
 function onThemeSelect(value) {
     const idx = parseInt(value, 10);
     if (isNaN(idx) || !isThemeUnlocked(idx)) { renderArenaCarousel(); return; }
     gameState.preferredTheme = idx;
+    gameState.themeAuto = false;
     saveGameState();
+    applyActiveTheme();
+}
+
+function onThemeAutoToggle(checked) {
+    gameState.themeAuto = !!checked;
+    // keep the hand-picked city in sync with what's on screen, so switching
+    // automatic off again doesn't jump back to an old choice
+    if (!checked) gameState.preferredTheme = unlockedArenaIndex();
+    saveGameState();
+    applyActiveTheme();
+    renderArenaCarousel();
+    showMessage(checked ? 'ערכת הנושא תתחלף לבד בכל עיר חדשה' : 'ערכת הנושא נשארת קבועה', 'info');
 }
 
 // Navigation
@@ -2311,9 +2370,26 @@ function renderProfile() {
         <p><strong>שיא משחק מדוייק (2 דקות):</strong> ${gameState.bestSingleScorePrecise || 0}</p>
         <p><strong>משחקים:</strong> ${gameState.gamesPlayed}</p>
     `;
+    renderThemeRow();
     renderAvatarPicker();
     renderSubmissions();
     if (typeof renderCloudSaveSection === 'function') renderCloudSaveSection();
+}
+
+// The "theme" row on the profile - shows the active city theme and opens
+// the picker
+function renderThemeRow() {
+    const el = document.getElementById('profileThemeRow');
+    if (!el) return;
+    const a = ARENAS[preferredThemeIndex()];
+    el.innerHTML = `
+        <span class="theme-row-motif" aria-hidden="true">${a.motif}</span>
+        <span class="theme-row-text">
+            <span class="theme-row-label">ערכת נושא</span>
+            <span class="theme-row-name">${a.name}</span>
+            <span class="theme-row-mode">${gameState.themeAuto !== false ? 'אוטומטית לפי העיר שלך' : 'נבחרה ידנית'}</span>
+        </span>
+        <span class="theme-row-action">החלפה ‹</span>`;
 }
 
 function renamePlayer() {
