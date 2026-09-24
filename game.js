@@ -169,16 +169,29 @@ function unlockedArenaIndex() {
     return getArenaIndex(gameState.trophies);
 }
 
+// The classic island theme (the look from before city themes). It isn't a
+// city: it's open to every player in every arena. Stored as theme -1.
+const ISLAND_THEME_INDEX = -1;
+const ISLAND_THEME = { name: 'האי', tagline: 'ערכת הנושא הקלאסית', motif: '🏝️' };
+
 function isThemeUnlocked(themeIndex) {
-    return themeIndex <= unlockedArenaIndex();
+    return themeIndex === ISLAND_THEME_INDEX || themeIndex <= unlockedArenaIndex();
 }
 
-// The city theme the whole game is dressed in right now. Automatic mode
-// follows the newest unlocked city; otherwise it's the player's own pick
-// from the theme screen, clamped to what they've unlocked.
+// The theme the whole game is dressed in right now. Automatic mode follows
+// the newest unlocked city; otherwise it's the player's own pick from the
+// theme screen - the island, or a city clamped to what they've unlocked.
 function preferredThemeIndex() {
     if (gameState.themeAuto !== false) return unlockedArenaIndex();
+    if (gameState.preferredTheme === ISLAND_THEME_INDEX) return ISLAND_THEME_INDEX;
     return Math.min(gameState.preferredTheme || 0, unlockedArenaIndex());
+}
+
+// name/tagline/motif/accent for any theme index, island included. The
+// island's banner keeps the current city's tint, as it did before themes.
+function themeInfo(index) {
+    if (index === ISLAND_THEME_INDEX) return Object.assign({ accent: currentArena().accent }, ISLAND_THEME);
+    return ARENAS[index] || ARENAS[0];
 }
 
 // Re-skins every screen with the active city theme (see themes.js)
@@ -193,6 +206,8 @@ function applyActiveTheme() {
 function applyBoardTheme(boardId, themeIndex) {
     const el = document.getElementById(boardId);
     if (!el) return;
+    // the island (-1) falls back to the first city's tiles - the board
+    // everyone had before city themes
     const arena = ARENAS[themeIndex] || ARENAS[0];
     el.classList.add('arena-themed');
     el.style.setProperty('--tile-bg', arena.tile);
@@ -894,7 +909,7 @@ function updateHomeUI() {
     // the banner's tint follows the active theme, so it matches the rest of
     // the screen even when the player picked a different city by hand
     const bannerEl = document.querySelector('.arena-banner');
-    if (bannerEl) bannerEl.style.setProperty('--banner-accent', ARENAS[preferredThemeIndex()].accent);
+    if (bannerEl) bannerEl.style.setProperty('--banner-accent', themeInfo(preferredThemeIndex()).accent);
 }
 
 // Arena picker screen - swipeable card carousel over ARENAS, replacing the
@@ -926,12 +941,22 @@ function renderArenaCarousel() {
     const autoToggle = document.getElementById('themeAutoToggle');
     if (autoToggle) autoToggle.checked = gameState.themeAuto !== false;
 
-    track.innerHTML = ARENAS.map((a, i) => {
+    // the island comes first - it's open to everyone - then the 16 cities
+    const island = Object.assign({ tile: ARENAS[0].tile, accent: 'transparent' }, ISLAND_THEME);
+    const cards = [[ISLAND_THEME_INDEX, island]].concat(ARENAS.map((a, i) => [i, a]));
+    const hasArt = typeof CITY_THEMES !== 'undefined';
+
+    track.innerHTML = cards.map(([i, a]) => {
         const locked = !isThemeUnlocked(i);
         const current = i === pref;
         const motifColor = a.textLight ? '#fff' : 'var(--text-dark)';
-        const theme = (typeof CITY_THEMES !== 'undefined') ? CITY_THEMES[i] : null;
-        const art = theme ? `--arena-scene:${citySceneUrl(i).replace(/"/g, "'")}; --arena-sky:${theme.sky}; --arena-sky-low:${theme.skyLow};` : '';
+        let art = '';
+        if (hasArt && i === ISLAND_THEME_INDEX) {
+            art = `--arena-scene:${islandSceneUrl().replace(/"/g, "'")}; --arena-sky:#7FC4E8; --arena-sky-low:#C9E9F7;`;
+        } else if (hasArt) {
+            const theme = CITY_THEMES[i];
+            art = `--arena-scene:${citySceneUrl(i).replace(/"/g, "'")}; --arena-sky:${theme.sky}; --arena-sky-low:${theme.skyLow};`;
+        }
         let bodyExtra;
         if (locked) {
             bodyExtra = `<p class="arena-card-req">${trophiesToUnlock(i).toLocaleString('he-IL')} גביעים נוספים לפתיחה</p>`;
@@ -957,7 +982,7 @@ function renderArenaCarousel() {
             </div>`;
     }).join('');
 
-    dots.innerHTML = ARENAS.map((_, i) => `<span class="arena-dot${i === pref ? ' active' : ''}" data-index="${i}"></span>`).join('');
+    dots.innerHTML = cards.map(([i]) => `<span class="arena-dot${i === pref ? ' active' : ''}" data-index="${i}"></span>`).join('');
 
     // dot-sync via IntersectionObserver rather than scrollLeft math, which
     // has inconsistent sign/zero-point conventions across engines under RTL
@@ -981,7 +1006,8 @@ function trophiesToUnlock(idx) {
 function onArenaCardTap(idx) {
     onThemeSelect(idx);
     renderArenaCarousel();
-    showMessage(`ערכת הנושא: ${ARENAS[idx].motif} ${ARENAS[idx].name}`, 'success');
+    const t = themeInfo(idx);
+    showMessage(`ערכת הנושא: ${t.motif} ${t.name}`, 'success');
 }
 
 function onArenaCardLockedTap(idx) {
@@ -2382,7 +2408,7 @@ function renderProfile() {
 function renderThemeRow() {
     const el = document.getElementById('profileThemeRow');
     if (!el) return;
-    const a = ARENAS[preferredThemeIndex()];
+    const a = themeInfo(preferredThemeIndex());
     el.innerHTML = `
         <span class="theme-row-motif" aria-hidden="true">${a.motif}</span>
         <span class="theme-row-text">

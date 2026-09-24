@@ -105,6 +105,18 @@
     box-shadow: inset 0 2px 0 var(--cream-hi), var(--shadow-depth-sm);
 }
 
+/* The classic island has no skyline behind the title, so the subtitle goes
+   back to plain ink with a cream halo on the pale sky, as it always was */
+html[data-city="island"] .subtitle {
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    font-size: 1.2em;
+    margin-bottom: 30px;
+    text-shadow: 0 2px 0 var(--cream-hi);
+}
+
 /* The wood frame material: a cream panel inside a carved brown ring */
 .player-card {
     background: var(--cream);
