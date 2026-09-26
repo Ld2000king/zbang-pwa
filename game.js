@@ -433,6 +433,8 @@ function mergeExtraWords() {
 
     packs.forEach(pack => pack.forEach(w => {
         const word = normalizeFinals(w);
+        // Words with a geresh (ג׳וק) can't be spelled from board letters - skip them.
+        if (!/^[א-ת]+$/.test(word)) return;
         if (word.length >= 2 && HEBREW_DICTIONARY[word] === undefined && !removedWordsSet.has(word)) {
             HEBREW_DICTIONARY[word] = pointsForWord(word);
         }
@@ -1118,7 +1120,8 @@ function generateBoard() {
     }
 
     // Plant some words
-    const words = Array.from(Object.keys(HEBREW_DICTIONARY)).sort(() => Math.random() - 0.5).slice(0, 5);
+    // Only plant words made purely of letters - never punctuation like the geresh (׳).
+    const words = Object.keys(HEBREW_DICTIONARY).filter(w => /^[א-ת]+$/.test(w)).sort(() => Math.random() - 0.5).slice(0, 5);
 
     for (let word of words) {
         let planted = false;
