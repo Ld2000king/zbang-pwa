@@ -261,11 +261,11 @@ const DAILY_REWARDS = [
 const AD_REWARD_COINS = 50;
 
 // Real-money coin packages, purchased through Apple StoreKit / Google Play
-// Billing (see iap.js). `sku` must exactly match the consumable product id
+// Billing (see purchases.js). `sku` must exactly match the consumable product id
 // created in App Store Connect / Google Play Console. `price` is only the
 // placeholder shown before the store responds (and the permanent fallback on
 // the web/PWA build, where there is no purchase system) - once the native
-// store loads the real product, iap.js fills in `livePrice` with the actual
+// store loads the real product, purchases.js fills in `livePrice` with the actual
 // localized price and renderShop() prefers that.
 const COIN_PACKAGES = [
     { sku: 'com.zabang.royale.coins.small',  name: 'שק מטבעות', coins: 500,  price: '₪4.90',  emoji: '💰' },
@@ -653,7 +653,7 @@ function loadGameState() {
         gameState.playerId = (typeof db !== 'undefined' && db) ? db.ref().push().key
             : 'local-' + Date.now() + Math.random().toString(36).slice(2);
     }
-    // finished coin-package purchase transaction ids already granted (iap.js)
+    // finished coin-package purchase transaction ids already granted (purchases.js)
     // - guards a consumable against being credited twice if its receipt gets
     // redelivered before finish() completes (e.g. the app closing mid-purchase)
     if (!Array.isArray(gameState.grantedIapTransactions)) gameState.grantedIapTransactions = [];
@@ -2308,7 +2308,7 @@ function watchAdForCoins() {
 // Fallback shown when a real purchase isn't possible right now: the web/PWA
 // build (no purchase system exists outside a native app), or a native build
 // whose store hasn't finished loading products yet. See buyCoinPackage() in
-// iap.js, which calls this itself when it can't place a real order.
+// purchases.js, which calls this itself when it can't place a real order.
 function showIapComingSoon() {
     showInfoModal('החנות הפיננסית תהיה זמינה עם השקת האפליקציה הרשמית ב-Google Play וב-App Store!');
 }

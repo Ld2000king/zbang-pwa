@@ -14,14 +14,15 @@
     "generate:native-assets": "capacitor-assets generate --assetPath assets"
   },
   "dependencies": {
-    "@capacitor/android": "^6.2.0",
-    "@capacitor/core": "^6.2.0",
-    "@capacitor/ios": "^6.2.0",
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
     "cordova-plugin-purchase": "^13.18.0"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^6.2.0",
+    "@capacitor/cli": "^8.5.2",
     "sharp": "^0.35.3"
   }
 }
