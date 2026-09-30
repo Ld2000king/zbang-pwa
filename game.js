@@ -416,7 +416,7 @@ function backfillCustomAvatarSync() {
     img.onload = () => {
         const syncDataUrl = resizeImageToDataUrl(img, 64, 0.6);
         try { localStorage.setItem('zabangCustomAvatarSync', syncDataUrl); } catch (err) { /* non-fatal */ }
-        if (typeof syncMyPhotoToRoom === 'function') syncMyPhotoToRoom(syncDataUrl);
+        if (typeof syncMyAvatarToRoom === 'function') syncMyAvatarToRoom();
     };
     img.src = dataUrl;
 }
@@ -2548,7 +2548,7 @@ function renderAvatarPicker() {
 // 160px copy is kept in this device's localStorage for instant local display
 // (works offline, no network round-trip), and a much smaller 64px/low-quality
 // copy is embedded directly into the multiplayer room's player node (see
-// syncMyPhotoToRoom() below) so online opponents can see it too.
+// syncMyAvatarToRoom() in multiplayer.js) so online opponents can see it too.
 //
 // There's no Firebase Storage involved on purpose: Storage now requires the
 // paid Blaze plan even for tiny usage, and this project stays on the free
@@ -2583,7 +2583,7 @@ function handleCustomAvatarFile(event) {
 
             const syncDataUrl = resizeImageToDataUrl(img, 64, 0.6);
             try { localStorage.setItem('zabangCustomAvatarSync', syncDataUrl); } catch (err) { /* my own display already works without it */ }
-            if (typeof syncMyPhotoToRoom === 'function') syncMyPhotoToRoom(syncDataUrl);
+            if (typeof syncMyAvatarToRoom === 'function') syncMyAvatarToRoom();
         };
         img.src = e.target.result;
     };
@@ -2614,6 +2614,8 @@ function selectAvatar(id) {
     saveGameState();
     renderAvatarPicker();
     updateHomeUI();
+    // opponents already in a room with me see the switch right away
+    if (typeof syncMyAvatarToRoom === 'function') syncMyAvatarToRoom();
     showMessage(id === 'custom' ? 'הדמות הוחלפה לתמונה האישית!' : `הדמות הוחלפה ל${getAvatarById(id).name}!`, 'success');
 }
 
@@ -2633,10 +2635,21 @@ function getOwnAvatarMarkup() {
 // leaderboard) as the fallback identity - 'custom' isn't a real preset
 // getAvatarById() can render, so it's swapped for the default avatar here.
 // A custom photo itself now DOES reach online opponents in a multiplayer
-// room, but via the separate photoData field (see myPlayerNode()/
-// syncMyPhotoToRoom() in multiplayer.js), which every avatar renderer
-// prefers over this id when present. (The leaderboard has no such field -
-// it still only ever sees this fallback id.)
+// room, but via the separate photoData field (see networkPhotoData() below
+// and myPlayerNode()/syncMyAvatarToRoom() in multiplayer.js), which every
+// avatar renderer prefers over this id when present. (The leaderboard has no
+// such field - it still only ever sees this fallback id.)
 function networkSafeAvatarId() {
     return gameState.avatarId === 'custom' ? 'dan' : gameState.avatarId;
+}
+
+// The photo to send opponents - ONLY while the custom photo is the selected
+// avatar. gameState.avatarId is the single source of truth: the photo itself
+// stays saved on the device (and in the cloud save) after switching to a
+// preset, so the player can switch back without re-uploading - but since
+// opponents always prefer photoData over avatarId, sending that leftover
+// photo would show them the old picture instead of the chosen avatar.
+function networkPhotoData() {
+    if (gameState.avatarId !== 'custom') return null;
+    return localStorage.getItem('zabangCustomAvatarSync') || null;
 }

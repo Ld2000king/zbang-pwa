@@ -79,17 +79,22 @@ function myPlayerNode() {
     // Firebase Storage in play here (that needs the paid Blaze plan; this
     // project stays on the free Spark plan), so the photo itself has to fit
     // directly inside the database. null here just omits the field
-    // (Firebase treats a null leaf as "don't write it").
-    const photoData = localStorage.getItem('zabangCustomAvatarSync') || null;
-    return { uid: uid, name: gameState.playerName, avatarId: networkSafeAvatarId(), photoData: photoData, score: 0, eliminated: false, connected: true, freezeUntil: 0 };
+    // (Firebase treats a null leaf as "don't write it") - which is what a
+    // player on a preset avatar sends, even if an old photo is still saved.
+    return { uid: uid, name: gameState.playerName, avatarId: networkSafeAvatarId(), photoData: networkPhotoData(), score: 0, eliminated: false, connected: true, freezeUntil: 0 };
 }
 
-// Called after a fresh avatar photo finishes its (local, no-upload) resize -
-// pushes the new thumbnail straight into the room I'm currently in, if any,
-// so friends already mid-match see it without me having to leave and rejoin.
-function syncMyPhotoToRoom(dataUrl) {
+// Called whenever my avatar changes (picking a preset, picking/uploading my
+// own photo) - pushes the current choice straight into the room I'm in, if
+// any, so friends already mid-match see it without me having to leave and
+// rejoin. Both fields move together: switching to a preset writes
+// photoData: null, which REMOVES the old photo from the room (opponents
+// prefer photoData over avatarId, so leaving it would keep showing it).
+function syncMyAvatarToRoom() {
     if (!MP.roomCode || !MP.playerId || !db) return;
-    db.ref('rooms/' + MP.roomCode + '/players/' + MP.playerId + '/photoData').set(dataUrl).catch(() => {});
+    db.ref('rooms/' + MP.roomCode + '/players/' + MP.playerId)
+        .update({ avatarId: networkSafeAvatarId(), photoData: networkPhotoData() })
+        .catch(err => console.error('Avatar sync to room failed:', err));
 }
 
 // Shared by renderLobby()/updateMultiplayerUI(): my own photo comes straight
