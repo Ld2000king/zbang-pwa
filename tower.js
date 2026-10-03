@@ -386,7 +386,10 @@ function towerAfterRemoval(remove) {
     renderTower(drops);
     tower.busy = false;
 
-    if (towerMaxHeight() > TOWER_ROWS) {
+    if (towerMaxHeight() <= TOWER_ROWS) {
+        saveTowerProgress(); // a consistent point: the word is fully applied
+    } else {
+        clearTowerProgress();
         tower.busy = true;
         currentGame.gameActive = false;
         showBoardMessage('המגדל הגיע לתקרה!', 'error', 1400);
@@ -412,27 +415,99 @@ function useTowerHint() {
     });
 }
 
-// ---- lifecycle -------------------------------------------------------------
+// ---- save & resume ---------------------------------------------------------
+// The running tower is saved to this device after every word, so leaving the
+// game (the home button, closing the app) never loses it: opening the tower
+// again offers to continue from that point. Cleared on game over and when a
+// new game starts.
+const TOWER_SAVE_KEY = 'zabangTowerSave';
 
-function startTower() {
+function saveTowerProgress() {
+    try {
+        localStorage.setItem(TOWER_SAVE_KEY, JSON.stringify({
+            cols: tower.cols, score: tower.score, words: tower.words,
+            clears: tower.clears, savedAt: Date.now()
+        }));
+    } catch (e) { /* storage full or blocked - the game still plays */ }
+}
+
+function clearTowerProgress() {
+    try { localStorage.removeItem(TOWER_SAVE_KEY); } catch (e) { /* ignore */ }
+}
+
+// The saved game, or null when there is none (or it's unreadable).
+function loadTowerProgress() {
+    try {
+        const save = JSON.parse(localStorage.getItem(TOWER_SAVE_KEY) || 'null');
+        const validCols = save && Array.isArray(save.cols) && save.cols.length === TOWER_COLS
+            && save.cols.every(col => Array.isArray(col) && col.length <= TOWER_ROWS
+                && col.every(ch => typeof ch === 'string' && /^[א-ת]$/.test(ch)));
+        if (!validCols || typeof save.score !== 'number') return null;
+        return save;
+    } catch (e) {
+        return null;
+    }
+}
+
+// Entry point from the game-mode menu: continue a saved tower if there is one.
+function openTower() {
+    const save = loadTowerProgress();
+    if (!save) { startTower(); return; }
+    const yes = document.getElementById('confirmYesBtn');
+    const no = document.getElementById('confirmNoBtn');
+    const restoreLabels = () => { yes.textContent = 'כן'; no.textContent = 'לא'; };
+    yes.textContent = 'המשך';
+    no.textContent = 'משחק חדש';
+    showConfirm(`יש לך מגדל שמור (${save.score.toLocaleString('he-IL')} נקודות, ${save.words} מילים). להמשיך מאיפה שעצרת?`,
+        () => { restoreLabels(); resumeTower(save); },
+        () => { restoreLabels(); startTower(); });
+}
+
+// Shows "continue" on the mode card while a tower is saved.
+function updateTowerModeCard() {
+    const desc = document.getElementById('towerModeDesc');
+    if (!desc) return;
+    const save = loadTowerProgress();
+    desc.textContent = save
+        ? `יש לך משחק שמור (${save.score.toLocaleString('he-IL')} נקודות) - לחץ להמשך`
+        : 'מצאו מילים והורידו את המגדל לפני שהוא מגיע לתקרה';
+}
+
+function enterTowerScreen() {
     currentGame.mode = 'tower';
     currentGame.gameActive = true;
     currentGame.paused = false;
-    tower.cols = Array.from({ length: TOWER_COLS }, () => []);
-    tower.score = 0;
-    tower.words = 0;
-    tower.clears = 0;
     tower.busy = false;
     tower.isNewBest = false;
     towerDragging = false;
     towerDragPath = [];
-    for (let i = 0; i < TOWER_START_ROWS; i++) towerAddRow();
-    while (!towerFindWord() && towerMaxHeight() < TOWER_ROWS - 2) towerAddRow();
-
     document.getElementById('towerWordDisplay').textContent = '';
     showScreen('towerScreen');
     applyBoardTheme('towerBoard', preferredThemeIndex());
     renderTower();
+}
+
+function resumeTower(save) {
+    tower.cols = save.cols.map(col => col.slice());
+    tower.score = save.score;
+    tower.words = save.words || 0;
+    tower.clears = save.clears || 0;
+    enterTowerScreen();
+    showBoardMessage('ממשיכים מאיפה שעצרת!', 'info', 1300);
+}
+
+// ---- lifecycle -------------------------------------------------------------
+
+function startTower() {
+    tower.cols = Array.from({ length: TOWER_COLS }, () => []);
+    tower.score = 0;
+    tower.words = 0;
+    tower.clears = 0;
+    for (let i = 0; i < TOWER_START_ROWS; i++) towerAddRow();
+    while (!towerFindWord() && towerMaxHeight() < TOWER_ROWS - 2) towerAddRow();
+    saveTowerProgress(); // replaces any older saved tower
+
+    enterTowerScreen();
     if (!gameState.towerTutorialSeen) showTowerHelp();
 }
 
@@ -458,6 +533,7 @@ function closeTowerHelp() {
 }
 
 function towerGameOver() {
+    clearTowerProgress();
     tower.busy = false;
     currentGame.gameActive = false;
     const coins = Math.floor(tower.score / 10);
@@ -497,8 +573,9 @@ function submitTowerScore() {
     authReady.then(user => writeLeaderboardEntry(leaderboardPath('tower'), gameState.playerId, user, score));
 }
 
+// The tower is already saved after every word, so leaving is always safe.
 function quitTower() {
-    if (currentGame.mode === 'tower' && currentGame.gameActive && tower.words > 0
-        && !confirm('לצאת מהמגדל? ההתקדמות לא תישמר.')) return;
+    const saved = currentGame.mode === 'tower' && currentGame.gameActive && !!loadTowerProgress();
     goHome();
+    if (saved) showMessage('המגדל נשמר - אפשר להמשיך ממנו בפעם הבאה', 'info');
 }
