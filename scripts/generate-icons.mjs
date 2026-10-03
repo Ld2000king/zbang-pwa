@@ -7,7 +7,7 @@
 //   assets/                       <- canonical masters for @capacitor/assets
 //     logo.png            1024      single-source master (native icon + splash)
 //     icon-foreground.png 1024      Android adaptive foreground (logo, safe zone)
-//     icon-background.png 1024      Android adaptive background (solid brand blue)
+//     icon-background.png 1024      Android adaptive background (the logo's blue gradient)
 //     splash.png          2732      splash (logo centered on brand blue)
 //     splash-dark.png     2732      dark splash
 //   store/                        <- ready-to-upload store listing icons
@@ -32,34 +32,44 @@ const MASTER = join(root, 'Logo.png.jpeg');
 mkdirSync(join(root, 'assets'), { recursive: true });
 mkdirSync(join(root, 'store'), { recursive: true });
 
-// Sample the master's corner pixel for the brand background color (used for
-// splash screens and the Android adaptive background).
-async function brandColor() {
-    const { data } = await sharp(MASTER)
-        .extract({ left: 4, top: 4, width: 1, height: 1 })
-        .raw().toBuffer({ resolveWithObject: true });
-    return { r: data[0], g: data[1], b: data[2] };
-}
-
 // A square PNG of the master resized to `size`, opaque (no alpha).
 function squareOpaque(size) {
     return sharp(MASTER).resize(size, size, { fit: 'cover' }).flatten().png();
 }
 
-// The logo scaled to `inner` px, centered on a `size` px canvas of `bg`
-// (bg alpha 0 => transparent, used for adaptive foreground).
-async function padded(size, inner, bg) {
-    const logo = await sharp(MASTER).resize(inner, inner, { fit: 'contain' })
+// The logo centered on its own blue: a radial gradient from the
+// master's lighter middle-blue to its dark corner, with the logo's square
+// edges feathered into it. The master's background is itself a gradient, so a
+// flat fill sampled from one corner leaves a visible square around the logo.
+async function sample(x, y) {
+    const { data } = await sharp(MASTER).extract({ left: x, top: y, width: 1, height: 1 })
+        .raw().toBuffer({ resolveWithObject: true });
+    return `rgb(${data[0]},${data[1]},${data[2]})`;
+}
+
+async function featheredLogo(inner) {
+    const inset = Math.round(inner * 0.1);
+    const mask = await sharp(Buffer.from(
+        `<svg width="${inner}" height="${inner}"><rect x="${inset}" y="${inset}" width="${inner - 2 * inset}" height="${inner - 2 * inset}" rx="${inset * 2}" fill="#fff"/></svg>`))
+        .blur(Math.max(1, inset * 0.6)).png().toBuffer();
+    return sharp(MASTER).resize(inner, inner, { fit: 'contain' })
+        .ensureAlpha().composite([{ input: mask, blend: 'dest-in' }]).png().toBuffer();
+}
+
+async function gradientBackdrop(size) {
+    const mid = await sample(627, 1150);
+    const edge = await sample(4, 4);
+    return sharp(Buffer.from(
+        `<svg width="${size}" height="${size}"><defs><radialGradient id="g" cx="50%" cy="50%" r="70%"><stop offset="0" stop-color="${mid}"/><stop offset="1" stop-color="${edge}"/></radialGradient></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>`))
         .png().toBuffer();
-    return sharp({ create: { width: size, height: size, channels: 4, background: bg } })
-        .composite([{ input: logo, gravity: 'centre' }])
-        .png();
+}
+
+async function paddedOnGradient(size, inner) {
+    return sharp(await gradientBackdrop(size))
+        .composite([{ input: await featheredLogo(inner), gravity: 'centre' }]).png();
 }
 
 async function run() {
-    const c = await brandColor();
-    const solid = { ...c, alpha: 1 };
-    const dark = { r: Math.round(c.r * 0.5), g: Math.round(c.g * 0.5), b: Math.round(c.b * 0.5), alpha: 1 };
     const transparent = { r: 0, g: 0, b: 0, alpha: 0 };
 
     const out = (p) => join(root, p);
@@ -67,13 +77,16 @@ async function run() {
     // ---- canonical masters (assets/) ----
     await squareOpaque(1024).toFile(out('assets/logo.png'));
     // adaptive foreground: logo at ~62% (Android safe zone), transparent around
-    await (await padded(1024, 640, transparent)).toFile(out('assets/icon-foreground.png'));
-    // adaptive background: solid brand blue
-    await sharp({ create: { width: 1024, height: 1024, channels: 4, background: solid } })
-        .png().toFile(out('assets/icon-background.png'));
+    await sharp({ create: { width: 1024, height: 1024, channels: 4, background: transparent } })
+        .composite([{ input: await featheredLogo(640), gravity: 'centre' }]).png()
+        .toFile(out('assets/icon-foreground.png'));
+    // adaptive background: the logo's own blue gradient
+    await sharp(await gradientBackdrop(1024)).toFile(out('assets/icon-background.png'));
     // splash: logo centered (~33%) on brand blue
-    await (await padded(2732, 900, solid)).toFile(out('assets/splash.png'));
-    await (await padded(2732, 900, dark)).toFile(out('assets/splash-dark.png'));
+    await (await paddedOnGradient(2732, 900)).toFile(out('assets/splash.png'));
+    await sharp(await sharp(await gradientBackdrop(2732)).modulate({ brightness: 0.55 }).png().toBuffer())
+        .composite([{ input: await featheredLogo(900), gravity: 'centre' }]).png()
+        .toFile(out('assets/splash-dark.png'));
 
     // ---- store deliverables ----
     // App Store icon MUST be 1024x1024 with NO alpha channel.
@@ -85,9 +98,9 @@ async function run() {
     await squareOpaque(512).toFile(out('icon-512.png'));
     await squareOpaque(180).removeAlpha().toFile(out('apple-touch-icon.png'));
     // maskable: padded so nothing important is clipped under a circular mask
-    await (await padded(512, 340, solid)).toFile(out('icon-maskable-512.png'));
+    await (await paddedOnGradient(512, 340)).toFile(out('icon-maskable-512.png'));
 
-    console.log(`[generate-icons] done. brand color sampled: rgb(${c.r}, ${c.g}, ${c.b})`);
+    console.log('[generate-icons] done.');
 }
 
 run().catch((e) => { console.error(e); process.exit(1); });
