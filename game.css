@@ -2564,10 +2564,10 @@ html[data-city="island"] .subtitle {
 }
 
 #gameModeScreen .mode-option:nth-of-type(1) { --mode-accent: var(--blue); }
-#gameModeScreen .mode-option:nth-of-type(2) { --mode-accent: var(--orange); }
-#gameModeScreen .mode-option:nth-of-type(3) { --mode-accent: var(--green); }
-#gameModeScreen .mode-option:nth-of-type(4) { --mode-accent: var(--purple); }
-#gameModeScreen .mode-option:nth-of-type(5) { --mode-accent: var(--neon-pink); } /* מגדל זבאנג */
+#gameModeScreen .mode-option:nth-of-type(2) { --mode-accent: var(--neon-pink); } /* מגדל זבאנג */
+#gameModeScreen .mode-option:nth-of-type(3) { --mode-accent: var(--orange); }
+#gameModeScreen .mode-option:nth-of-type(4) { --mode-accent: var(--green); }
+#gameModeScreen .mode-option:nth-of-type(5) { --mode-accent: var(--purple); }
 #mpChoiceScreen .mode-option:nth-of-type(1) { --mode-accent: var(--green); }
 #mpChoiceScreen .mode-option:nth-of-type(2) { --mode-accent: var(--blue); }
 
