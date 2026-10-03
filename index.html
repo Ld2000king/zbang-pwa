@@ -14,8 +14,8 @@
     <link rel="icon" type="image/png" href="icon-192.png">
     <!-- ?v= must match VERSION in sw.js - bump both on every release, so a
          fresh index.html can never be paired with an older cached script -->
-    <link rel="stylesheet" href="style.css?v=21">
-    <link rel="stylesheet" href="game.css?v=21">
+    <link rel="stylesheet" href="style.css?v=22">
+    <link rel="stylesheet" href="game.css?v=22">
 </head>
 <body>
     <div id="app">
@@ -109,6 +109,7 @@
                     <li>מילה תקפה מזכה בניקוד לפי אורכה - ככל שהמילה ארוכה יותר, כך הניקוד גבוה יותר.</li>
                     <li><strong>משחק יחיד:</strong> 60 שניות למצוא כמה שיותר מילים בלוח.</li>
                     <li><strong>באטל רויאל:</strong> 5 סיבובים נגד 4 בוטים - בכל סיבוב מודח מי שצבר הכי מעט ניקוד.</li>
+                    <li><strong>מגדל זבאנג:</strong> מחברים אותיות צמודות (גם באלכסון) למילה. האותיות נעלמות, ואחרי כל מילה עולה שורה חדשה. מילה של 5 אותיות מפוצצת גם את השכנות, ואות עם כוכב מנקה את כל השורה שלה. אם המגדל מגיע לתקרה - המשחק נגמר.</li>
                     <li>עזרים (רמז, ערבוב לוח, הקפאה) נקנים במטבעות תוך כדי משחק.</li>
                     <li>אם נגמרות המילים האפשריות בלוח, הוא מתערבב אוטומטית כדי שתוכלו להמשיך לשחק.</li>
                     <li>מטבעות מרוויחים דרך משחק וניתן להשתמש בהם בחנות ולקנות עזרים.</li>
@@ -154,6 +155,15 @@
                     <div class="mode-details">
                         <h3>משחק אקראי</h3>
                         <p>מצאו יריב אקראי שמחובר עכשיו והתחילו מיד</p>
+                    </div>
+                    <div class="mode-arrow">›</div>
+                </div>
+
+                <div class="mode-option" onclick="startTower()">
+                    <div class="mode-icon icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 21 V8 H17 V21"/><path d="M7 8 V4 H9.5 V6 H11 V4 H13 V6 H14.5 V4 H17 V8"/><path d="M10.5 21 V17 a1.5 1.5 0 0 1 3 0 V21"/><path d="M4 21 H20"/></svg></div>
+                    <div class="mode-details">
+                        <h3>מגדל זבאנג</h3>
+                        <p>מצאו מילים והורידו את המגדל לפני שהוא מגיע לתקרה</p>
                     </div>
                     <div class="mode-arrow">›</div>
                 </div>
@@ -367,6 +377,46 @@
             </div>
         </div>
 
+        <!-- מגדל זבאנג (tower.js) -->
+        <div id="towerScreen" class="screen">
+            <div class="game-header tower-header">
+                <button class="exit-btn icon" onclick="quitTower()" title="יציאה" aria-label="יציאה"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></button>
+                <div class="tower-stat"><span class="tower-stat-label">מילים</span><span id="towerWordsDisplay">0</span></div>
+                <div class="score-display" id="towerScoreDisplay">0</div>
+            </div>
+
+            <div class="tower-play">
+                <div class="tower-height-meter" id="towerHeightMeter" aria-hidden="true"><div class="tower-height-fill" id="towerHeightFill"></div></div>
+                <div class="board tower-board" id="towerBoard"></div>
+            </div>
+
+            <div class="current-word-display" id="towerWordDisplay"></div>
+
+            <div class="power-ups-row">
+                <button class="power-up-btn" onclick="useTowerHint()" title="רמז" aria-label="רמז"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18 H15"/><path d="M12 3 a6 6 0 0 1 3.5 10.9 c-0.8 0.6 -1.2 1.4 -1.2 2.1 H9.7 c0 -0.7 -0.4 -1.5 -1.2 -2.1 A6 6 0 0 1 12 3 Z"/></svg></span><span class="pu-cost">50</span></button>
+            </div>
+        </div>
+
+        <div id="towerResultScreen" class="screen">
+            <div class="result-modal">
+                <h2>המגדל קרס!</h2>
+                <p class="final-score">ניקוד: <span id="trScore">0</span></p>
+                <div class="result-stats">
+                    <p>מילים שנמצאו: <span id="trWords">0</span></p>
+                    <p>ניקויי מגדל: <span id="trClears">0</span></p>
+                </div>
+                <div class="reward-box">
+                    <span class="coin-icon icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" fill="#ffd60a" stroke="#ffb700" stroke-width="2"/><circle cx="12" cy="12" r="5.5" fill="none" stroke="#ffb700" stroke-width="1.5"/></svg></span>
+                    <span id="trCoins">+0 מטבעות</span>
+                </div>
+                <p class="sr-best-note" id="trLeaderboardNote" style="display:none;"></p>
+                <button class="btn-large gold-btn" id="trLeaderboardBtn" style="display:none;" onclick="submitTowerScore()">🏆 הוסף שיא לזבאנג רויאל</button>
+                <button class="btn-large blue-btn" onclick="startTower()"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 a8 8 0 1 1 2.6 5.9"/><path d="M4 18 V13 H9"/></svg></span> שחק שוב</button>
+                <button class="btn-large green-btn" onclick="showLeaderboard('tower')"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20 V12 H10 V20"/><path d="M14 20 V4 H18 V20"/><path d="M3 20 H21"/></svg></span> זבאנג רויאל</button>
+                <button class="btn-large purple-btn" onclick="goHome()"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></span> מסך הבית</button>
+            </div>
+        </div>
+
         <!-- Round End Screen (Battle) -->
         <div id="roundEndScreen" class="screen">
             <div class="result-modal">
@@ -485,8 +535,9 @@
                 <h2><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20 V12 H10 V20"/><path d="M14 20 V4 H18 V20"/><path d="M3 20 H21"/></svg></span> זבאנג רויאל</h2>
                 <p class="mp-hint">טבלת השיאים - הניקוד הגבוה ביותר במשחק יחיד</p>
                 <div class="lb-tabs">
-                    <button class="lb-tab active" id="lbTabQuick" onclick="showLeaderboard('quick')">משחק מהיר (דקה)</button>
-                    <button class="lb-tab" id="lbTabPrecise" onclick="showLeaderboard('precise')">משחק מדוייק (2 דקות)</button>
+                    <button class="lb-tab active" id="lbTabQuick" onclick="showLeaderboard('quick')">מהיר (דקה)</button>
+                    <button class="lb-tab" id="lbTabPrecise" onclick="showLeaderboard('precise')">מדוייק (2 דקות)</button>
+                    <button class="lb-tab" id="lbTabTower" onclick="showLeaderboard('tower')">מגדל זבאנג</button>
                 </div>
                 <div class="leaderboard-list" id="leaderboardList"></div>
             </div>
@@ -640,17 +691,18 @@
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
-    <script src="firebase-config.js?v=21"></script>
-    <script src="avatars.js?v=21"></script>
-    <script src="icons.js?v=21"></script>
-    <script src="themes.js?v=21"></script>
-    <script src="game.js?v=21"></script>
-    <script src="words.js?v=21"></script>
-    <script src="words-bulk.js?v=21"></script>
-    <script src="multiplayer.js?v=21"></script>
-    <script src="cloudsave.js?v=21"></script>
-    <script src="admin.js?v=21"></script>
-    <script src="iap.js?v=21"></script>
+    <script src="firebase-config.js?v=22"></script>
+    <script src="avatars.js?v=22"></script>
+    <script src="icons.js?v=22"></script>
+    <script src="themes.js?v=22"></script>
+    <script src="game.js?v=22"></script>
+    <script src="words.js?v=22"></script>
+    <script src="words-bulk.js?v=22"></script>
+    <script src="tower.js?v=22"></script>
+    <script src="multiplayer.js?v=22"></script>
+    <script src="cloudsave.js?v=22"></script>
+    <script src="admin.js?v=22"></script>
+    <script src="iap.js?v=22"></script>
     <script>
         // Register service worker for offline play & installability, but NOT
         // inside the Capacitor native shell: there the webview already bundles
