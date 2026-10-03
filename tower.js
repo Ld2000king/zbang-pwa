@@ -433,6 +433,28 @@ function startTower() {
     showScreen('towerScreen');
     applyBoardTheme('towerBoard', preferredThemeIndex());
     renderTower();
+    if (!gameState.towerTutorialSeen) showTowerHelp();
+}
+
+// ---- how to play -----------------------------------------------------------
+// Opens by itself on the player's first tower game, and any time from the ?
+// button. The overlay covers the board, so no drag can start while it's open.
+
+function showTowerHelp() {
+    towerDragging = false;
+    towerDragPath = [];
+    towerUpdateSelection();
+    document.getElementById('towerHelpCloseBtn').textContent =
+        gameState.towerTutorialSeen ? 'הבנתי' : 'בוא נתחיל!';
+    document.getElementById('towerHelpOverlay').style.display = 'flex';
+}
+
+function closeTowerHelp() {
+    document.getElementById('towerHelpOverlay').style.display = 'none';
+    if (!gameState.towerTutorialSeen) {
+        gameState.towerTutorialSeen = true;
+        saveGameState();
+    }
 }
 
 function towerGameOver() {
