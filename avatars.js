@@ -8,21 +8,24 @@ function makeAvatar(id, name) {
 }
 
 const AVATARS = [
+    // No `cost` = a free starter (דן, מאיה, תום, שירה). A `cost` avatar is
+    // bought in the shop for that many coins - players from before the coin
+    // shop keep them all (grantLegacyCoinAvatars() in game.js).
     { id: 'dan',     name: 'דן',     bg: ['#5B8DEF', '#2C4F94'] },
     { id: 'maya',    name: 'מאיה',   bg: ['#E86FB0', '#8E44AD'] },
     { id: 'tom',     name: 'תום',    bg: ['#26C6C9', '#1A7A8C'] },
-    { id: 'noa',     name: 'נועה',   bg: ['#3DD68C', '#159A63'] },
-    { id: 'ari',     name: 'לביא',    bg: ['#F6A93B', '#C9631A'] },
+    { id: 'noa',     name: 'נועה', cost: 200,   bg: ['#3DD68C', '#159A63'] },
+    { id: 'ari',     name: 'לביא', cost: 200,    bg: ['#F6A93B', '#C9631A'] },
     { id: 'shira',   name: 'שירה',   bg: ['#A06BE8', '#6A3FC0'] },
-    { id: 'cool',    name: 'הסוכן קייל',    bg: ['#4A5568', '#232A36'] },
-    { id: 'grandpa', name: 'סבא מנחם',    bg: ['#8FA1B3', '#5A6B7D'] },
-    { id: 'ninja',   name: 'נינג׳ה', bg: ['#2B2F3A', '#12141B'] },
-    { id: 'robot',   name: 'רובי רובוט',  bg: ['#38C6E8', '#1E7FA8'] },
-    { id: 'cat',     name: 'חתוליהו',   bg: ['#FBB040', '#E4761B'] },
-    { id: 'dog',     name: 'חומי',   bg: ['#B97A56', '#6D4C34'] },
-    { id: 'alien',   name: 'מייק החוצן',  bg: ['#7C4DFF', '#4527A0'] },
-    { id: 'wolf',    name: 'סקאי',    bg: ['#7C8B9E', '#3E4A5C'] },
-    { id: 'ariel',   name: 'אריאל',  bg: ['#3ED6C4', '#0E7A6E'] },
+    { id: 'cool',    name: 'הסוכן קייל', cost: 400,    bg: ['#4A5568', '#232A36'] },
+    { id: 'grandpa', name: 'סבא מנחם', cost: 300,    bg: ['#8FA1B3', '#5A6B7D'] },
+    { id: 'ninja',   name: 'נינג׳ה', cost: 400, bg: ['#2B2F3A', '#12141B'] },
+    { id: 'robot',   name: 'רובי רובוט', cost: 500,  bg: ['#38C6E8', '#1E7FA8'] },
+    { id: 'cat',     name: 'חתוליהו', cost: 300,   bg: ['#FBB040', '#E4761B'] },
+    { id: 'dog',     name: 'חומי', cost: 300,   bg: ['#B97A56', '#6D4C34'] },
+    { id: 'alien',   name: 'מייק החוצן', cost: 500,  bg: ['#7C4DFF', '#4527A0'] },
+    { id: 'wolf',    name: 'סקאי', cost: 400,    bg: ['#7C8B9E', '#3E4A5C'] },
+    { id: 'ariel',   name: 'אריאל', cost: 200,  bg: ['#3ED6C4', '#0E7A6E'] },
 
     // ===== Premium ("cooler") avatars - bought in the shop (premium: true) =====
     { id: 'king',   name: 'המלך אדוארד  ',   premium: true, bg: ['#3B4CC0', '#1A237E'] },
