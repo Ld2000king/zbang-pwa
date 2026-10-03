@@ -851,6 +851,7 @@ function useMultiplayerHint() {
     setTimeout(() => tiles.forEach(t => t.classList.remove('selected')), 1500);
 
     showMessage(`${word} - כל הכבוד! +${points}`, 'success');
+    playWordSound(points);
     launchSparkles();
 }
 
