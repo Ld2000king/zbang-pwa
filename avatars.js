@@ -26,13 +26,15 @@ const AVATARS = [
     { id: 'alien',   name: 'מייק החוצן', cost: 500,  bg: ['#7C4DFF', '#4527A0'] },
     { id: 'wolf',    name: 'סקאי', cost: 400,    bg: ['#7C8B9E', '#3E4A5C'] },
     { id: 'ariel',   name: 'אריאל', cost: 200,  bg: ['#3ED6C4', '#0E7A6E'] },
+    { id: 'piko',    name: 'פיקו', cost: 500,   bg: ['#E8453C', '#8C1F1A'] },
 
     // ===== Premium ("cooler") avatars - bought in the shop (premium: true) =====
     { id: 'king',   name: 'המלך אדוארד  ',   premium: true, bg: ['#3B4CC0', '#1A237E'] },
     { id: 'cyber',  name: 'ריו לוחם הסייבר', premium: true, bg: ['#0FA3B1', '#0B2A3A'] },
     { id: 'flame',  name: 'סוכנת האש להבה',  premium: true, bg: ['#7A1B00', '#3E0A00'] },
     { id: 'hero',   name: 'דונה גיבורת העל', premium: true, bg: ['#C0392B', '#1A237E'] },
-    { id: 'galaxy', name: 'נסיכת הגלקסיה', premium: true, bg: ['#3A2A80', '#140A3A'] }
+    { id: 'galaxy', name: 'נסיכת הגלקסיה', premium: true, bg: ['#3A2A80', '#140A3A'] },
+    { id: 'shado',  name: 'שאדו',          premium: true, bg: ['#5B2A9E', '#1A0B33'] }
 ].map(a => ({ ...a, image: `assets/avatars/${a.id}.webp`, svg: makeAvatar(a.id, a.name) }));
 
 function getAvatarById(id) {

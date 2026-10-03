@@ -2463,10 +2463,14 @@ function isAvatarOwned(id) {
 // shop gets all of them, so nobody loses a picture they could already pick.
 // Runs once per save (loadGameState, and applyCloudState in cloudsave.js for
 // a restored old cloud save).
+// Exactly the avatars that were free before the coin shop - an avatar added
+// later (like פיקו) is never handed out by this, even to an old save.
+const LEGACY_FREE_AVATARS = ['noa', 'ari', 'cool', 'grandpa', 'ninja', 'robot', 'cat', 'dog', 'alien', 'wolf', 'ariel'];
+
 function grantLegacyCoinAvatars() {
     if (!Array.isArray(gameState.ownedAvatars)) gameState.ownedAvatars = [];
-    AVATARS.filter(a => a.cost).forEach(a => {
-        if (!gameState.ownedAvatars.includes(a.id)) gameState.ownedAvatars.push(a.id);
+    LEGACY_FREE_AVATARS.forEach(id => {
+        if (!gameState.ownedAvatars.includes(id)) gameState.ownedAvatars.push(id);
     });
     gameState.coinAvatarsGranted = true;
 }
