@@ -237,6 +237,7 @@ let gameState = {
     musicEnabled: true,  // actual playback still gated on a user gesture, see initMusic()
     bestSingleScore: 0,  // personal best on the 1-minute ("quick") board
     bestSingleScorePrecise: 0, // personal best on the 2-minute ("precise") board
+    bestTowerScore: 0,   // personal best in מגדל זבאנג (tower.js)
     playerId: null,      // stable per-device id for the global leaderboard entry
     lastDailyClaim: null, // 'YYYY-MM-DD' of the last claimed daily reward
     dailyStreak: 0        // consecutive-day login streak
@@ -639,6 +640,7 @@ function loadGameState() {
     if (typeof gameState.musicEnabled !== 'boolean') gameState.musicEnabled = true;
     if (typeof gameState.bestSingleScore !== 'number') gameState.bestSingleScore = 0;
     if (typeof gameState.bestSingleScorePrecise !== 'number') gameState.bestSingleScorePrecise = 0;
+    if (typeof gameState.bestTowerScore !== 'number') gameState.bestTowerScore = 0;
     // these two are shown directly on the profile, so an older/partial save
     // (including one restored from another device) must not render "undefined"
     if (typeof gameState.totalScore !== 'number') gameState.totalScore = 0;
@@ -1325,6 +1327,7 @@ function endDrag() {
 
 function activeBoardId() {
     // 'battle' and 'multiplayer' both use the battle board; only 'single' uses #board
+    if (currentGame.mode === 'tower') return 'towerBoard';
     return currentGame.mode === 'single' ? 'board' : 'battleBoard';
 }
 
@@ -1664,11 +1667,14 @@ function showGameOverDialog() {
 // Quick (1-minute) and precise (2-minute) games keep entirely separate boards
 // (their scores aren't comparable), stored at two different Realtime Database
 // roots - see leaderboardPath().
+// 'tower' is מגדל זבאנג (tower.js) - its own best and its own board.
 function leaderboardBestKey(singleMode) {
+    if (singleMode === 'tower') return 'bestTowerScore';
     return singleMode === 'precise' ? 'bestSingleScorePrecise' : 'bestSingleScore';
 }
 
 function leaderboardPath(singleMode) {
+    if (singleMode === 'tower') return 'leaderboard_tower';
     return singleMode === 'precise' ? 'leaderboard_precise' : 'leaderboard';
 }
 
@@ -1708,7 +1714,7 @@ function writeLeaderboardEntry(path, pid, user, score, isRetry) {
             }
             console.warn('Leaderboard write failed:', err.message);
             showMessage('השמירה נכשלה, נסה שוב', 'error');
-            const btn = document.getElementById('srLeaderboardBtn');
+            const btn = document.getElementById(path === leaderboardPath('tower') ? 'trLeaderboardBtn' : 'srLeaderboardBtn');
             if (btn) { btn.disabled = false; btn.innerHTML = '🏆 הוסף שיא לזבאנג רויאל'; }
         });
 }
@@ -1717,18 +1723,18 @@ function writeLeaderboardEntry(path, pid, user, score, isRetry) {
 let currentLeaderboardMode = 'quick';
 
 function showLeaderboard(mode) {
-    if (mode === 'quick' || mode === 'precise') currentLeaderboardMode = mode;
+    if (mode === 'quick' || mode === 'precise' || mode === 'tower') currentLeaderboardMode = mode;
     showScreen('leaderboardScreen');
     renderLeaderboardTabs();
     renderLeaderboard();
 }
 
 function renderLeaderboardTabs() {
-    const quickTab = document.getElementById('lbTabQuick');
-    const preciseTab = document.getElementById('lbTabPrecise');
-    if (!quickTab || !preciseTab) return;
-    quickTab.classList.toggle('active', currentLeaderboardMode === 'quick');
-    preciseTab.classList.toggle('active', currentLeaderboardMode === 'precise');
+    const tabs = { quick: 'lbTabQuick', precise: 'lbTabPrecise', tower: 'lbTabTower' };
+    Object.entries(tabs).forEach(([mode, id]) => {
+        const tab = document.getElementById(id);
+        if (tab) tab.classList.toggle('active', currentLeaderboardMode === mode);
+    });
 }
 
 // The rows currently on screen, so the per-row admin edit button can look a
@@ -1786,7 +1792,9 @@ function renderLeaderboard() {
             .slice(0, 20);
         leaderboardRows = rows;
         if (rows.length === 0) {
-            listEl.innerHTML = '<p class="no-subs">עדיין אין תוצאות - שחק משחק יחיד כדי להיכנס לטבלה!</p>';
+            listEl.innerHTML = requestedMode === 'tower'
+                ? '<p class="no-subs">עדיין אין תוצאות - שחק במגדל זבאנג כדי להיכנס לטבלה!</p>'
+                : '<p class="no-subs">עדיין אין תוצאות - שחק משחק יחיד כדי להיכנס לטבלה!</p>';
             return;
         }
         // the real admin account, not just a player named 'ld2000'
@@ -2399,6 +2407,7 @@ function renderProfile() {
         <p><strong>ניקוד כולל:</strong> ${gameState.totalScore}</p>
         <p><strong>שיא משחק מהיר (דקה):</strong> ${gameState.bestSingleScore || 0}</p>
         <p><strong>שיא משחק מדוייק (2 דקות):</strong> ${gameState.bestSingleScorePrecise || 0}</p>
+        <p><strong>שיא מגדל זבאנג:</strong> ${gameState.bestTowerScore || 0}</p>
         <p><strong>משחקים:</strong> ${gameState.gamesPlayed}</p>
     `;
     renderThemeRow();

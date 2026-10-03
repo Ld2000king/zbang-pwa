@@ -23,7 +23,7 @@
 const CLOUD_SAVE_FIELDS = [
     'playerName', 'coins', 'diamonds', 'inventory', 'totalScore', 'gamesPlayed',
     'level', 'xp', 'xpToNextLevel', 'avatarId', 'trophies', 'preferredTheme', 'themeAuto',
-    'ownedAvatars', 'bestSingleScore', 'bestSingleScorePrecise', 'playerId', 'lastDailyClaim',
+    'ownedAvatars', 'bestSingleScore', 'bestSingleScorePrecise', 'bestTowerScore', 'playerId', 'lastDailyClaim',
     'dailyStreak', 'grantedIapTransactions'
 ];
 
