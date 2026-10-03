@@ -14,8 +14,8 @@
     <link rel="icon" type="image/png" href="icon-192.png">
     <!-- ?v= must match VERSION in sw.js - bump both on every release, so a
          fresh index.html can never be paired with an older cached script -->
-    <link rel="stylesheet" href="style.css?v=22">
-    <link rel="stylesheet" href="game.css?v=22">
+    <link rel="stylesheet" href="style.css?v=23">
+    <link rel="stylesheet" href="game.css?v=23">
 </head>
 <body>
     <div id="app">
@@ -380,7 +380,10 @@
         <!-- מגדל זבאנג (tower.js) -->
         <div id="towerScreen" class="screen">
             <div class="game-header tower-header">
-                <button class="exit-btn icon" onclick="quitTower()" title="יציאה" aria-label="יציאה"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></button>
+                <div class="header-btns">
+                    <button class="exit-btn icon" onclick="quitTower()" title="יציאה" aria-label="יציאה"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></button>
+                    <button class="exit-btn tower-help-btn icon" onclick="showTowerHelp()" title="איך משחקים?" aria-label="איך משחקים?"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8.8 9 a3.2 3.2 0 1 1 4.9 2.7 c-1 0.6 -1.7 1.3 -1.7 2.5"/><circle cx="12" cy="18.6" r="1.4" fill="currentColor" stroke="none"/></svg></button>
+                </div>
                 <div class="tower-stat"><span class="tower-stat-label">מילים</span><span id="towerWordsDisplay">0</span></div>
                 <div class="score-display" id="towerScoreDisplay">0</div>
             </div>
@@ -587,6 +590,23 @@
         </div>
     </div>
 
+    <!-- מגדל זבאנג how-to-play: opens on the first tower game, then from the ? button -->
+    <div id="towerHelpOverlay" class="confirm-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="towerHelpTitle">
+        <div class="confirm-box tower-help-box">
+            <h2 id="towerHelpTitle">איך משחקים במגדל זבאנג?</h2>
+            <ol class="tower-help-list">
+                <li>גוררים את האצבע על <strong>אותיות צמודות</strong> (גם באלכסון) ויוצרים מילה של 3 אותיות לפחות.</li>
+                <li>האותיות של המילה נעלמות, ומה שמעליהן <strong>נופל למטה</strong>.</li>
+                <li>אחרי כל מילה <strong>עולה שורה חדשה</strong> מלמטה. אם המגדל מגיע לתקרה - המשחק נגמר.</li>
+                <li>מילה של <strong>5 אותיות ומעלה</strong> מפוצצת גם את האותיות הצמודות אליה.</li>
+                <li>אות עם <span class="tower-help-star">★</span> מנקה את <strong>כל השורה</strong> שלה.</li>
+                <li>ניקית את כל המגדל? <strong>+1000 נקודות!</strong></li>
+            </ol>
+            <p class="tower-help-tip">נתקעת? כפתור הרמז מסמן לך מילה על הלוח.</p>
+            <button class="btn-large green-btn" id="towerHelpCloseBtn" onclick="closeTowerHelp()">בוא נתחיל!</button>
+        </div>
+    </div>
+
     <!-- Set/rename player name - used for the first-run gate and every rename entry point -->
     <div id="nameOverlay" class="confirm-overlay" style="display:none;">
         <div class="confirm-box">
@@ -691,18 +711,18 @@
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
-    <script src="firebase-config.js?v=22"></script>
-    <script src="avatars.js?v=22"></script>
-    <script src="icons.js?v=22"></script>
-    <script src="themes.js?v=22"></script>
-    <script src="game.js?v=22"></script>
-    <script src="words.js?v=22"></script>
-    <script src="words-bulk.js?v=22"></script>
-    <script src="tower.js?v=22"></script>
-    <script src="multiplayer.js?v=22"></script>
-    <script src="cloudsave.js?v=22"></script>
-    <script src="admin.js?v=22"></script>
-    <script src="iap.js?v=22"></script>
+    <script src="firebase-config.js?v=23"></script>
+    <script src="avatars.js?v=23"></script>
+    <script src="icons.js?v=23"></script>
+    <script src="themes.js?v=23"></script>
+    <script src="game.js?v=23"></script>
+    <script src="words.js?v=23"></script>
+    <script src="words-bulk.js?v=23"></script>
+    <script src="tower.js?v=23"></script>
+    <script src="multiplayer.js?v=23"></script>
+    <script src="cloudsave.js?v=23"></script>
+    <script src="admin.js?v=23"></script>
+    <script src="iap.js?v=23"></script>
     <script>
         // Register service worker for offline play & installability, but NOT
         // inside the Capacitor native shell: there the webview already bundles
