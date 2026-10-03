@@ -238,6 +238,7 @@ let gameState = {
     bestSingleScore: 0,  // personal best on the 1-minute ("quick") board
     bestSingleScorePrecise: 0, // personal best on the 2-minute ("precise") board
     bestTowerScore: 0,   // personal best in מגדל זבאנג (tower.js)
+    towerTutorialSeen: false, // the tower's how-to-play opens by itself only once
     playerId: null,      // stable per-device id for the global leaderboard entry
     lastDailyClaim: null, // 'YYYY-MM-DD' of the last claimed daily reward
     dailyStreak: 0        // consecutive-day login streak
