@@ -6,7 +6,7 @@
 // Produces:
 //   assets/                       <- canonical masters for @capacitor/assets
 //     logo.png            1024      single-source master (native icon + splash)
-//     icon-foreground.png 1024      Android adaptive foreground (full logo over the visible 2/3)
+//     icon-foreground.png 1024      Android adaptive foreground (full logo, edge to edge)
 //     icon-background.png 1024      Android adaptive background (the logo's blue gradient)
 //     splash.png          2732      splash (logo centered on brand blue)
 //     splash-dark.png     2732      dark splash
@@ -70,20 +70,15 @@ async function paddedOnGradient(size, inner) {
 }
 
 async function run() {
-    const transparent = { r: 0, g: 0, b: 0, alpha: 0 };
-
     const out = (p) => join(root, p);
 
     // ---- canonical masters (assets/) ----
     await squareOpaque(1024).toFile(out('assets/logo.png'));
-    // adaptive foreground: the whole logo, edge to edge, over exactly the part
-    // of the 108dp layer a launcher shows (the middle 72dp = 2/3). So on the
-    // phone the icon is the logo itself, filling its shape, with no border.
-    const visible = Math.round(1024 * 72 / 108);
-    const fullLogo = await sharp(MASTER).resize(visible, visible, { fit: 'cover' }).png().toBuffer();
-    await sharp({ create: { width: 1024, height: 1024, channels: 4, background: transparent } })
-        .composite([{ input: fullLogo, gravity: 'centre' }]).png()
-        .toFile(out('assets/icon-foreground.png'));
+    // adaptive foreground: the whole logo, edge to edge. @capacitor/assets
+    // wraps each layer in a 16.7% inset (mipmap-anydpi-v26/ic_launcher.xml),
+    // which maps this image onto exactly the part of the icon a launcher
+    // shows - so on the phone the icon is the logo itself, with no border.
+    await squareOpaque(1024).toFile(out('assets/icon-foreground.png'));
     // adaptive background: the logo's own blue gradient
     await sharp(await gradientBackdrop(1024)).toFile(out('assets/icon-background.png'));
     // splash: logo centered (~33%) on brand blue
