@@ -234,6 +234,7 @@ let gameState = {
     themeAuto: false,    // true = the theme follows the newest unlocked city.
                          // New players start on the classic island instead.
     ownedAvatars: [],
+    coinAvatarsGranted: true, // a brand-new player starts with only the free avatars
     musicEnabled: true,  // actual playback still gated on a user gesture, see initMusic()
     soundEnabled: true,  // the chime on every found word (playWordSound)
     bestSingleScore: 0,  // personal best on the 1-minute ("quick") board
@@ -639,6 +640,8 @@ function loadGameState() {
         gameState.themeAuto = !pickedByHand;
     }
     if (!Array.isArray(gameState.ownedAvatars)) gameState.ownedAvatars = [];
+    // a save from before the coin shop: those avatars were free, so keep them
+    if (typeof gameState.coinAvatarsGranted !== 'boolean') grantLegacyCoinAvatars();
     if (typeof gameState.musicEnabled !== 'boolean') gameState.musicEnabled = true;
     if (typeof gameState.soundEnabled !== 'boolean') gameState.soundEnabled = true;
     if (typeof gameState.bestSingleScore !== 'number') gameState.bestSingleScore = 0;
@@ -2336,6 +2339,29 @@ function renderShop() {
         `;
     });
 
+    // --- Characters bought with coins, cheapest first ---
+    const coinAvatars = AVATARS.filter(a => a.cost && !a.premium).sort((x, y) => x.cost - y.cost);
+    if (coinAvatars.length) {
+        html += `<h3 class="shop-section-title">דמויות ${icon('coin', 'coin-icon')}</h3>`;
+        coinAvatars.forEach(a => {
+            const owned = isAvatarOwned(a.id);
+            html += `
+                <div class="shop-item">
+                    <div class="item-info item-info-avatar">
+                        <div class="shop-avatar">${a.svg}</div>
+                        <div>
+                            <h3>${a.name}</h3>
+                            <p>תמונת פרופיל</p>
+                        </div>
+                    </div>
+                    ${owned
+                        ? `<span class="shop-owned">${icon('check')} בבעלותך</span>`
+                        : `<button class="buy-btn" onclick="buyAvatar('${a.id}')">${icon('coin', 'coin-icon')} ${a.cost} קנה</button>`}
+                </div>
+            `;
+        });
+    }
+
     // --- Premium ("cooler") profile pictures ---
     const premiumAvatars = AVATARS.filter(a => a.premium);
     if (premiumAvatars.length) {
@@ -2441,25 +2467,42 @@ function buyItem(key) {
     });
 }
 
-// A profile picture is available if it's a free (non-premium) one, the admin
-// account (owns everything), or a premium one the player has bought.
+// A profile picture is available if it's a free starter (no cost, not
+// premium), the admin account (owns everything), or one the player has
+// bought - with coins (cost) or blue diamonds (premium).
 function isAvatarOwned(id) {
     const a = getAvatarById(id);
-    if (!a.premium) return true;
+    if (!a.premium && !a.cost) return true;
     if (isAdminAccount()) return true;
     return (gameState.ownedAvatars || []).includes(id);
+}
+
+// The coin avatars used to be free: a player whose save predates the coin
+// shop gets all of them, so nobody loses a picture they could already pick.
+// Runs once per save (loadGameState, and applyCloudState in cloudsave.js for
+// a restored old cloud save).
+function grantLegacyCoinAvatars() {
+    if (!Array.isArray(gameState.ownedAvatars)) gameState.ownedAvatars = [];
+    AVATARS.filter(a => a.cost).forEach(a => {
+        if (!gameState.ownedAvatars.includes(a.id)) gameState.ownedAvatars.push(a.id);
+    });
+    gameState.coinAvatarsGranted = true;
 }
 
 function buyAvatar(id) {
     const a = getAvatarById(id);
     if (isAvatarOwned(id)) { showMessage('כבר בבעלותך', 'info'); return; }
-    // Premium avatars are bought with blue diamonds (admin owns everything free)
-    if (!isAdminAccount() && gameState.diamonds < AVATAR_DIAMOND_COST) {
-        showMessage('אין מספיק יהלומים!', 'error');
+    // coin avatars cost coins, premium ones blue diamonds (admin owns everything free)
+    const byCoins = !a.premium;
+    const price = byCoins ? a.cost : AVATAR_DIAMOND_COST;
+    if (byCoins ? (!hasInfiniteCoins() && gameState.coins < price)
+                : (!isAdminAccount() && gameState.diamonds < price)) {
+        showMessage(byCoins ? 'אין מספיק מטבעות!' : 'אין מספיק יהלומים!', 'error');
         return;
     }
-    showConfirm(`האם אתה בטוח? קניית התמונה "${a.name}" ב-${AVATAR_DIAMOND_COST} יהלומים`, () => {
-        if (!isAdminAccount()) gameState.diamonds -= AVATAR_DIAMOND_COST;
+    showConfirm(`האם אתה בטוח? קניית התמונה "${a.name}" ב-${price} ${byCoins ? 'מטבעות' : 'יהלומים'}`, () => {
+        if (byCoins) { if (!hasInfiniteCoins()) gameState.coins -= price; }
+        else if (!isAdminAccount()) gameState.diamonds -= price;
         if (!gameState.ownedAvatars.includes(id)) gameState.ownedAvatars.push(id);
         saveGameState();
         updateHomeUI();
@@ -2602,7 +2645,9 @@ function renderAvatarPicker() {
             + (owned ? '' : `<span class="avatar-lock">🔒</span>`);
         option.onclick = () => {
             if (owned) selectAvatar(avatar.id);
-            else showMessage('תמונה נעולה - ניתן לרכוש בחנות', 'warning');
+            else showMessage(avatar.cost
+                ? `תמונה נעולה - ניתן לרכוש בחנות ב-${avatar.cost} מטבעות`
+                : 'תמונה נעולה - ניתן לרכוש בחנות', 'warning');
         };
         grid.appendChild(option);
     });

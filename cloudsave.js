@@ -23,7 +23,7 @@
 const CLOUD_SAVE_FIELDS = [
     'playerName', 'coins', 'diamonds', 'inventory', 'totalScore', 'gamesPlayed',
     'level', 'xp', 'xpToNextLevel', 'avatarId', 'trophies', 'preferredTheme', 'themeAuto',
-    'ownedAvatars', 'bestSingleScore', 'bestSingleScorePrecise', 'bestTowerScore', 'towerTutorialSeen', 'playerId', 'lastDailyClaim',
+    'ownedAvatars', 'coinAvatarsGranted', 'bestSingleScore', 'bestSingleScorePrecise', 'bestTowerScore', 'towerTutorialSeen', 'playerId', 'lastDailyClaim',
     'dailyStreak', 'grantedIapTransactions'
 ];
 
@@ -72,6 +72,8 @@ function applyCloudState(state) {
     CLOUD_SAVE_FIELDS.forEach(key => {
         if (state[key] !== undefined) gameState[key] = state[key];
     });
+    // a cloud save from before the coin shop keeps the avatars that were free then
+    if (state.coinAvatarsGranted === undefined && typeof grantLegacyCoinAvatars === 'function') grantLegacyCoinAvatars();
     localStorage.setItem('zabangState', JSON.stringify(gameState)); // not saveGameState(): that would re-trigger a sync
     refreshAfterCloudAuthChange();
 }
