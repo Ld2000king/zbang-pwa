@@ -2339,53 +2339,35 @@ function renderShop() {
         `;
     });
 
-    // --- Characters bought with coins, cheapest first ---
+    // --- Profile pictures: regular ones for coins (cheapest first), then the
+    // exclusive ones for diamonds. Each section is a 2-per-row grid of cards
+    // so the shop stays short. ---
     const coinAvatars = AVATARS.filter(a => a.cost && !a.premium).sort((x, y) => x.cost - y.cost);
     if (coinAvatars.length) {
         html += `<h3 class="shop-section-title">דמויות ${icon('coin', 'coin-icon')}</h3>`;
-        coinAvatars.forEach(a => {
-            const owned = isAvatarOwned(a.id);
-            html += `
-                <div class="shop-item">
-                    <div class="item-info item-info-avatar">
-                        <div class="shop-avatar">${a.svg}</div>
-                        <div>
-                            <h3>${a.name}</h3>
-                            <p>תמונת פרופיל</p>
-                        </div>
-                    </div>
-                    ${owned
-                        ? `<span class="shop-owned">${icon('check')} בבעלותך</span>`
-                        : `<button class="buy-btn" onclick="buyAvatar('${a.id}')">${icon('coin', 'coin-icon')} ${a.cost} קנה</button>`}
-                </div>
-            `;
-        });
+        html += `<div class="shop-avatar-grid">${coinAvatars.map(a => shopAvatarCard(a,
+            `<button class="buy-btn" onclick="buyAvatar('${a.id}')">${icon('coin', 'coin-icon')} ${a.cost}</button>`)).join('')}</div>`;
     }
 
-    // --- Premium ("cooler") profile pictures ---
     const premiumAvatars = AVATARS.filter(a => a.premium);
     if (premiumAvatars.length) {
         html += `<h3 class="shop-section-title">תמונות פרופיל אקסקלוסיביות ${icon('diamond', 'coin-icon')}</h3>`;
-        premiumAvatars.forEach(a => {
-            const owned = isAvatarOwned(a.id);
-            html += `
-                <div class="shop-item">
-                    <div class="item-info item-info-avatar">
-                        <div class="shop-avatar">${a.svg}</div>
-                        <div>
-                            <h3>${a.name}</h3>
-                            <p>תמונת פרופיל מיוחדת</p>
-                        </div>
-                    </div>
-                    ${owned
-                        ? `<span class="shop-owned">${icon('check')} בבעלותך</span>`
-                        : `<button class="buy-btn diamond-buy-btn" onclick="buyAvatar('${a.id}')">${icon('diamond', 'coin-icon')} ${AVATAR_DIAMOND_COST} קנה</button>`}
-                </div>
-            `;
-        });
+        html += `<div class="shop-avatar-grid">${premiumAvatars.map(a => shopAvatarCard(a,
+            `<button class="buy-btn diamond-buy-btn" onclick="buyAvatar('${a.id}')">${icon('diamond', 'coin-icon')} ${AVATAR_DIAMOND_COST}</button>`)).join('')}</div>`;
     }
 
     shopEl.innerHTML = html;
+}
+
+// One profile-picture card in the shop grid: picture, name, and either the
+// buy button or an "owned" badge.
+function shopAvatarCard(a, buyButton) {
+    return `
+        <div class="shop-item shop-avatar-card">
+            <div class="shop-avatar">${a.svg}</div>
+            <h3>${a.name}</h3>
+            ${isAvatarOwned(a.id) ? `<span class="shop-owned">${icon('check')} בבעלותך</span>` : buyButton}
+        </div>`;
 }
 
 // Mock rewarded video: a 5s countdown "loading" the ad, then grant coins.
