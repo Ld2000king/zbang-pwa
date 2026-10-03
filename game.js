@@ -1154,6 +1154,7 @@ function goHome() {
 }
 
 function showGameModeSelection() {
+    if (typeof updateTowerModeCard === 'function') updateTowerModeCard();
     showScreen('gameModeScreen');
 }
 
