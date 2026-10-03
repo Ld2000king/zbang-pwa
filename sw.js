@@ -17,7 +17,7 @@
 // index.html to match); activate() purges all older caches.
 // ============================================================================
 
-const VERSION = 'v29';
+const VERSION = 'v30';
 const APP_CACHE = 'zabang-app-' + VERSION;       // same-origin shell + code
 const RUNTIME_CACHE = 'zabang-runtime-' + VERSION; // fonts + CDN statics
 

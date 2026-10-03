@@ -41,7 +41,9 @@ const BACK_OVERLAYS = [
     ['cloudAuthOverlay', () => closeCloudAuthModal()],
     ['pauseOverlay', () => resumeGame()],
     ['dailyRewardOverlay', () => closeDailyReward()],
-    ['menuOverlay', () => closeMenu()]
+    ['menuOverlay', () => closeMenu()],
+    ['settingsOverlay', () => closeSettings()],
+    ['towerHelpOverlay', () => closeTowerHelp()]
 ];
 
 // Screens that need something other than "go home" on Back.
@@ -49,6 +51,7 @@ const BACK_SCREENS = {
     homeScreen: () => { const app = nativeAppPlugin(); if (app) app.minimizeApp(); },
     gameScreen: backDuringGame,
     battleScreen: backDuringGame,
+    towerScreen: () => quitTower(),       // the tower is saved - leave and say so
     roundEndScreen: () => {},             // mid-battle, the next round starts on its own
     mpSearchScreen: () => cancelRandomSearch(),
     arenaScreen: () => closeArenaScreen(),
