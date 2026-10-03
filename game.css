@@ -2787,6 +2787,16 @@ html[data-city="island"] .subtitle {
 }
 
 /* "בונוס התחברות" entry in the hamburger menu - stands out gold, with icon */
+/* a menu row with an icon: the icon sits beside the label at text size
+   (without this the inline SVG stretches to the full row width) */
+.menu-link:has(svg) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+.menu-link svg { width: 20px; height: 20px; flex-shrink: 0; }
+
 .menu-link-daily {
     display: flex;
     align-items: center;
@@ -3673,4 +3683,22 @@ body.has-bottom-nav .music-toggle-btn {
 
 .tower-help-box .btn-large {
     width: 100%;
+}
+
+/* ===== Settings window (openSettings() in game.js) ===== */
+.settings-box h2 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.4em;
+    color: var(--ink);
+    margin-bottom: 4px;
+}
+
+.settings-box .theme-auto-row {
+    text-align: start;
+}
+
+.settings-box .btn-large {
+    width: 100%;
+    margin-top: 20px;
 }

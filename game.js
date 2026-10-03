@@ -235,6 +235,7 @@ let gameState = {
                          // New players start on the classic island instead.
     ownedAvatars: [],
     musicEnabled: true,  // actual playback still gated on a user gesture, see initMusic()
+    soundEnabled: true,  // the chime on every found word (playWordSound)
     bestSingleScore: 0,  // personal best on the 1-minute ("quick") board
     bestSingleScorePrecise: 0, // personal best on the 2-minute ("precise") board
     bestTowerScore: 0,   // personal best in מגדל זבאנג (tower.js)
@@ -639,6 +640,7 @@ function loadGameState() {
     }
     if (!Array.isArray(gameState.ownedAvatars)) gameState.ownedAvatars = [];
     if (typeof gameState.musicEnabled !== 'boolean') gameState.musicEnabled = true;
+    if (typeof gameState.soundEnabled !== 'boolean') gameState.soundEnabled = true;
     if (typeof gameState.bestSingleScore !== 'number') gameState.bestSingleScore = 0;
     if (typeof gameState.bestSingleScorePrecise !== 'number') gameState.bestSingleScorePrecise = 0;
     if (typeof gameState.bestTowerScore !== 'number') gameState.bestTowerScore = 0;
@@ -791,11 +793,16 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('focus', maybeShowDailyReward);
 
 // ===== Background music =====
-// A single continuous loop for the whole app - no per-screen switching, since
-// showScreen() never touches anything outside #app and #bgMusic/#musicToggleBtn
-// live outside #app as persistent global chrome.
+// One continuous loop that plays on every screen EXCEPT active gameplay -
+// showScreen() calls syncMusicToScreen() on every navigation, which pauses it
+// on the screens in MUSIC_QUIET_SCREENS and resumes it (from where it stopped)
+// everywhere else. Both it and the word sounds are switched from the settings
+// window (openSettings()).
+const MUSIC_QUIET_SCREENS = new Set(['gameScreen', 'battleScreen', 'towerScreen', 'roundEndScreen']);
+let currentScreenId = 'homeScreen';
+
 function initMusic() {
-    updateMusicButtonUI();
+    updateSettingsUI();
     const audio = document.getElementById('bgMusic');
     if (!audio) return;
     audio.volume = 0.5;
@@ -812,29 +819,90 @@ function initMusic() {
     document.addEventListener('keydown', unlock, { once: true });
 }
 
+function musicShouldPlay() {
+    return gameState.musicEnabled && !MUSIC_QUIET_SCREENS.has(currentScreenId);
+}
+
 function attemptPlay() {
     const audio = document.getElementById('bgMusic');
-    if (!audio || !gameState.musicEnabled) return;
+    if (!audio || !musicShouldPlay()) return;
     const p = audio.play();
     if (p && typeof p.catch === 'function') p.catch(() => {}); // autoplay blocked or file missing - ignore silently
 }
 
-function toggleMusic() {
-    gameState.musicEnabled = !gameState.musicEnabled;
-    saveGameState();
+function syncMusicToScreen() {
     const audio = document.getElementById('bgMusic');
-    if (audio) {
-        if (gameState.musicEnabled) attemptPlay();
-        else audio.pause();
-    }
-    updateMusicButtonUI();
+    if (!audio) return;
+    if (musicShouldPlay()) attemptPlay();
+    else audio.pause();
 }
 
-function updateMusicButtonUI() {
-    const btn = document.getElementById('musicToggleBtn');
-    if (!btn) return;
-    btn.innerHTML = icon(gameState.musicEnabled ? 'musicOn' : 'musicOff');
-    btn.classList.toggle('muted', !gameState.musicEnabled);
+function setMusicEnabled(on) {
+    gameState.musicEnabled = !!on;
+    saveGameState();
+    syncMusicToScreen();
+    updateSettingsUI();
+}
+
+function setWordSoundsEnabled(on) {
+    gameState.soundEnabled = !!on;
+    saveGameState();
+    updateSettingsUI();
+    if (on) playWordSound(100); // a quick preview of what was just switched on
+}
+
+// ===== Settings window =====
+function openSettings() {
+    updateSettingsUI();
+    const el = document.getElementById('settingsOverlay');
+    if (el) el.style.display = 'flex';
+}
+
+function closeSettings() {
+    const el = document.getElementById('settingsOverlay');
+    if (el) el.style.display = 'none';
+}
+
+function updateSettingsUI() {
+    const music = document.getElementById('settingMusic');
+    const sound = document.getElementById('settingWordSounds');
+    if (music) music.checked = !!gameState.musicEnabled;
+    if (sound) sound.checked = gameState.soundEnabled !== false;
+}
+
+// ===== Word sounds =====
+// A short synthesized chime (Web Audio, no sound files) on every found word -
+// more notes for bigger words, so a 5-letter find sounds like an event.
+// The AudioContext is created lazily: browsers only allow it to start after a
+// user gesture, and a word is always found by a drag or a tap.
+let wordSoundCtx = null;
+const WORD_SOUND_NOTES = [1046.5, 1318.5, 1568.0, 2093.0]; // C6 E6 G6 C7
+
+function playWordSound(points) {
+    if (gameState.soundEnabled === false) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    try {
+        if (!wordSoundCtx) wordSoundCtx = new AC();
+        if (wordSoundCtx.state === 'suspended') wordSoundCtx.resume();
+        const noteCount = points >= 500 ? 4 : points >= 250 ? 3 : 2;
+        const start = wordSoundCtx.currentTime + 0.01;
+        for (let i = 0; i < noteCount; i++) {
+            const t = start + i * 0.075;
+            const osc = wordSoundCtx.createOscillator();
+            const gain = wordSoundCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(WORD_SOUND_NOTES[i], t);
+            gain.gain.setValueAtTime(0.0001, t);
+            gain.gain.exponentialRampToValueAtTime(0.22, t + 0.012);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+            osc.connect(gain).connect(wordSoundCtx.destination);
+            osc.start(t);
+            osc.stop(t + 0.3);
+        }
+    } catch (e) {
+        // audio is a nicety - never let it break scoring
+    }
 }
 
 // The one real admin identity, the same UID the Security Rules bind to (see
@@ -1047,6 +1115,8 @@ const TAB_SCREENS = ['homeScreen', 'shopScreen', 'profileScreen', 'leaderboardSc
 function showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(screenId).classList.add('active');
+    currentScreenId = screenId;
+    syncMusicToScreen(); // the music plays everywhere except during gameplay
     // Long screens (like the profile) may leave the page scrolled down -
     // every screen should open from its top
     window.scrollTo(0, 0);
@@ -1414,6 +1484,7 @@ function zabangCheerPhrase(points) {
 }
 
 function showZabangCheer(points) {
+    playWordSound(points);
     showBoardMessage(`${zabangCheerPhrase(points)} +${points}`, 'cheer', 1100);
 }
 
@@ -1877,6 +1948,7 @@ function useHint() {
     setTimeout(() => tiles.forEach(t => t.classList.remove('selected')), 1500);
 
     showMessage(`${word} - כל הכבוד! +${points}`, 'success');
+    playWordSound(points);
     launchSparkles();
 }
 
@@ -1989,6 +2061,7 @@ function useBattleHint() {
     setTimeout(() => tiles.forEach(t => t.classList.remove('selected')), 1500);
 
     showMessage(`${word} - כל הכבוד! +${points}`, 'success');
+    playWordSound(points);
     launchSparkles();
 }
 
