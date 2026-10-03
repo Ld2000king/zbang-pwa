@@ -2564,9 +2564,10 @@ html[data-city="island"] .subtitle {
 }
 
 #gameModeScreen .mode-option:nth-of-type(1) { --mode-accent: var(--blue); }
-#gameModeScreen .mode-option:nth-of-type(2) { --mode-accent: var(--orange); }
-#gameModeScreen .mode-option:nth-of-type(3) { --mode-accent: var(--green); }
-#gameModeScreen .mode-option:nth-of-type(4) { --mode-accent: var(--purple); }
+#gameModeScreen .mode-option:nth-of-type(2) { --mode-accent: var(--neon-pink); } /* מגדל זבאנג */
+#gameModeScreen .mode-option:nth-of-type(3) { --mode-accent: var(--orange); }
+#gameModeScreen .mode-option:nth-of-type(4) { --mode-accent: var(--green); }
+#gameModeScreen .mode-option:nth-of-type(5) { --mode-accent: var(--purple); }
 #mpChoiceScreen .mode-option:nth-of-type(1) { --mode-accent: var(--green); }
 #mpChoiceScreen .mode-option:nth-of-type(2) { --mode-accent: var(--blue); }
 
@@ -2642,7 +2643,8 @@ html[data-city="island"] .subtitle {
 #mpChoiceScreen.active .mode-option:nth-of-type(2) { animation-delay: 0.12s; }
 #gameModeScreen.active .mode-option:nth-of-type(3) { animation-delay: 0.18s; }
 #gameModeScreen.active .mode-option:nth-of-type(4) { animation-delay: 0.24s; }
-#gameModeScreen.active .close-modal-btn { animation-delay: 0.30s; }
+#gameModeScreen.active .mode-option:nth-of-type(5) { animation-delay: 0.30s; }
+#gameModeScreen.active .close-modal-btn { animation-delay: 0.36s; }
 #mpChoiceScreen.active .close-modal-btn { animation-delay: 0.18s; }
 
 /* motion accessibility - same policy as the home screen */
@@ -3426,4 +3428,172 @@ body.has-bottom-nav .music-toggle-btn {
 
 @media (prefers-reduced-motion: reduce) {
     .switch, .switch::after, .theme-row { transition: none; }
+}
+
+/* ===== מגדל זבאנג (tower.js) =====
+   A tall 6x10 version of .board. Empty cells keep the grid shape so letters
+   sit at the bottom and the tower visibly grows toward the ceiling. */
+#towerScreen.active {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#towerScreen > * {
+    width: 100%;
+    max-width: 520px;
+}
+
+.tower-header .score-display {
+    min-width: 110px;
+    text-align: center;
+}
+
+.tower-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.3em;
+    color: var(--ink);
+    background: var(--cream);
+    padding: 6px 18px;
+    border-radius: var(--radius-btn);
+    border: 3px solid var(--wood-dark);
+    box-shadow: inset 0 3px 0 var(--cream-hi), var(--shadow-depth-md);
+    line-height: 1.1;
+}
+
+.tower-stat-label {
+    font-size: 0.55em;
+    color: var(--ink-2);
+}
+
+.tower-play {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.board.tower-board {
+    direction: ltr; /* columns map 1:1 to tower.cols; words read any way */
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(10, 1fr);
+    gap: 5px;
+    padding: 8px;
+    margin-bottom: 0;
+    aspect-ratio: 6 / 10;
+    width: min(calc(100% - 28px), 38vh);
+    align-self: auto;
+    transition: box-shadow 0.2s ease;
+}
+
+.board.tower-board .letter-tile {
+    position: relative;
+    font-size: clamp(1em, 3.4vh, 1.6em);
+    border-width: 2px;
+    border-radius: var(--radius-sm);
+}
+
+.tower-empty {
+    pointer-events: none;
+}
+
+/* rare letter: a small gold star in the corner - using it clears its row */
+.tower-tile.tower-rare::after {
+    content: '★';
+    position: absolute;
+    top: 0;
+    inset-inline-end: 3px;
+    font-size: 0.42em;
+    line-height: 1.3;
+    color: var(--gold-base);
+}
+
+.tower-tile.tower-rare.selected::after {
+    color: var(--red-base);
+}
+
+/* survivors slide from where they were to their new cell; --drop is the
+   number of rows they moved down (negative = pushed up by the new row) */
+.tower-tile.tower-fall {
+    animation: towerFall 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes towerFall {
+    from { transform: translateY(calc(var(--drop) * (-100% - 5px))); }
+    to { transform: translateY(0); }
+}
+
+.tower-tile.tower-pop {
+    animation: towerPop 0.23s ease-in forwards;
+    pointer-events: none;
+}
+
+@keyframes towerPop {
+    40% { transform: scale(1.15); }
+    to { transform: scale(0); opacity: 0; }
+}
+
+.tower-tile.tower-hint {
+    animation: towerHint 0.7s ease-in-out calc(var(--hint-step, 0) * 0.08s) 3;
+}
+
+@keyframes towerHint {
+    50% {
+        background: var(--gold);
+        transform: translateY(-3px);
+    }
+}
+
+/* two rows from the ceiling: the frame pulses red */
+.board.tower-board.tower-danger {
+    animation: towerDanger 1s ease-in-out infinite;
+}
+
+@keyframes towerDanger {
+    50% {
+        box-shadow:
+            0 0 0 5px var(--red),
+            0 0 0 8px var(--red-base),
+            var(--panel-shadow);
+    }
+}
+
+/* how close the tallest column is to the ceiling */
+.tower-height-meter {
+    position: relative;
+    width: 14px;
+    border: 3px solid var(--wood-dark);
+    border-radius: var(--radius-pill);
+    background: var(--cream-3);
+    overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(78, 49, 22, 0.25);
+}
+
+.tower-height-fill {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 0;
+    background: var(--green);
+    transition: height 0.3s ease, background 0.3s ease;
+}
+
+.tower-height-meter.danger .tower-height-fill {
+    background: var(--red);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tower-tile.tower-fall,
+    .tower-tile.tower-hint,
+    .board.tower-board.tower-danger {
+        animation: none;
+    }
+    .tower-tile.tower-hint {
+        background: var(--gold);
+    }
 }

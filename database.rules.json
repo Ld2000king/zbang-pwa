@@ -219,6 +219,20 @@
       }
     },
 
+    // מגדל זבאנג (tower.js) - same shape and rules as the two boards above.
+    "leaderboard_tower": {
+      ".read": "auth != null",
+      "$pid": {
+        ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && (data.child('uid').val() === auth.uid || auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2')))",
+        "uid":       { ".validate": "newData.isString() && newData.val() === auth.uid" },
+        "name":      { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "score":     { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "avatarId":  { ".validate": "newData.isString() || newData.isNumber()" },
+        "updatedAt": { ".validate": "newData.isNumber()" },
+        "$other":    { ".validate": false }
+      }
+    },
+
     "pending_requests": {
       // only the admin may LIST/READ the queue or delete from it
       ".read": "auth != null && auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2'",
