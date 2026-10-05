@@ -2701,6 +2701,33 @@ html[data-city="island"] .subtitle {
     color: var(--ink-on-color);
 }
 
+/* Sound-kit shop rows: a round ▶ preview next to the buy / use button */
+.sound-kit-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.sound-preview-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--gold-base);
+    background: var(--gold);
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 3px 0 var(--gold-base);
+    transition: transform 0.06s, box-shadow 0.06s;
+}
+
+.sound-preview-btn:active {
+    transform: translateY(3px);
+    box-shadow: 0 0 0 var(--gold-base);
+}
+
 /* Daily-reward floating button - bottom-LEFT, mirror of the music FAB */
 .daily-fab {
     position: fixed;
