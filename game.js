@@ -237,6 +237,8 @@ let gameState = {
     coinAvatarsGranted: true, // a brand-new player starts with only the free avatars
     musicEnabled: true,  // actual playback still gated on a user gesture, see initMusic()
     soundEnabled: true,  // the chime on every found word (playWordSound)
+    soundKit: 'marimba', // equipped SOUND_KITS id; the rest are bought with diamonds
+    ownedSoundKits: [],
     bestSingleScore: 0,  // personal best on the 1-minute ("quick") board
     bestSingleScorePrecise: 0, // personal best on the 2-minute ("precise") board
     bestTowerScore: 0,   // personal best in מגדל זבאנג (tower.js)
@@ -644,6 +646,8 @@ function loadGameState() {
     if (typeof gameState.coinAvatarsGranted !== 'boolean') grantLegacyCoinAvatars();
     if (typeof gameState.musicEnabled !== 'boolean') gameState.musicEnabled = true;
     if (typeof gameState.soundEnabled !== 'boolean') gameState.soundEnabled = true;
+    if (typeof gameState.soundKit !== 'string') gameState.soundKit = 'marimba';
+    if (!Array.isArray(gameState.ownedSoundKits)) gameState.ownedSoundKits = [];
     if (typeof gameState.bestSingleScore !== 'number') gameState.bestSingleScore = 0;
     if (typeof gameState.bestSingleScorePrecise !== 'number') gameState.bestSingleScorePrecise = 0;
     if (typeof gameState.bestTowerScore !== 'number') gameState.bestTowerScore = 0;
@@ -874,38 +878,266 @@ function updateSettingsUI() {
 }
 
 // ===== Word sounds =====
-// A short synthesized chime (Web Audio, no sound files) on every found word -
-// more notes for bigger words, so a 5-letter find sounds like an event.
+// Synthesized (Web Audio, no sound files). Every found word plays a short run
+// of notes up a major pentatonic scale - more notes for bigger words. Words
+// found within COMBO_WINDOW_MS of each other form a combo: each word starts on
+// the previous word's last note, so a streak climbs like one melody. A combo
+// of 3+ adds a bass line, 5+ adds sparkles, and the end of a combo slides back
+// down and resolves on a chord. Pentatonic means no two notes ever clash.
 // The AudioContext is created lazily: browsers only allow it to start after a
 // user gesture, and a word is always found by a drag or a tap.
-let wordSoundCtx = null;
-const WORD_SOUND_NOTES = [1046.5, 1318.5, 1568.0, 2093.0]; // C6 E6 G6 C7
+let wordSoundCtx = null, wordSoundMaster = null, wordSoundEcho = null;
 
-function playWordSound(points) {
-    if (gameState.soundEnabled === false) return;
+const COMBO_WINDOW_MS = 3500;
+const COMBO_MILESTONES = [3, 5, 8, 12];
+const SOUND_PENTATONIC = [0, 2, 4, 7, 9];
+const SOUND_BASE_HZ = 523.25; // C5
+const SOUND_MAX_STEP = 14;
+const SOUND_BASS_PROGRESSION = [0, -3, -7, -5]; // C, A, F, G under the melody
+const soundCombo = { count: 0, step: 0, lastAt: 0, endTimer: null };
+
+// price of a sound kit other than the free marimba - paid in blue diamonds
+const SOUND_KIT_DIAMOND_COST = 30;
+
+// Each kit voices the same melodies with a different timbre. oct shifts the
+// whole kit (marimba/arcade sit an octave lower so they don't get shrill).
+const SOUND_KITS = [
+    { id: 'marimba', name: 'מרימבה', emoji: '🌴', desc: 'עצי וקופצני - צליל האי', free: true, oct: 0.5,
+      note(f, t, v) {
+          soundVoice(f, t, { dur: 0.3, vol: 0.34 * v, echo: 0.15, attack: 0.004 });
+          soundVoice(f * 4, t, { dur: 0.045, vol: 0.08 * v, attack: 0.002 });
+          soundVoice(f * 2, t, { dur: 0.12, vol: 0.06 * v });
+      },
+      tick(f, t) {
+          soundVoice(f, t, { dur: 0.07, vol: 0.16, attack: 0.003 });
+          soundVoice(f * 4, t, { dur: 0.02, vol: 0.04, attack: 0.002 });
+      } },
+    { id: 'bells', name: 'פעמונים', emoji: '🔔', desc: 'נקי ומנצנץ', oct: 1,
+      note(f, t, v) {
+          soundVoice(f, t, { type: 'triangle', dur: 0.4, vol: 0.2 * v, echo: 0.25 });
+          soundVoice(f * 2, t, { dur: 0.18, vol: 0.05 * v });
+      },
+      tick(f, t) { soundVoice(f, t, { type: 'triangle', dur: 0.09, vol: 0.09 }); } },
+    { id: 'arcade', name: 'ארקייד', emoji: '👾', desc: '8-ביט, משחקי וממכר', oct: 0.5,
+      note(f, t, v) {
+          soundVoice(f, t, { type: 'square', dur: 0.15, vol: 0.07 * v, lp: 4200, echo: 0.12, attack: 0.003 });
+          soundVoice(f, t, { type: 'square', dur: 0.15, vol: 0.04 * v, detune: 14, lp: 4200, attack: 0.003 });
+      },
+      tick(f, t) { soundVoice(f, t, { type: 'square', dur: 0.04, vol: 0.045, lp: 3000, attack: 0.002 }); } },
+    { id: 'crystal', name: 'קריסטל', emoji: '✨', desc: 'חלומי, עם הרבה הד', oct: 1,
+      note(f, t, v) {
+          soundVoice(f, t, { dur: 0.65, vol: 0.17 * v, echo: 0.55 });
+          soundVoice(f, t, { dur: 0.65, vol: 0.1 * v, detune: 9, echo: 0.4 });
+          soundVoice(f * 3, t, { dur: 0.14, vol: 0.035 * v });
+      },
+      tick(f, t) { soundVoice(f * 2, t, { dur: 0.13, vol: 0.06, echo: 0.3 }); } }
+];
+
+function getSoundKit(id) {
+    return SOUND_KITS.find(k => k.id === id) || SOUND_KITS[0];
+}
+
+function isSoundKitOwned(id) {
+    const kit = getSoundKit(id);
+    return kit.free || isAdminAccount() || (gameState.ownedSoundKits || []).includes(kit.id);
+}
+
+// the equipped kit, falling back to the free one if the save names a kit the
+// player doesn't (or no longer) own
+function activeSoundKit() {
+    return isSoundKitOwned(gameState.soundKit) ? getSoundKit(gameState.soundKit) : SOUND_KITS[0];
+}
+
+// Returns the AudioContext ready to schedule on, or null when sounds are off
+// or unsupported. Builds the shared output chain on first use: a compressor
+// (so a busy combo can't clip) and an echo bus that lets notes ring together.
+function soundCtx() {
+    if (gameState.soundEnabled === false) return null;
     const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
+    if (!AC) return null;
+    if (!wordSoundCtx) {
+        wordSoundCtx = new AC();
+        const comp = wordSoundCtx.createDynamicsCompressor();
+        comp.threshold.value = -16;
+        comp.ratio.value = 4;
+        wordSoundMaster = wordSoundCtx.createGain();
+        wordSoundMaster.gain.value = 0.85;
+        wordSoundMaster.connect(comp).connect(wordSoundCtx.destination);
+        wordSoundEcho = wordSoundCtx.createGain();
+        const delay = wordSoundCtx.createDelay(1);
+        delay.delayTime.value = 0.17;
+        const feedback = wordSoundCtx.createGain();
+        feedback.gain.value = 0.33;
+        const lp = wordSoundCtx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 3200;
+        wordSoundEcho.connect(delay);
+        delay.connect(lp);
+        lp.connect(feedback);
+        feedback.connect(delay);
+        lp.connect(wordSoundMaster);
+    }
+    if (wordSoundCtx.state === 'suspended') wordSoundCtx.resume();
+    return wordSoundCtx;
+}
+
+// One enveloped oscillator note. o: { type, dur, vol, attack, bend, detune, lp, echo }
+function soundVoice(f, t, o) {
+    const ctx = wordSoundCtx;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = o.type || 'sine';
+    osc.frequency.setValueAtTime(f, t);
+    if (o.bend) osc.frequency.exponentialRampToValueAtTime(f * o.bend, t + o.dur);
+    if (o.detune) osc.detune.value = o.detune;
+    let node = osc;
+    if (o.lp) {
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = o.lp;
+        osc.connect(filter);
+        node = filter;
+    }
+    node.connect(gain);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(o.vol, t + (o.attack || 0.008));
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + o.dur);
+    gain.connect(wordSoundMaster);
+    if (o.echo) {
+        const send = ctx.createGain();
+        send.gain.value = o.echo;
+        gain.connect(send);
+        send.connect(wordSoundEcho);
+    }
+    osc.start(t);
+    osc.stop(t + o.dur + 0.05);
+}
+
+function soundStepHz(step) {
+    const octave = Math.floor(step / 5);
+    const degree = SOUND_PENTATONIC[((step % 5) + 5) % 5];
+    return SOUND_BASE_HZ * Math.pow(2, (octave * 12 + degree) / 12);
+}
+
+function soundSparkle(t, n) {
+    for (let i = 0; i < n; i++) {
+        const step = 10 + Math.floor(Math.random() * 6);
+        soundVoice(soundStepHz(step) * 2, t + i * 0.045, { dur: 0.12, vol: 0.05, echo: 0.5 });
+    }
+}
+
+// Plays the found-word melody and advances the combo. Returns the combo count
+// (1 = a lone word) so callers can show it; 0 when sounds are off.
+function playWordSound(points) {
+    const now = Date.now();
+    const combo = soundCombo;
+    combo.count = (combo.count > 0 && now - combo.lastAt < COMBO_WINDOW_MS) ? combo.count + 1 : 1;
+    if (combo.count === 1) combo.step = 0;
+    combo.lastAt = now;
+    clearTimeout(combo.endTimer);
+    combo.endTimer = setTimeout(playComboEndSound, COMBO_WINDOW_MS);
+
     try {
-        if (!wordSoundCtx) wordSoundCtx = new AC();
-        if (wordSoundCtx.state === 'suspended') wordSoundCtx.resume();
+        const ctx = soundCtx();
+        if (!ctx) return combo.count;
+        const kit = activeSoundKit();
+        const t = ctx.currentTime + 0.01;
         const noteCount = points >= 500 ? 4 : points >= 250 ? 3 : 2;
-        const start = wordSoundCtx.currentTime + 0.01;
+        const gap = Math.max(0.05, 0.085 - combo.count * 0.004); // a hot combo plays a touch faster
+        const vol = Math.min(1.25, 0.85 + combo.count * 0.05);
         for (let i = 0; i < noteCount; i++) {
-            const t = start + i * 0.075;
-            const osc = wordSoundCtx.createOscillator();
-            const gain = wordSoundCtx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(WORD_SOUND_NOTES[i], t);
-            gain.gain.setValueAtTime(0.0001, t);
-            gain.gain.exponentialRampToValueAtTime(0.22, t + 0.012);
-            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
-            osc.connect(gain).connect(wordSoundCtx.destination);
-            osc.start(t);
-            osc.stop(t + 0.3);
+            kit.note(soundStepHz(Math.min(combo.step + i, SOUND_MAX_STEP)) * kit.oct, t + i * gap, vol);
+        }
+        // the next word starts on this word's last note - that's what makes a
+        // combo sound connected; at the top, drop an octave and keep climbing
+        combo.step += noteCount - 1;
+        if (combo.step >= SOUND_MAX_STEP) combo.step -= 5;
+
+        if (combo.count >= 3) {
+            const bass = SOUND_BASE_HZ / 4 * Math.pow(2, SOUND_BASS_PROGRESSION[combo.count % 4] / 12);
+            soundVoice(bass, t, { type: 'triangle', dur: 0.35, vol: 0.22 });
+        }
+        const after = t + noteCount * gap;
+        if (combo.count >= 5) soundSparkle(after, combo.count >= 8 ? 5 : 3);
+        if (COMBO_MILESTONES.includes(combo.count)) {
+            const top = combo.count >= 8 ? 5 : 0;
+            [0, 2, 4, 5].forEach((s, i) => kit.note(soundStepHz(s + top) * kit.oct, after + 0.05 + i * 0.03, 0.8));
+            soundVoice(SOUND_BASE_HZ / 4, after + 0.05, { type: 'triangle', dur: 0.6, vol: 0.25 });
+            if (combo.count >= 8) soundSparkle(after + 0.2, 6);
         }
     } catch (e) {
         // audio is a nicety - never let it break scoring
     }
+    return combo.count;
+}
+
+// The combo window ran out: slide back down the ladder and, after a real
+// combo, resolve on a chord.
+function playComboEndSound() {
+    const combo = soundCombo;
+    const count = combo.count, step = combo.step;
+    combo.count = 0;
+    combo.step = 0;
+    if (count < 2 || document.hidden) return;
+    try {
+        const ctx = soundCtx();
+        if (!ctx) return;
+        const kit = activeSoundKit();
+        const t = ctx.currentTime + 0.01;
+        let i = 0;
+        for (let s = step; s >= 0; s -= 2, i++) {
+            soundVoice(soundStepHz(s) * kit.oct, t + i * 0.035, { type: 'triangle', dur: 0.1, vol: 0.06 });
+        }
+        if (count >= 3) {
+            [0, 2, 3, 5].forEach(s => kit.note(soundStepHz(s) * kit.oct, t + i * 0.035 + 0.04, 0.55));
+        }
+    } catch (e) { /* audio is a nicety */ }
+}
+
+// A short rising tick for each letter added to a drag - it starts from the
+// current combo's note, so dragging leads into the word's melody.
+function playLetterTick(letterCount) {
+    try {
+        const ctx = soundCtx();
+        if (!ctx) return;
+        const kit = activeSoundKit();
+        const step = Math.min(soundCombo.step + letterCount - 1, SOUND_MAX_STEP);
+        kit.tick(soundStepHz(step) * (kit.oct < 1 ? 1 : kit.oct), ctx.currentTime + 0.005);
+    } catch (e) { /* audio is a nicety */ }
+}
+
+// A soft (not punishing) "bonk" for a too-short or unknown word
+function playMissSound() {
+    try {
+        const ctx = soundCtx();
+        if (!ctx) return;
+        const t = ctx.currentTime + 0.01;
+        soundVoice(330, t, { type: 'square', dur: 0.11, vol: 0.06, lp: 900, bend: 0.85 });
+        soundVoice(247, t + 0.1, { type: 'square', dur: 0.18, vol: 0.06, lp: 800, bend: 0.75 });
+    } catch (e) { /* audio is a nicety */ }
+}
+
+// "tok-tok" for a word that was already found
+function playDupeSound() {
+    try {
+        const ctx = soundCtx();
+        if (!ctx) return;
+        const t = ctx.currentTime + 0.01;
+        soundVoice(784, t, { dur: 0.06, vol: 0.13, attack: 0.003 });
+        soundVoice(784, t + 0.09, { dur: 0.08, vol: 0.08, attack: 0.003 });
+    } catch (e) { /* audio is a nicety */ }
+}
+
+// A quick taste of a kit (shop preview / just equipped), independent of the combo
+function previewSoundKit(id) {
+    try {
+        const ctx = soundCtx();
+        if (!ctx) { showMessage('הצלילים כבויים בהגדרות', 'info'); return; }
+        const kit = getSoundKit(id);
+        const t = ctx.currentTime + 0.01;
+        [0, 1, 2, 3, 4, 5].forEach((s, i) => kit.note(soundStepHz(s) * kit.oct, t + i * 0.075, 1));
+        [0, 2, 4, 5].forEach((s, i) => kit.note(soundStepHz(s) * kit.oct, t + 0.55 + i * 0.03, 0.8));
+    } catch (e) { /* audio is a nicety */ }
 }
 
 // The one real admin identity, the same UID the Security Rules bind to (see
@@ -1357,6 +1589,7 @@ function detectTileAt(x, y) {
     if (!dragPath.includes(idx)) {
         dragPath.push(idx);
         updateSelection();
+        playLetterTick(dragPath.length);
     }
 }
 
@@ -1368,10 +1601,13 @@ function endDrag() {
     const word = normalizeFinals(dragPath.map(i => currentGame.board[i]).join(''));
 
     if (word.length < 3) {
+        if (word.length > 1) playMissSound(); // a single tap isn't a miss
         showBoardMessage('קצר מדי!', 'error', 800);
     } else if (HEBREW_DICTIONARY[word] === undefined) {
+        playMissSound();
         showWordSubmitToast(word);
     } else if (currentGame.foundWords.has(word)) {
+        playDupeSound();
         showBoardMessage('כבר מצאת!', 'warning', 850);
     } else {
         const points = HEBREW_DICTIONARY[word];
@@ -1488,8 +1724,9 @@ function zabangCheerPhrase(points) {
 }
 
 function showZabangCheer(points) {
-    playWordSound(points);
-    showBoardMessage(`${zabangCheerPhrase(points)} +${points}`, 'cheer', 1100);
+    const combo = playWordSound(points);
+    const comboTag = combo >= 3 ? ` 🔥 קומבו x${combo}` : '';
+    showBoardMessage(`${zabangCheerPhrase(points)} +${points}${comboTag}`, 'cheer', 1100);
 }
 
 const CELEBRATION_COLORS = ['#00e5ff', '#39ff6a', '#ffd60a', '#ff2ec4', '#8b5cf6', '#ff3b5c'];
@@ -2357,6 +2594,36 @@ function renderShop() {
             `<button class="buy-btn diamond-buy-btn" onclick="buyAvatar('${a.id}')">${icon('diamond', 'coin-icon')} ${AVATAR_DIAMOND_COST}</button>`)).join('')}</div>`;
     }
 
+    // --- Sound kits (marimba is free; the rest cost diamonds) ---
+    html += `<h3 class="shop-section-title">ערכות צליל ${icon('diamond', 'coin-icon')}</h3>`;
+    html += `<p class="shop-note">הצליל של כל מילה שמוצאים והקומבו. לחצו ▶ כדי לשמוע לפני שקונים</p>`;
+    const equippedKit = activeSoundKit().id;
+    SOUND_KITS.forEach(k => {
+        let action;
+        if (k.id === equippedKit) {
+            action = `<span class="shop-owned">${icon('check')} בשימוש</span>`;
+        } else if (isSoundKitOwned(k.id)) {
+            action = `<button class="buy-btn green-buy-btn" onclick="equipSoundKit('${k.id}')">השתמש</button>`;
+        } else {
+            action = `<button class="buy-btn diamond-buy-btn" onclick="buySoundKit('${k.id}')">${icon('diamond', 'coin-icon')} ${SOUND_KIT_DIAMOND_COST} קנה</button>`;
+        }
+        html += `
+            <div class="shop-item">
+                <div class="item-info item-info-avatar">
+                    <div class="pack-emoji">${k.emoji}</div>
+                    <div>
+                        <h3>${k.name}</h3>
+                        <p>${k.desc}</p>
+                    </div>
+                </div>
+                <div class="sound-kit-actions">
+                    <button class="sound-preview-btn" onclick="previewSoundKit('${k.id}')" title="השמע" aria-label="השמע את ${k.name}">▶</button>
+                    ${action}
+                </div>
+            </div>
+        `;
+    });
+
     shopEl.innerHTML = html;
 }
 
@@ -2369,6 +2636,33 @@ function shopAvatarCard(a, buyButton) {
             <h3>${a.name}</h3>
             ${isAvatarOwned(a.id) ? `<span class="shop-owned">${icon('check')} בבעלותך</span>` : buyButton}
         </div>`;
+}
+
+function equipSoundKit(id) {
+    if (!isSoundKitOwned(id)) return;
+    gameState.soundKit = id;
+    saveGameState();
+    renderShop();
+    previewSoundKit(id);
+}
+
+function buySoundKit(id) {
+    const kit = getSoundKit(id);
+    if (isSoundKitOwned(id)) { equipSoundKit(id); return; }
+    if (!isAdminAccount() && gameState.diamonds < SOUND_KIT_DIAMOND_COST) {
+        showMessage('אין מספיק יהלומים!', 'error');
+        return;
+    }
+    showConfirm(`האם אתה בטוח? קניית ערכת הצליל "${kit.name}" ב-${SOUND_KIT_DIAMOND_COST} יהלומים`, () => {
+        if (!isAdminAccount()) gameState.diamonds -= SOUND_KIT_DIAMOND_COST;
+        if (!gameState.ownedSoundKits.includes(id)) gameState.ownedSoundKits.push(id);
+        gameState.soundKit = id; // a fresh purchase is put to use right away
+        saveGameState();
+        updateHomeUI();
+        renderShop();
+        previewSoundKit(id);
+        showMessage(`ערכת הצליל "${kit.name}" נוספה ונבחרה!`, 'success');
+    });
 }
 
 // Mock rewarded video: a 5s countdown "loading" the ad, then grant coins.
