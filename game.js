@@ -1208,17 +1208,18 @@ function updateHomeUI() {
     const shopDiamondsEl = document.getElementById('shopDiamonds');
     if (shopDiamondsEl) shopDiamondsEl.textContent = diamondsTxt;
     document.getElementById('homeAvatar').innerHTML = getOwnAvatarMarkup();
-    const arena = currentArena();
+    // the banner shows the theme the player is dressed in, not the arena
+    // their trophies put them in - picking מזכרת בתיה at 3000 trophies
+    // shows מזכרת בתיה
+    const arena = themeInfo(preferredThemeIndex());
     const arenaEl = document.getElementById('homeArena');
     if (arenaEl) arenaEl.textContent = arena.name;
     const taglineEl = document.getElementById('homeCityTagline');
     if (taglineEl) taglineEl.textContent = arena.tagline;
     const motifEl = document.getElementById('homeCityMotif');
     if (motifEl) motifEl.textContent = arena.motif;
-    // the banner's tint follows the active theme, so it matches the rest of
-    // the screen even when the player picked a different city by hand
     const bannerEl = document.querySelector('.arena-banner');
-    if (bannerEl) bannerEl.style.setProperty('--banner-accent', themeInfo(preferredThemeIndex()).accent);
+    if (bannerEl) bannerEl.style.setProperty('--banner-accent', arena.accent);
 }
 
 // Arena picker screen - swipeable card carousel over ARENAS, replacing the
