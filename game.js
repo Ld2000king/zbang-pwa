@@ -2802,7 +2802,7 @@ function renderProfile() {
         <p><strong>יהלומים:</strong> ${isAdminAccount() ? '∞' : gameState.diamonds}</p>
         <p><strong>גביעים:</strong> ${trophiesText()}</p>
         <p><strong>רצף התחברות:</strong> ${gameState.dailyStreak || 0} ימים</p>
-        <p><strong>עיר:</strong> ${currentArena().motif} ${currentArena().name} — ${currentArena().tagline}</p>
+        <p><strong>עיר:</strong> ${themeInfo(preferredThemeIndex()).motif} ${themeInfo(preferredThemeIndex()).name} — ${themeInfo(preferredThemeIndex()).tagline}</p>
         <p><strong>ניקוד כולל:</strong> ${gameState.totalScore}</p>
         <p><strong>שיא משחק מהיר (דקה):</strong> ${gameState.bestSingleScore || 0}</p>
         <p><strong>שיא משחק מדוייק (2 דקות):</strong> ${gameState.bestSingleScorePrecise || 0}</p>
