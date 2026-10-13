@@ -2330,8 +2330,10 @@ html[data-city="island"] .subtitle {
     position: relative;
     width: 100%;
     max-width: 360px;
-    height: 66vh;
-    max-height: 560px;
+    /* sized by its content, but never taller than the screen - a long menu
+       scrolls inside .menu-links instead of spilling past the frame */
+    max-height: calc(100vh - 40px);
+    max-height: calc(100dvh - 40px);
     background: var(--cream);
     border: 4px solid var(--wood-dark);
     border-radius: var(--radius-card);
@@ -2389,8 +2391,13 @@ html[data-city="island"] .subtitle {
 .menu-links {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
     width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    /* room for the buttons' bevel shadow, which the scroll box would clip */
+    padding: 2px 2px 8px;
 }
 
 .menu-link {
