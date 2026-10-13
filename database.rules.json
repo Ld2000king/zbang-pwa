@@ -65,14 +65,23 @@
     ".write": false,
 
     "rooms": {
+      // the admin may list every room - only to clean up abandoned ones
+      // (admin.js, cleanupOldRooms)
+      ".read": "auth != null && auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2'",
+
       "$code": {
         ".read": "auth != null",
 
         // $code-level writes are only: initial creation (room doesn't exist
-        // yet) or deletion by the host (cleanup / onDisconnect). All in-match
-        // mutations happen on deeper leaves, governed by the field rules below,
-        // so the host never needs blanket write over the whole room object.
-        ".write": "auth != null && (!data.exists() || (root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid && !newData.exists()))",
+        // yet) or deletion. All in-match mutations happen on deeper leaves,
+        // governed by the field rules below, so the host never needs blanket
+        // write over the whole room object. A room may be deleted by:
+        //   * its host (cleanup / onDisconnect);
+        //   * any signed-in player once the room is abandoned - no players
+        //     left, or its host has disconnected - so the last guest out can
+        //     close it (shouldDeleteRoomOnLeave in multiplayer.js);
+        //   * the admin (cleaning up rooms nobody closed).
+        ".write": "auth != null && (!data.exists() || (!newData.exists() && (root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid || !data.child('players').exists() || data.child('players').child(data.child('hostId').val()).child('connected').val() === false || auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2')))",
 
         // ---- room-scalar fields ----
         // Host-only after creation (creation is granted by the $code rule's
