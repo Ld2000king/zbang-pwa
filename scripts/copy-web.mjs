@@ -29,6 +29,7 @@ const EXCLUDE = new Set([
     'capacitor.config.json',
     'capacitor.config.ts',
     'database.rules.json', // server-side Firebase rules, not a web asset
+    'docs',                // store-submission notes, not part of the app
     '.DS_Store',
     'Thumbs.db'
 ]);
