@@ -2534,9 +2534,19 @@ function renderShop() {
     const shopEl = document.getElementById('shopItems');
     let html = '';
 
-    // --- Get coins: rewarded ad + (mock) coin packages ---
-    html += `<h3 class="shop-section-title">קבל מטבעות</h3>`;
-    html += `
+    // --- Get coins: rewarded ad (web only) + coin packages ---
+    // The app-store build shows neither the mock video (no real ad plays, so
+    // a reviewer sees a feature that doesn't do what it says) nor a coin
+    // package the store hasn't loaded yet (a button that can only answer
+    // "not available"). Packages appear once StoreKit / Play Billing returns
+    // the real product with its localized price.
+    const nativeApp = isNativeApp();
+    const packages = nativeApp
+        ? COIN_PACKAGES.filter(p => p.livePrice && typeof Purchases !== 'undefined' && Purchases.active && Purchases.active.canBuy(p.sku))
+        : COIN_PACKAGES;
+    if (!nativeApp || packages.length) html += `<h3 class="shop-section-title">קבל מטבעות</h3>`;
+    if (!nativeApp) {
+        html += `
         <div class="shop-item ad-card">
             <div class="item-info item-info-avatar">
                 <div class="pack-emoji">🎬</div>
@@ -2548,7 +2558,8 @@ function renderShop() {
             <button class="buy-btn green-buy-btn" onclick="watchAdForCoins()">${icon('coin', 'coin-icon')} +${AD_REWARD_COINS}</button>
         </div>
     `;
-    COIN_PACKAGES.forEach(p => {
+    }
+    packages.forEach(p => {
         html += `
             <div class="shop-item pack-card">
                 <div class="item-info item-info-avatar">
@@ -2667,7 +2678,9 @@ function buySoundKit(id) {
 }
 
 // Mock rewarded video: a 5s countdown "loading" the ad, then grant coins.
+// Web/PWA only - renderShop() never offers it inside the app-store build.
 function watchAdForCoins() {
+    if (isNativeApp()) return;
     const overlay = document.getElementById('adOverlay');
     const countEl = document.getElementById('adCountdown');
     if (!overlay || !countEl) return;
@@ -2691,12 +2704,22 @@ function watchAdForCoins() {
     }, 1000);
 }
 
-// Fallback shown when a real purchase isn't possible right now: the web/PWA
-// build (no purchase system exists outside a native app), or a native build
-// whose store hasn't finished loading products yet. See buyCoinPackage() in
-// purchases.js, which calls this itself when it can't place a real order.
+// Fallback shown when a real purchase isn't possible right now. On the
+// web/PWA build there is no purchase system at all; inside the app it means
+// the store didn't answer (offline, or the product failed to load) - so no
+// "coming soon" and no mention of other platforms there. See
+// buyCoinPackage() in purchases.js, which calls this when it can't order.
 function showIapComingSoon() {
+    if (isNativeApp()) {
+        showInfoModal('הרכישה לא זמינה כרגע. בדקו את החיבור לאינטרנט ונסו שוב.');
+        return;
+    }
     showInfoModal('החנות הפיננסית תהיה זמינה עם השקת האפליקציה הרשמית ב-Google Play וב-App Store!');
+}
+
+// True inside the Capacitor iOS/Android app, false on the web/PWA build.
+function isNativeApp() {
+    return typeof Capacitor !== 'undefined' && !!Capacitor.isNativePlatform && Capacitor.isNativePlatform();
 }
 
 // Generic single-button info modal.

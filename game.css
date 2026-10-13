@@ -390,6 +390,7 @@ html[data-city="island"] .subtitle {
 .blue-btn   { --btn-face: var(--blue);   --btn-base: var(--blue-base);   background: var(--btn-face); color: var(--ink-on-color); }
 .orange-btn { --btn-face: var(--orange); --btn-base: var(--orange-base); background: var(--btn-face); color: var(--ink-on-color); }
 .purple-btn { --btn-face: var(--purple); --btn-base: var(--purple-base); background: var(--btn-face); color: var(--ink-on-color); }
+.red-btn    { --btn-face: var(--red);    --btn-base: var(--red-base);    background: var(--btn-face); color: var(--ink-on-color); }
 
 /* Gold is the one light face, so its text is brown ink with a light lift
    instead of white with a brown one */
@@ -3273,6 +3274,10 @@ html[data-city="island"] .subtitle {
 .cloud-link-btn:hover { color: var(--neon-cyan); }
 
 .cloud-link-btn:active { transform: scale(0.95); }
+
+/* "delete account" - findable, but quiet and red so it's never hit by accident */
+.cloud-delete-btn { color: var(--red-base); }
+.cloud-delete-btn:hover { color: var(--red); }
 
 /* Fixed bottom tab bar - shown only on the 4 main hub screens (home/shop/
    profile/leaderboard), toggled via body.has-bottom-nav in showScreen()/
