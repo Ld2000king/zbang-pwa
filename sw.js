@@ -17,7 +17,7 @@
 // index.html to match); activate() purges all older caches.
 // ============================================================================
 
-const VERSION = 'v34';
+const VERSION = 'v35';
 const APP_CACHE = 'zabang-app-' + VERSION;       // same-origin shell + code
 const RUNTIME_CACHE = 'zabang-runtime-' + VERSION; // fonts + CDN statics
 
@@ -68,6 +68,7 @@ const PRECACHE = [
     './manifest.json',
     './privacy.html',
     './terms.html',
+    './support.html',
     './icon-192.png',
     './icon-512.png',
     './apple-touch-icon.png'
