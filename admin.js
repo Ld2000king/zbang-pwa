@@ -30,6 +30,7 @@ function adminAvailable() {
 }
 
 let adminPendingRef = null;
+let adminReportsRef = null;
 
 function adminSignIn() {
     if (!adminAvailable()) return;
@@ -105,10 +106,63 @@ function attachAdminListener() {
         console.error('Failed to read pending requests (check Security Rules / admin UID):', err);
         showMessage('אין הרשאה לקרוא בקשות - בדוק את חוקי ה-Security Rules', 'error');
     });
+    // player reports (moderation.js) - App Store guideline 1.2 expects them
+    // to be looked at and acted on promptly
+    adminReportsRef = db.ref('reports');
+    adminReportsRef.on('value', snap => renderReports(snap.val() || {}),
+        err => console.error('Failed to read reports (deploy the reports rule):', err));
 }
 
 function detachAdminListener() {
     if (adminPendingRef) { adminPendingRef.off(); adminPendingRef = null; }
+    if (adminReportsRef) { adminReportsRef.off(); adminReportsRef = null; }
+}
+
+function renderReports(reports) {
+    const el = document.getElementById('adminReportsList');
+    if (!el) return;
+    const entries = Object.entries(reports).sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0));
+    if (entries.length === 0) {
+        el.innerHTML = '<p class="no-subs">אין דיווחים פתוחים</p>';
+        return;
+    }
+    el.innerHTML = '';
+    entries.forEach(([id, r]) => {
+        const where = r.source === 'leaderboard' ? 'טבלת מובילים' : 'מרובה משתתפים';
+        const when = r.timestamp ? new Date(r.timestamp).toLocaleString('he-IL') : '';
+        const photo = (r.photo && /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(r.photo))
+            ? `<img src="${r.photo}" alt="" class="report-photo">` : '';
+        const row = document.createElement('div');
+        row.className = 'submission-row';
+        row.innerHTML = `
+            <span class="sub-word">${photo}${escapeHtml(r.reportedName || '')} <small>(${where}, ${when})</small></span>
+            <span class="sub-actions">
+                ${r.lbPath && r.lbId ? `<button class="reject-btn report-remove-btn">${icon('close')} הסר מהטבלה</button>` : ''}
+                <button class="approve-btn report-close-btn">${icon('check')} סגור</button>
+            </span>`;
+        const removeBtn = row.querySelector('.report-remove-btn');
+        if (removeBtn) removeBtn.onclick = () => removeReportedLeaderboardRow(id, r);
+        row.querySelector('.report-close-btn').onclick = () => closeReport(id);
+        el.appendChild(row);
+    });
+}
+
+function closeReport(id) {
+    db.ref('reports/' + id).remove()
+        .then(() => showMessage('הדיווח נסגר', 'info'))
+        .catch(err => showMessage('שגיאה: ' + err.message, 'error'));
+}
+
+// Pulls the reported row off its leaderboard, then closes the report.
+function removeReportedLeaderboardRow(id, r) {
+    const paths = ['leaderboard', 'leaderboard_precise', 'leaderboard_tower'];
+    if (!paths.includes(r.lbPath) || !/^[A-Za-z0-9_-]+$/.test(r.lbId || '')) return;
+    showConfirm(`להסיר את "${r.reportedName || ''}" מטבלת המובילים?`, () => {
+        db.ref(r.lbPath + '/' + r.lbId).remove()
+            .then(() => db.ref('reports/' + id).remove())
+            .then(() => showMessage('השורה הוסרה מהטבלה', 'success'))
+            .catch(err => showMessage('שגיאה: ' + err.message, 'error'));
+    });
 }
 
 function renderPendingRequests(requests) {
