@@ -14,8 +14,8 @@
     <link rel="icon" type="image/png" href="icon-192.png">
     <!-- ?v= must match VERSION in sw.js - bump both on every release, so a
          fresh index.html can never be paired with an older cached script -->
-    <link rel="stylesheet" href="style.css?v=35">
-    <link rel="stylesheet" href="game.css?v=35">
+    <link rel="stylesheet" href="style.css?v=36">
+    <link rel="stylesheet" href="game.css?v=36">
 </head>
 <body>
     <div id="app">
@@ -750,24 +750,28 @@
         </div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
-    <script src="firebase-config.js?v=35"></script>
-    <script src="avatars.js?v=35"></script>
-    <script src="icons.js?v=35"></script>
-    <script src="themes.js?v=35"></script>
-    <script src="game.js?v=35"></script>
-    <script src="words.js?v=35"></script>
-    <script src="words-bulk.js?v=35"></script>
-    <script src="tower.js?v=35"></script>
-    <script src="multiplayer.js?v=35"></script>
-    <script src="cloudsave.js?v=35"></script>
-    <script src="admin.js?v=35"></script>
-    <script src="moderation.js?v=35"></script>
-    <script src="native.js?v=35"></script>
-    <script src="purchases.js?v=35"></script>
-    <script src="purchases-native.js?v=35"></script>
+    <!-- Firebase compat SDK 10.13.2, bundled in vendor/ instead of loaded from
+         gstatic.com: works the moment the app opens even with no connection,
+         and the native app never downloads code at run time. To upgrade,
+         replace the three files with the same names from a newer version. -->
+    <script src="vendor/firebase-app-compat.js"></script>
+    <script src="vendor/firebase-database-compat.js"></script>
+    <script src="vendor/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js?v=36"></script>
+    <script src="avatars.js?v=36"></script>
+    <script src="icons.js?v=36"></script>
+    <script src="themes.js?v=36"></script>
+    <script src="game.js?v=36"></script>
+    <script src="words.js?v=36"></script>
+    <script src="words-bulk.js?v=36"></script>
+    <script src="tower.js?v=36"></script>
+    <script src="multiplayer.js?v=36"></script>
+    <script src="cloudsave.js?v=36"></script>
+    <script src="admin.js?v=36"></script>
+    <script src="moderation.js?v=36"></script>
+    <script src="native.js?v=36"></script>
+    <script src="purchases.js?v=36"></script>
+    <script src="purchases-native.js?v=36"></script>
     <script>
         // Register service worker for offline play & installability, but NOT
         // inside the Capacitor native shell: there the webview already bundles
