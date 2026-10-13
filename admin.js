@@ -10,7 +10,11 @@
 // admin UID (a real signed-in Firebase Auth account), set via adminSignIn().
 // ============================================================================
 
+// Never inside the iOS / Android app: the store builds ship without any
+// admin screen (a hidden sign-in a reviewer could stumble on). Admin work -
+// word approvals, the word bank, player reports - is done from the website.
 function isAdminUser() {
+    if (typeof isNativeApp === 'function' && isNativeApp()) return false;
     return gameState.playerName.trim().toLowerCase() === 'ld2000';
 }
 
