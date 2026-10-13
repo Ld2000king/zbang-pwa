@@ -39,6 +39,7 @@ const BACK_OVERLAYS = [
         if (cancel && cancel.style.display !== 'none') closeNameModal();
     }],
     ['cloudAuthOverlay', () => closeCloudAuthModal()],
+    ['playerActionsOverlay', () => closePlayerActions()], // report / block menu (moderation.js)
     ['pauseOverlay', () => resumeGame()],
     ['dailyRewardOverlay', () => closeDailyReward()],
     ['menuOverlay', () => closeMenu()],
