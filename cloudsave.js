@@ -227,6 +227,52 @@ function cloudSignOut() {
     }).catch(err => showMessage(cloudAuthErrorText(err), 'error'));
 }
 
+// Permanently deletes the account and everything stored under it in the
+// cloud - the cloud save and this player's leaderboard rows (App Store
+// guideline 5.1.1(v): an app that lets people create an account must let them
+// delete it from inside the app). Firebase only lets a user delete themselves
+// right after signing in, so the password is asked for again first. Progress
+// on THIS device stays, and play continues anonymously like before the
+// account existed.
+function cloudDeleteAccount(password) {
+    if (!cloudSaveActive() || blockedByActiveMatch()) return;
+    const user = auth.currentUser;
+    const cred = firebase.auth.EmailAuthProvider.credential(user.email, password);
+    clearTimeout(CloudSave.timer);
+    CloudSave.awaitingRestoreChoice = true; // nothing may re-create the save mid-delete
+    user.reauthenticateWithCredential(cred).then(() => {
+        const removals = [cloudSaveRef().remove()];
+        if (gameState.playerId) {
+            ['leaderboard', 'leaderboard_precise', 'leaderboard_tower'].forEach(path => {
+                const ref = db.ref(path + '/' + gameState.playerId);
+                // only rows this account owns - the rules refuse anyone else's
+                removals.push(ref.once('value').then(snap => {
+                    if (snap.exists() && snap.child('uid').val() === user.uid) return ref.remove();
+                }).catch(err => console.warn('Leaderboard row not removed:', path, err)));
+            });
+        }
+        return Promise.all(removals);
+    }).then(() => user.delete())
+        .then(() => auth.signInAnonymously())
+        .then(() => {
+            CloudSave.awaitingRestoreChoice = false;
+            CloudSave.lastSyncedAt = 0;
+            closeCloudAuthModal();
+            refreshAfterCloudAuthChange();
+            showMessage('החשבון והגיבוי בענן נמחקו', 'success');
+        })
+        .catch(err => {
+            CloudSave.awaitingRestoreChoice = false;
+            showMessage(cloudAuthErrorText(err), 'error');
+        });
+}
+
+function confirmDeleteAccount() {
+    if (!cloudSaveActive() || blockedByActiveMatch()) return;
+    showConfirm('למחוק את החשבון לצמיתות? הגיבוי בענן והשיאים שלך בטבלת המובילים יימחקו ואי אפשר לשחזר אותם. ההתקדמות במכשיר הזה תישאר.',
+        () => openCloudAuthModal('delete'));
+}
+
 function cloudResetPassword() {
     if (!cloudSaveAvailable()) return;
     const email = (document.getElementById('cloudEmailInput') || {}).value || cloudSaveEmail();
@@ -259,20 +305,28 @@ function cloudAuthErrorText(err) {
 
 // ---- UI ----------------------------------------------------------------------
 
-let cloudAuthMode = 'create'; // 'create' | 'signin'
+let cloudAuthMode = 'create'; // 'create' | 'signin' | 'delete'
 
 function openCloudAuthModal(mode) {
-    cloudAuthMode = mode === 'signin' ? 'signin' : 'create';
+    cloudAuthMode = (mode === 'signin' || mode === 'delete') ? mode : 'create';
     const overlay = document.getElementById('cloudAuthOverlay');
     if (!overlay) return;
+    const deleting = cloudAuthMode === 'delete';
     document.getElementById('cloudAuthTitle').textContent =
-        cloudAuthMode === 'signin' ? 'כניסה לחשבון קיים' : 'יצירת חשבון לגיבוי';
-    document.getElementById('cloudAuthSubmitBtn').textContent =
-        cloudAuthMode === 'signin' ? 'כניסה' : 'צור חשבון';
-    document.getElementById('cloudEmailInput').value = '';
+        deleting ? 'הכנס סיסמה כדי למחוק את החשבון'
+        : cloudAuthMode === 'signin' ? 'כניסה לחשבון קיים' : 'יצירת חשבון לגיבוי';
+    const submit = document.getElementById('cloudAuthSubmitBtn');
+    submit.textContent = deleting ? 'מחק חשבון' : cloudAuthMode === 'signin' ? 'כניסה' : 'צור חשבון';
+    submit.classList.toggle('red-btn', deleting);
+    submit.classList.toggle('blue-btn', !deleting);
+    const emailInput = document.getElementById('cloudEmailInput');
+    emailInput.value = deleting ? cloudSaveEmail() : '';
+    emailInput.disabled = deleting;
     document.getElementById('cloudPasswordInput').value = '';
+    const reset = document.getElementById('cloudResetBtn');
+    if (reset) reset.style.display = deleting ? 'none' : '';
     overlay.style.display = 'flex';
-    document.getElementById('cloudEmailInput').focus();
+    document.getElementById(deleting ? 'cloudPasswordInput' : 'cloudEmailInput').focus();
 }
 
 function closeCloudAuthModal() {
@@ -283,6 +337,11 @@ function closeCloudAuthModal() {
 function submitCloudAuth() {
     const email = (document.getElementById('cloudEmailInput').value || '').trim();
     const password = document.getElementById('cloudPasswordInput').value || '';
+    if (cloudAuthMode === 'delete') {
+        if (!password) { showMessage('צריך סיסמה', 'warning'); return; }
+        cloudDeleteAccount(password);
+        return;
+    }
     if (!email || !password) { showMessage('צריך אימייל וסיסמה', 'warning'); return; }
     if (cloudAuthMode === 'signin') cloudSignIn(email, password);
     else cloudCreateAccount(email, password);
@@ -313,7 +372,8 @@ function renderCloudSaveSection() {
         section.innerHTML = `<h3>${icon('trophy')} גיבוי בענן</h3>
             <p class="mp-hint">מחובר כ-<strong>${escapeHtml(cloudSaveEmail())}</strong>. ${synced}.</p>
             <button class="btn-large blue-btn" onclick="pushCloudSave()">גבה עכשיו</button>
-            <button class="close-modal-btn" onclick="cloudSignOut()">התנתקות</button>`;
+            <button class="close-modal-btn" onclick="cloudSignOut()">התנתקות</button>
+            <button class="cloud-link-btn cloud-delete-btn" onclick="confirmDeleteAccount()">מחיקת החשבון</button>`;
         return;
     }
 
