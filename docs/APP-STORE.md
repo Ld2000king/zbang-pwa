@@ -224,7 +224,7 @@ The app contains no ads and no third-party tracking.
 
 ## 8. מה עוד צריך ביום ההגשה (לא טקסט)
 
-- [ ] **צילומי מסך** - iPhone 6.9" (1320×2868). 3 עד 10 תמונות. מומלץ: לוח משחק באמצע מילה, באטל רויאל, מולטיפלייר, מגדל זבאנג, מסך ערים, חנות.
+- [x] **צילומי מסך** - מוכנים ב-`store/screenshots/iphone-6.9/` (7 תמונות, 1320×2868): בית, משחק מהיר, באטל רויאל, מולטיפלייר, מגדל זבאנג, ערים, חנות. גוררים אותם ל-App Store Connect ← iPhone 6.9" Display. אפל משתמשת בהם גם לגדלים הקטנים יותר.
 - [ ] **App Icon 1024×1024** - נוצר מ-`assets/` עם `npm run generate:native-assets` (הקובץ `store/app-store-icon-1024.png` כבר קיים).
 - [ ] **Build** - מועלה מ-Xcode (Product ← Archive).
 - [ ] **Export Compliance** - כבר מוגדר ב-Info.plist (`ITSAppUsesNonExemptEncryption = NO`), השאלה לא תופיע.
