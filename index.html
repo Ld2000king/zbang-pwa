@@ -14,8 +14,8 @@
     <link rel="icon" type="image/png" href="icon-192.png">
     <!-- ?v= must match VERSION in sw.js - bump both on every release, so a
          fresh index.html can never be paired with an older cached script -->
-    <link rel="stylesheet" href="style.css?v=32">
-    <link rel="stylesheet" href="game.css?v=32">
+    <link rel="stylesheet" href="style.css?v=33">
+    <link rel="stylesheet" href="game.css?v=33">
 </head>
 <body>
     <div id="app">
@@ -483,6 +483,9 @@
                      progress. Rendered by renderCloudSaveSection() in cloudsave.js -->
                 <div class="submissions-section" id="cloudSaveSection"></div>
 
+                <!-- Players this one blocked, with unblock buttons - renderBlockedSection() in moderation.js -->
+                <div class="submissions-section" id="blockedSection" style="display:none;"></div>
+
                 <div class="submissions-section">
                     <h3><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15 V3"/><path d="M7 8 L12 3 L17 8"/><path d="M4 15 V19 H20 V15"/></svg></span> מילים שנשלחו לבדיקה</h3>
                     <div id="submissionsList"></div>
@@ -498,6 +501,8 @@
                     <div id="adminSignedIn" style="display:none;">
                         <p class="mp-hint">בקשות ממתינות מכל השחקנים:</p>
                         <div id="adminPendingList"></div>
+                        <p class="mp-hint">דיווחים על שחקנים:</p>
+                        <div id="adminReportsList"></div>
                         <button class="btn-large blue-btn" onclick="openWordBank('profileScreen')">מאגר המילים - צפייה ועריכה</button>
                         <button class="close-modal-btn" onclick="adminSignOut()">התנתקות מאדמין</button>
                     </div>
@@ -634,10 +639,21 @@
         <div class="confirm-box">
             <p id="nameModalTitle">איך קוראים לך?</p>
             <input type="text" id="nameInput" class="name-input" maxlength="20" autocomplete="off" placeholder="השם שלך">
+            <p class="name-terms-note">השם מוצג לשחקנים אחרים. בשימוש במשחק את/ה מסכים/ה <a href="terms.html" target="_blank" rel="noopener">לתנאי השימוש</a> - אין סובלנות לשמות, תמונות או התנהגות פוגעניים.</p>
             <div class="confirm-actions">
                 <button class="btn-large blue-btn" id="nameSaveBtn" onclick="saveNameFromModal()">שמור</button>
                 <button class="close-modal-btn" id="nameCancelBtn" onclick="closeNameModal()">ביטול</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Report / block another player (moderation.js) -->
+    <div id="playerActionsOverlay" class="confirm-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="playerActionsName" onclick="if(event.target===this)closePlayerActions()">
+        <div class="confirm-box">
+            <p id="playerActionsName"></p>
+            <button class="btn-large red-btn" onclick="playerActionsReport()">דווח על תוכן פוגעני</button>
+            <button class="btn-large blue-btn" id="playerBlockBtn" onclick="playerActionsBlock()">חסום שחקן</button>
+            <button class="close-modal-btn" onclick="closePlayerActions()">ביטול</button>
         </div>
     </div>
 
@@ -729,6 +745,7 @@
                 <button class="menu-link" onclick="closeMenu(); showAccessibilityStatement();">נגישות / Accessibility</button>
                 <a class="menu-link" href="privacy.html" target="_blank" rel="noopener">פרטיות / Privacy</a>
                 <a class="menu-link" href="terms.html" target="_blank" rel="noopener">תנאים / Terms</a>
+                <a class="menu-link" href="mailto:liavdimri12@gmail.com">צור קשר / Contact</a>
             </div>
         </div>
     </div>
@@ -736,18 +753,19 @@
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
-    <script src="firebase-config.js?v=32"></script>
-    <script src="avatars.js?v=32"></script>
-    <script src="icons.js?v=32"></script>
-    <script src="themes.js?v=32"></script>
-    <script src="game.js?v=32"></script>
-    <script src="words.js?v=32"></script>
-    <script src="words-bulk.js?v=32"></script>
-    <script src="tower.js?v=32"></script>
-    <script src="multiplayer.js?v=32"></script>
-    <script src="cloudsave.js?v=32"></script>
-    <script src="admin.js?v=32"></script>
-    <script src="iap.js?v=32"></script>
+    <script src="firebase-config.js?v=33"></script>
+    <script src="avatars.js?v=33"></script>
+    <script src="icons.js?v=33"></script>
+    <script src="themes.js?v=33"></script>
+    <script src="game.js?v=33"></script>
+    <script src="words.js?v=33"></script>
+    <script src="words-bulk.js?v=33"></script>
+    <script src="tower.js?v=33"></script>
+    <script src="multiplayer.js?v=33"></script>
+    <script src="cloudsave.js?v=33"></script>
+    <script src="admin.js?v=33"></script>
+    <script src="moderation.js?v=33"></script>
+    <script src="iap.js?v=33"></script>
     <script>
         // Register service worker for offline play & installability, but NOT
         // inside the Capacitor native shell: there the webview already bundles

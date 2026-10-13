@@ -17,7 +17,7 @@
 // index.html to match); activate() purges all older caches.
 // ============================================================================
 
-const VERSION = 'v32';
+const VERSION = 'v33';
 const APP_CACHE = 'zabang-app-' + VERSION;       // same-origin shell + code
 const RUNTIME_CACHE = 'zabang-runtime-' + VERSION; // fonts + CDN statics
 
@@ -61,6 +61,7 @@ const PRECACHE = [
     './firebase-config.js',
     './multiplayer.js',
     './admin.js',
+    './moderation.js',
     './manifest.json',
     './privacy.html',
     './terms.html',
