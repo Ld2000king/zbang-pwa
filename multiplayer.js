@@ -1037,6 +1037,22 @@ function handleBattleFreeze() {
 
 // ---- leave / cleanup -------------------------------------------------------
 
+// Whether leaving should delete the whole room rather than just my slot:
+//   * the host leaving a lobby (nobody can start the match without them), or
+//     leaving with nobody else still connected;
+//   * a guest who is the last one connected after the host already left.
+// The rules (database.rules.json, rooms/$code) allow exactly these deletes.
+function shouldDeleteRoomOnLeave(room) {
+    if (!room) return false;
+    const players = room.players || {};
+    const othersConnected = Object.entries(players)
+        .some(([pid, p]) => pid !== MP.playerId && p.connected !== false);
+    if (MP.isHost) return room.status === 'waiting' || !othersConnected;
+    const host = players[room.hostId];
+    const hostGone = !host || host.connected === false;
+    return hostGone && !othersConnected;
+}
+
 function leaveMultiplayerRoom() {
     stopMultiplayerTimer();
     // defensive matchmaking cleanup - a safe no-op for friends-mode games,
@@ -1049,7 +1065,12 @@ function leaveMultiplayerRoom() {
         db.ref('rooms/' + MP.roomCode).onDisconnect().cancel();
     }
     if (MP.roomRef) { MP.roomRef.off(); MP.roomRef = null; }
-    if (MP.roomCode && MP.playerId && db) {
+    if (MP.roomCode && MP.playerId && db && shouldDeleteRoomOnLeave(MP.room)) {
+        // last one out closes the room, so empty rooms don't pile up in the
+        // database (anyone still in it - a guest in the host's lobby - gets
+        // "החדר נסגר" and goes home)
+        db.ref('rooms/' + MP.roomCode).remove().catch(() => {});
+    } else if (MP.roomCode && MP.playerId && db) {
         // if we're still just waiting in the lobby, remove our slot entirely
         if (MP.room && MP.room.status === 'waiting') {
             db.ref('rooms/' + MP.roomCode + '/players/' + MP.playerId).remove().catch(() => {});
