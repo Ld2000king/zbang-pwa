@@ -122,6 +122,32 @@ function detachAdminListener() {
     if (adminReportsRef) { adminReportsRef.off(); adminReportsRef = null; }
 }
 
+// Deletes rooms nobody closed: older than 12 hours, or with nobody
+// connected and older than 30 minutes. The app already closes a room when
+// the last player leaves (multiplayer.js), so this only catches crashes,
+// closed tabs and dropped connections. Admin-only (rooms .read rule).
+function cleanupOldRooms() {
+    if (!db || !isSignedInAsAdmin()) return;
+    const btn = document.getElementById('adminCleanupRoomsBtn');
+    if (btn) btn.disabled = true;
+    const now = Date.now();
+    db.ref('rooms').once('value').then(snap => {
+        const rooms = snap.val() || {};
+        const stale = Object.entries(rooms).filter(([, r]) => {
+            const age = now - ((r && r.createdAt) || 0);
+            const anyoneHere = Object.values((r && r.players) || {}).some(p => p && p.connected !== false);
+            return age > 12 * 3600 * 1000 || (!anyoneHere && age > 30 * 60 * 1000);
+        }).map(([code]) => code);
+        if (!stale.length) return 0;
+        const updates = {};
+        stale.forEach(code => { updates[code] = null; });
+        return db.ref('rooms').update(updates).then(() => stale.length);
+    }).then(count => {
+        showMessage(count ? `נמחקו ${count} חדרים ישנים` : 'אין חדרים ישנים למחיקה', count ? 'success' : 'info');
+    }).catch(err => showMessage('שגיאה: ' + err.message, 'error'))
+      .finally(() => { if (btn) btn.disabled = false; });
+}
+
 function renderReports(reports) {
     const el = document.getElementById('adminReportsList');
     if (!el) return;

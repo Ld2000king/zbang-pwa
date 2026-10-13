@@ -14,8 +14,8 @@
     <link rel="icon" type="image/png" href="icon-192.png">
     <!-- ?v= must match VERSION in sw.js - bump both on every release, so a
          fresh index.html can never be paired with an older cached script -->
-    <link rel="stylesheet" href="style.css?v=36">
-    <link rel="stylesheet" href="game.css?v=36">
+    <link rel="stylesheet" href="style.css?v=37">
+    <link rel="stylesheet" href="game.css?v=37">
 </head>
 <body>
     <div id="app">
@@ -503,6 +503,7 @@
                         <div id="adminPendingList"></div>
                         <p class="mp-hint">דיווחים על שחקנים:</p>
                         <div id="adminReportsList"></div>
+                        <button class="btn-large blue-btn" id="adminCleanupRoomsBtn" onclick="cleanupOldRooms()">ניקוי חדרים ישנים</button>
                         <button class="btn-large blue-btn" onclick="openWordBank('profileScreen')">מאגר המילים - צפייה ועריכה</button>
                         <button class="close-modal-btn" onclick="adminSignOut()">התנתקות מאדמין</button>
                     </div>
@@ -757,19 +758,19 @@
     <script src="vendor/firebase-app-compat.js"></script>
     <script src="vendor/firebase-database-compat.js"></script>
     <script src="vendor/firebase-auth-compat.js"></script>
-    <script src="firebase-config.js?v=36"></script>
-    <script src="avatars.js?v=36"></script>
-    <script src="icons.js?v=36"></script>
-    <script src="themes.js?v=36"></script>
-    <script src="game.js?v=36"></script>
-    <script src="words.js?v=36"></script>
-    <script src="words-bulk.js?v=36"></script>
-    <script src="tower.js?v=36"></script>
-    <script src="multiplayer.js?v=36"></script>
-    <script src="cloudsave.js?v=36"></script>
-    <script src="admin.js?v=36"></script>
-    <script src="moderation.js?v=36"></script>
-    <script src="iap.js?v=36"></script>
+    <script src="firebase-config.js?v=37"></script>
+    <script src="avatars.js?v=37"></script>
+    <script src="icons.js?v=37"></script>
+    <script src="themes.js?v=37"></script>
+    <script src="game.js?v=37"></script>
+    <script src="words.js?v=37"></script>
+    <script src="words-bulk.js?v=37"></script>
+    <script src="tower.js?v=37"></script>
+    <script src="multiplayer.js?v=37"></script>
+    <script src="cloudsave.js?v=37"></script>
+    <script src="admin.js?v=37"></script>
+    <script src="moderation.js?v=37"></script>
+    <script src="iap.js?v=37"></script>
     <script>
         // Register service worker for offline play & installability, but NOT
         // inside the Capacitor native shell: there the webview already bundles
