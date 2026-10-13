@@ -669,6 +669,8 @@ function loadGameState() {
     // - guards a consumable against being credited twice if its receipt gets
     // redelivered before finish() completes (e.g. the app closing mid-purchase)
     if (!Array.isArray(gameState.grantedIapTransactions)) gameState.grantedIapTransactions = [];
+    // players this one blocked: [{ uid, name }] (moderation.js)
+    if (!Array.isArray(gameState.blockedPlayers)) gameState.blockedPlayers = [];
     if (!gameState.inventory) gameState.inventory = {};
     // drop what the removed background-skins feature left behind, so an older
     // save stops carrying (and re-serializing) two fields nothing reads
@@ -2101,7 +2103,8 @@ function renderLeaderboard() {
     db.ref(path).once('value').then(snap => {
         if (requestedMode !== currentLeaderboardMode) return; // tab switched while loading
         const rows = Object.entries(snap.val() || {})
-            .map(([id, e]) => ({ id, name: e.name || 'שחקן', score: e.score || 0, avatarId: e.avatarId }))
+            .map(([id, e]) => ({ id, uid: e.uid, name: e.name || 'שחקן', score: e.score || 0, avatarId: e.avatarId }))
+            .filter(r => typeof isPlayerBlocked !== 'function' || !isPlayerBlocked(r.uid))
             .sort((a, b) => b.score - a.score)
             .slice(0, 20);
         leaderboardRows = rows;
@@ -2122,12 +2125,15 @@ function renderLeaderboard() {
             const editBtn = canEdit
                 ? `<button class="rename-btn lb-edit" onclick="renameLeaderboardEntry('${r.id}')" title="ערוך שם" aria-label="ערוך שם">${icon('pencil')}</button>`
                 : '';
+            const shownName = (!isMe && typeof safePlayerName === 'function') ? safePlayerName(r.name, r.uid) : r.name;
+            const moreBtn = (!isMe && r.uid && typeof playerActionsButton === 'function')
+                ? playerActionsButton(`openPlayerActionsFromLeaderboard('${r.id}')`) : '';
             return `<div class="lb-row${isMe ? ' lb-me' : ''}">
                 <span class="lb-rank">${rank}</span>
                 <span class="lb-avatar">${avatar}</span>
-                <span class="lb-name">${escapeHtml(r.name)}${isMe ? ' (אתה)' : ''}</span>
+                <span class="lb-name">${escapeHtml(shownName)}${isMe ? ' (אתה)' : ''}</span>
                 <span class="lb-score">${r.score}</span>
-                ${editBtn}
+                ${editBtn}${moreBtn}
             </div>`;
         }).join('');
     }).catch(err => {
@@ -2836,6 +2842,7 @@ function renderProfile() {
     renderAvatarPicker();
     renderSubmissions();
     if (typeof renderCloudSaveSection === 'function') renderCloudSaveSection();
+    if (typeof renderBlockedSection === 'function') renderBlockedSection();
 }
 
 // The "theme" row on the profile - shows the active city theme and opens
@@ -2885,6 +2892,11 @@ function saveNameFromModal() {
     // shared with other real players over Firebase in multiplayer mode
     const cleaned = raw.trim().slice(0, 20).replace(/[<>&"']/g, '');
     if (!cleaned) { showMessage('שם לא תקין', 'error'); return; }
+    // the name is shown to other players - see moderation.js
+    if (typeof isNameAllowed === 'function' && !isNameAllowed(cleaned)) {
+        showMessage('השם הזה לא מותר - בחר שם אחר', 'error');
+        return;
+    }
     gameState.playerName = cleaned;
     saveGameState();
     updateHomeUI();

@@ -103,7 +103,8 @@ function syncMyAvatarToRoom() {
 // one, else their preset avatarId.
 function avatarMarkupForPlayer(pid, p) {
     if (pid === MP.playerId) return getOwnAvatarMarkup();
-    if (p.photoData) return `<img src="${escapeHtml(p.photoData)}" alt="" class="custom-avatar-img">`;
+    // a blocked player's photo is never shown (moderation.js)
+    if (p.photoData && !isPlayerBlocked(p.uid)) return `<img src="${escapeHtml(p.photoData)}" alt="" class="custom-avatar-img">`;
     return getAvatarById(p.avatarId).svg;
 }
 
@@ -318,7 +319,8 @@ function renderLobby(room) {
         const isSelf = pid === MP.playerId;
         listEl.innerHTML += `<div class="player-status${isSelf ? ' self' : ''}">
             <div class="status-avatar">${avatarMarkupForPlayer(pid, p)}</div>
-            <span>${escapeHtml(p.name)}${pid === room.hostId ? ' 👑' : ''}</span>
+            <span>${escapeHtml(isSelf ? p.name : safePlayerName(p.name, p.uid))}${pid === room.hostId ? ' 👑' : ''}</span>
+            ${isSelf ? '' : playerActionsButton(`openPlayerActionsFromRoom('${pid}')`)}
         </div>`;
     });
 
@@ -410,7 +412,16 @@ async function findWaitingOpponent() {
     const candidates = Object.entries(all)
         .filter(([pid]) => pid !== MP.playerId)
         .sort((a, b) => (a[1].createdAt || 0) - (b[1].createdAt || 0));
-    return candidates.length ? { playerId: candidates[0][0], roomCode: candidates[0][1].roomCode } : null;
+    // skip a waiting room that holds a player I blocked (moderation.js) -
+    // checked BEFORE claiming their ticket, so they keep waiting for someone else
+    for (const [pid, ticket] of candidates.slice(0, 5)) {
+        if (blockedPlayers().length) {
+            const players = (await db.ref('rooms/' + ticket.roomCode + '/players').once('value')).val() || {};
+            if (Object.values(players).some(p => isPlayerBlocked(p.uid))) continue;
+        }
+        return { playerId: pid, roomCode: ticket.roomCode };
+    }
+    return null;
 }
 
 // atomically claim someone's queue ticket so two seekers can never both
@@ -659,14 +670,15 @@ function endMultiplayerRound() {
 // ---- round-end & final screens ---------------------------------------------
 
 function buildStandings(room) {
-    return Object.values(room.players || {})
-        .map(p => ({ name: p.name, score: p.score || 0 }))
+    return Object.entries(room.players || {})
+        .map(([pid, p]) => ({ name: pid === MP.playerId ? p.name : safePlayerName(p.name, p.uid), score: p.score || 0 }))
         .sort((a, b) => b.score - a.score);
 }
 
 function showMultiplayerRoundEnd(room) {
     const standings = buildStandings(room);
-    const loserName = (room.players[room.loserId] || {}).name || '';
+    const loser = room.players[room.loserId];
+    const loserName = !loser ? '' : room.loserId === MP.playerId ? loser.name : safePlayerName(loser.name, loser.uid);
     // reuse the existing round-end UI renderer
     showRoundEnd(standings, loserName);
 
@@ -721,7 +733,8 @@ function showMultiplayerResult(room) {
             if (isRandom1v1) awardTrophies(20, 'ניצחון');
         }
     } else {
-        const winnerName = (room.players[room.winnerId] || {}).name || 'שחקן אחר';
+        const winner = room.players[room.winnerId];
+        const winnerName = winner ? safePlayerName(winner.name, winner.uid) : 'שחקן אחר';
         title.innerHTML = `${icon('close')} המשחק נגמר ${icon('close')}`;
         subtitle.textContent = `${winnerName} ניצח/ה את המשחק`;
         rewards.innerHTML = '';
@@ -823,7 +836,8 @@ function updateMultiplayerUI(room) {
         const dim = p.connected === false ? ' style="opacity:.5"' : '';
         statusEl.innerHTML += `<div class="player-status${isSelf ? ' self' : ''}"${dim}>
             <div class="status-avatar">${avatarMarkupForPlayer(pid, p)}</div>
-            <span>${isSelf ? 'אתה' : escapeHtml(p.name)}</span><span>${p.score || 0}</span>
+            <span>${isSelf ? 'אתה' : escapeHtml(safePlayerName(p.name, p.uid))}</span><span>${p.score || 0}</span>
+            ${isSelf ? '' : playerActionsButton(`openPlayerActionsFromRoom('${pid}')`)}
         </div>`;
     });
     // keep my own big score display in sync with the server value
