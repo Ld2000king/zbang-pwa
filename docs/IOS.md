@@ -57,35 +57,39 @@ cd ~/Desktop
 git clone https://github.com/Ld2000king/zbang-pwa.git
 cd zbang-pwa
 git checkout IOS
-npm install
+npm ci
 ```
 
 > **תמיד לעבוד על הענף `IOS`.** לבדוק עם `git branch` - הכוכבית צריכה להיות ליד IOS.
 
+> `npm ci` מתקין בדיוק את הגרסאות שב-`package-lock.json` (בלי לשנות אותו). אזהרה על `sharp@0.32.6` ו-`allowScripts` היא תקינה - הקובץ המהודר של sharp כבר כלול בחבילה, ואין צורך לאשר את הסקריפט.
+
 ---
 
-## שלב 3 - יצירת פרויקט ה-iOS (פעם אחת)
+## שלב 3 - פרויקט ה-iOS (✅ כבר נוצר ונשמר בגיט)
 
+תיקיית `ios/` כבר קיימת בענף `IOS`, כולל כל התיקונים שלמטה. **לא להריץ `npm run add:ios` שוב.** אחרי `git clone` מספיק:
 ```bash
-npm run add:ios
+npm run sync
 ```
-הפקודה הזו:
-- בונה את קבצי המשחק לתיקייה `www/`
-- יוצרת את תיקיית `ios/` עם פרויקט Xcode
-- מתקינה את פלאגין הרכישות (CocoaPods)
-- מוסיפה ל-Info.plist אוטומטית את הרשאות המצלמה והגלריה ואת `ITSAppUsesNonExemptEncryption = NO`
+הפקודה בונה את `www/`, מעתיקה אותו לפרויקט, מריצה `pod install` ומוודאת את ההרשאות ב-Info.plist. בסוף צריך לראות `patch-ios-plist: Info.plist already has every key.`
 
-בסוף צריך לראות: `patch-ios-plist: added NSCameraUsageDescription, NSPhotoLibraryUsageDescription, ITSAppUsesNonExemptEncryption`
+**מה תוקן בפרויקט אחרי `add:ios`** (Capacitor 6 נוצר עם תבנית ישנה מ-Xcode 27). אם אי פעם יוצרים את `ios/` מחדש - צריך לחזור על שלושתם:
 
-**אייקון ומסך פתיחה:**
+1. **מינימום iOS 15** - Xcode 27 לא בונה ל-iOS 13 (`deployment target ... 13.0 ... range ... 15.0 to 27.0`):
+   - `ios/App/Podfile`: `platform :ios, '15.0'`, ובתוך `post_install` (אחרי `assertDeploymentTarget`) לולאה שקובעת `IPHONEOS_DEPLOYMENT_TARGET = '15.0'` לכל יעדי ה-Pods.
+   - `ios/App/App.xcodeproj/project.pbxproj`: כל `IPHONEOS_DEPLOYMENT_TARGET = 13.0` ← `15.0`.
+   - ואז `cd ios/App && pod install`.
+2. **Scene Lifecycle** - אפליקציה שנבנית עם ה-SDK של iOS 27 בלי UIScene לא עולה (מסך שחור, `EXC_BREAKPOINT` ב-AppDelegate, ובלוג: `UIScene life cycle is required for apps built with this SDK`):
+   - `Info.plist`: `UIApplicationSceneManifest` עם Scene אחד - `UISceneDelegateClassName = $(PRODUCT_MODULE_NAME).SceneDelegate`, `UISceneStoryboardFile = Main`.
+   - `AppDelegate.swift`: מחלקה `SceneDelegate` בסוף הקובץ, שמעבירה קישורים חיצוניים (URL / Universal Links) ל-`ApplicationDelegateProxy` של Capacitor.
+3. **בלי פס כחול בתחתית** - ב-`capacitor.config.json`: `"ios": { "contentInset": "never" }`. עם `"always"` ה-WebView מתכווץ, ומתחת לתפריט התחתון נחשף פס בצבע `backgroundColor` (`#7FC4E8`). ה-CSS כבר מטפל באזורי ה-notch וה-Home Indicator עם `env(safe-area-inset-*)`.
+
+**אייקון ומסך פתיחה** (✅ כבר נוצרו ונשמרו). אם משנים את התמונות בתיקיית `assets/`:
 ```bash
-npm run generate:native-assets
+npx capacitor-assets generate --ios --assetPath assets
 ```
-
-**לשמור את פרויקט ה-iOS בגיט** (כדי שההגדרות של Xcode לא ילכו לאיבוד):
-```bash
-git add ios && git commit -m "Add the iOS project" && git push
-```
+חשוב לכתוב `--ios` - בלעדיו הכלי עלול לגעת גם בקבצי האתר. האייקון יוצא 1024×1024 בלי שקיפות, כמו שאפל דורשת.
 
 ---
 
@@ -96,28 +100,42 @@ npm run open:ios
 ```
 Xcode נפתח. בצד שמאל ללחוץ על **App** (הכחול, למעלה), ואז ב-TARGETS לבחור **App**.
 
-**לשונית Signing & Capabilities:**
-- [ ] **Automatically manage signing** - מסומן
+**לשונית Signing & Capabilities** (צריך חשבון מפתח - שלב 0):
+- [x] **Automatically manage signing** - מסומן
 - [ ] **Team** - לבחור את החשבון שלך. אם לא מופיע: Xcode ← Settings ← Accounts ← "+" ← Apple ID.
-- [ ] **Bundle Identifier** - חייב להיות `com.zabang.royale`
+- [x] **Bundle Identifier** - `com.zabang.royale`
 - [ ] **+ Capability** (למעלה משמאל) ← לחפש **In-App Purchase** ← דאבל-קליק
 
-**לשונית General:**
-- [ ] **Display Name** - `זבאנג רויאל` (השם שמופיע מתחת לאייקון באייפון. אם משאירים ריק - יופיע "Zabang Royale")
-- [ ] **Version** - `1.0`
-- [ ] **Build** - `1` (בכל העלאה חדשה להעלות ב-1: 2, 3, 4...)
-- [ ] **Supported Destinations** - להשאיר רק **iPhone** (למחוק iPad עם "-"). כך אפל לא תבדוק את האפליקציה באייפד.
-- [ ] **Minimum Deployments** - להשאיר כמו שהוא (Capacitor 6 = iOS 13 ומעלה)
-- [ ] **Device Orientation** - לסמן רק **Portrait**
+**לשונית General** (✅ כבר הוגדר ונשמר בגיט - רק לוודא):
+- [x] **Display Name** - `זבאנג רויאל` (השם שמופיע מתחת לאייקון באייפון)
+- [x] **Version** - `1.0`
+- [x] **Build** - `1` (בכל העלאה חדשה להעלות ב-1: 2, 3, 4...)
+- [x] **Supported Destinations** - רק **iPhone**. כך אפל לא תבדוק את האפליקציה באייפד.
+- [x] **Minimum Deployments** - **iOS 15.0** (לא להוריד - ראו שלב 3)
+- [x] **Device Orientation** - רק **Portrait**
 
-אחרי השינויים:
+אחרי השינויים (Team ו-In-App Purchase):
 ```bash
-git add ios && git commit -m "Xcode: signing, in-app purchase, iPhone only" && git push
+git add ios && git commit -m "Xcode: signing team and in-app purchase" && git push
 ```
 
 ---
 
-## שלב 5 - הרצה על האייפון שלך
+## שלב 5 - הרצה בסימולטור ועל האייפון שלך
+
+**סימולטור (חינם, בלי חשבון מפתח):**
+1. `npm run open:ios` - נפתח `ios/App/App.xcworkspace` (תמיד ה-workspace, לא `App.xcodeproj`).
+2. ב-Xcode למעלה, ליד ▶, לבחור **iPhone 18 Pro** תחת iOS Simulators.
+3. ▶ (או ⌘R). הסימולטור נפתח לבד והמשחק עולה.
+
+בנייה לסימולטור מהטרמינל, בלי Xcode ובלי חתימה (לבדיקה מהירה שהכול נבנה):
+```bash
+cd ios/App
+xcodebuild -workspace App.xcworkspace -scheme App -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
+```
+צריך לראות `** BUILD SUCCEEDED **`. אזהרות `deprecated` מ-Capacitor (`WKProcessPool`, `UTType...`) תקינות.
+
+**האייפון שלך:**
 
 1. לחבר את האייפון בכבל ולאשר "Trust This Computer" באייפון.
 2. באייפון: **הגדרות ← פרטיות ואבטחה ← מצב מפתח (Developer Mode)** ← להפעיל ← האייפון יופעל מחדש.
@@ -125,7 +143,7 @@ git add ios && git commit -m "Xcode: signing, in-app purchase, iPhone only" && g
 4. ללחוץ **▶** (או ⌘R).
 5. בפעם הראשונה האייפון יחסום את האפליקציה: **הגדרות ← כללי ← ניהול VPN והתקנים** ← ללחוץ על החשבון שלך ← **אמון**. ואז ▶ שוב.
 
-> אפשר גם בסימולטור (לבחור "iPhone 16 Pro Max" במקום האייפון), אבל רכישות ומצלמה נבדקות רק על מכשיר אמיתי.
+> בסימולטור אין מצלמה ואין רכישות אמיתיות - אותן בודקים רק על מכשיר אמיתי.
 
 ---
 
@@ -218,3 +236,36 @@ npm run sync
 | `Archive` אפור / לא זמין | לבחור למעלה **Any iOS Device** ולא סימולטור |
 | קריסה ב"צלם תמונה" | `npm run patch:ios` ואז ▶ שוב (חסרה הרשאת מצלמה ב-Info.plist) |
 | שינויים מ-Windows לא מופיעים | `git pull && npm run sync` (בלי sync הקבצים החדשים לא נכנסים לאפליקציה) |
+| `deployment target ... 13.0 ... range ... 15.0 to 27.0` | מינימום iOS 15 ב-Podfile וב-project.pbxproj, ואז `pod install` (שלב 3, סעיף 1) |
+| מסך שחור + `EXC_BREAKPOINT` ב-AppDelegate.swift | חסר Scene Lifecycle (שלב 3, סעיף 2). לוודא שב-Info.plist יש `UIApplicationSceneManifest` |
+| פס תכלת מתחת לתפריט התחתון | `"contentInset": "never"` ב-`capacitor.config.json`, ואז `npm run sync` (שלב 3, סעיף 3) |
+| אזהרת `sharp@0.32.6` / `allowScripts` ב-npm | תקין, לא צריך לעשות כלום (שלב 2) |
+
+---
+
+## מצב הבדיקות (14.10.2026, סימולטור iPhone 18 Pro, iOS 27, Xcode 27)
+
+**עברו - נבדקו בפועל בסימולטור:**
+- [x] בנייה נקייה (`clean build`) - בלי שגיאות
+- [x] התקנה חדשה: מסך "ברוכים הבאים", שמירת שם, מעבר לבית - בלי קריסות ובלי שגיאות JavaScript בלוג
+- [x] משחק מהיר, משחק מדויק, באטל רויאל (קל) - הלוח עולה, הטיימר רץ, מילה נספרת, מסך סיום מופיע
+- [x] בית, חנות, פרופיל, דירוג - בלי גלילה אופקית, התפריט התחתון צמוד לתחתית
+- [x] שמירת נתונים - נשמרים אחרי מעבר לרקע ואחרי סגירה מלאה ופתיחה מחדש
+- [x] Firebase - חיבור והתחברות אנונימית; טבלת הדירוג נטענת (קריאה בלבד)
+- [x] 22 תמונות האווטאר נטענות
+- [x] עם השם `ld2000` אין אזור אדמין; אין "צפה בסרטון" בחנות
+- [x] אייקון זבאנג, מסך פתיחה, והשם "זבאנג רויאל" מתחת לאייקון
+- [x] אין פס כחול בתחתית; תגיות "במלאי" וערכות הצליל בחנות לא נחתכות
+
+**פתוחות - עוד לא נבדקו:**
+- [ ] מולטיפלייר בין שני מכשירים (חדר עם קוד + משחק אקראי)
+- [ ] מצלמה וגלריה לתמונת פרופיל - באייפון אמיתי
+- [ ] גיבוי בענן: יצירת חשבון, התנתקות, כניסה ומחיקת חשבון
+- [ ] דיווח וחסימה של שחקן (⋯ בטבלת הדירוג)
+- [ ] גרירת אצבע אמיתית על הלוח (בבדיקה האוטומטית הקלט הופעל מהקוד), וקפיצת גלילה (bounce) בסוף המסך
+- [ ] מגדל זבאנג - משחק מלא (נבדק רק שהלוח עולה והיציאה עובדת)
+- [ ] תפריט ☰: פרטיות, תנאים, תמיכה, וקישור חיצוני שנפתח ב-Safari
+- [ ] רכישות Sandbox (שלב 7)
+- [ ] **באג אפשרי:** בבאטל רויאל, שנייה אחרי מילה, הכרטיס "אתה" בפס השחקנים העליון הראה 0 בזמן ש"הניקוד שלך" הראה 100 (במסך סיום הסיבוב הניקוד היה נכון). לא נחקר - אולי הפס מתעדכן רק בקצב הבוטים
+
+**לפני הפרסום הבא של גרסת האתר:** ב-`game.css` יש שינוי (תיקון החנות), ולכן צריך להעלות את `VERSION` ב-`sw.js` מ-v37 ל-v38, ואת ה-`?v=` שב-`index.html` בהתאם. אחרת מי שכבר טען את האתר ימשיך לקבל את ה-CSS הישן.
