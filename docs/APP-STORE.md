@@ -211,8 +211,10 @@ The app is free and contains no in-app purchases, no ads and no third-party trac
 
 ## 8. מה עוד צריך ביום ההגשה (לא טקסט)
 
-- [x] **צילומי מסך** - מוכנים ב-`store/screenshots/iphone-6.9/` (1320×2868). בגרסה 1.0 מעלים **רק 6** - `01-home` עד `06-cities` (בית, משחק מהיר, באטל רויאל, מולטיפלייר, מגדל זבאנג, ערים). גוררים אותם ל-App Store Connect ← iPhone 6.9" Display. אפל משתמשת בהם גם לגדלים הקטנים יותר.
-  **לא להעלות את `07-shop.png`** - הוא מציג חבילות מטבעות בכסף אמיתי שלא קיימות בגרסה 1.0 (שמור לעדכון שיפעיל רכישות, סעיף 9).
+- [x] **צילומי מסך** - ✅ הועלו (15.10.2026): 6 תמונות ב-`store/screenshots/iphone-6.3/`, **1206×2622**, PNG בלי שקיפות - `01-home` עד `06-cities` (בית, משחק מהיר, באטל רויאל, מולטיפלייר, מגדל זבאנג, ערים). מקומן ב-App Store Connect ← **iPhone 6.3" Display** (אצל אפל: iPhone with Dynamic Island - medium display) - זו הקטגוריה **החובה**, ואפל מקטינה ממנה לשאר הגדלים.
+  - צולמו בסימולטור **iPhone 18 Pro** מתוך המשחק האמיתי: `xcrun simctl io <device> screenshot --mask=ignored`, ואז הסרת ערוץ השקיפות (האטום לגמרי) - אפל דוחה PNG עם alpha. בלי חיתוך ובלי שינוי גודל.
+  - הסט הישן ב-`store/screenshots/iphone-6.9/` (1320×2868) נשאר לעיון: הוא שייך לקטגוריה **large display**, שאינה חובה, ולכן נדחה בקטגוריה 6.3" עם "File dimensions are invalid". מסך המולטיפלייר בסט החדש הוא תפריט החדרים (משחק חי היה כותב ל-Firebase).
+  - **לא להעלות את `iphone-6.9/07-shop.png`** - הוא מציג חבילות מטבעות בכסף אמיתי שלא קיימות בגרסה 1.0 (שמור לעדכון שיפעיל רכישות, סעיף 9).
 - [ ] **App Icon 1024×1024** - נוצר מ-`assets/` עם `npm run generate:native-assets` (הקובץ `store/app-store-icon-1024.png` כבר קיים).
 - [ ] **Build** - מועלה מ-Xcode (Product ← Archive).
 - [ ] **Export Compliance** - כבר מוגדר ב-Info.plist (`ITSAppUsesNonExemptEncryption = NO`), השאלה לא תופיע.
@@ -230,7 +232,7 @@ The app is free and contains no in-app purchases, no ads and no third-party trac
    - **סעיף 5 (Review Notes):** להחזיר את השורה על "קבל מטבעות" ולהוריד את "no in-app purchases".
    - **סעיף 6 (פרטיות):** להוסיף `Purchases → Purchase History | כן | App Functionality | Yes | No | מזהי עסקאות נשמרים כדי לא לזכות פעמיים`.
    - **סעיף 7 (דירוג גיל):** `In-App Purchases` ← Yes.
-   - **סעיף 8:** להעלות גם את `07-shop.png` (רק אם המחירים זהים לטבלה), ולסמן את המוצרים בעמוד הגרסה ← In-App Purchases.
+   - **סעיף 8:** להוסיף צילום של החנות עם החבילות - לצלם חדש ב-1206×2622 (iPhone 18 Pro, כמו שאר הסט), כי `iphone-6.9/07-shop.png` הוא 1320×2868 ולא ייכנס לקטגוריה 6.3". ולסמן את המוצרים בעמוד הגרסה ← In-App Purchases.
 
 ### המוצרים
 

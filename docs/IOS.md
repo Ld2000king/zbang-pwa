@@ -1,7 +1,7 @@
 # מדריך: מהמקבוק החדש ועד הגשה ל-App Store
 
 כל השלבים לפי הסדר. כל פקודה מריצים ב-**Terminal** של המק (⌘+רווח ← "Terminal").
-הטקסטים להגשה נמצאים ב-[APP-STORE.md](APP-STORE.md), וצילומי המסך ב-`store/screenshots/iphone-6.9/`.
+הטקסטים להגשה נמצאים ב-[APP-STORE.md](APP-STORE.md), וצילומי המסך ב-`store/screenshots/iphone-6.3/` (1206×2622 - הסט שהועלה; הסט הישן `iphone-6.9/` נשאר לעיון).
 
 > אם משהו נתקע או מופיעה שגיאה - להעתיק את ההודעה ולשלוח ל-Claude. התיקונים בקוד נעשים ב-Windows, ובמק רק מושכים אותם (שלב 9).
 
@@ -188,7 +188,7 @@ xcodebuild -workspace App.xcworkspace -scheme App -sdk iphonesimulator -configur
 **TestFlight (מומלץ לפני הגשה):** TestFlight ← Internal Testing ← להוסיף את עצמך ← להתקין את אפליקציית TestFlight באייפון ← לבדוק שוב את שלב 6.
 
 **הגשה לבדיקה:** App Store Connect ← האפליקציה ← גרסה 1.0, ולמלא לפי APP-STORE.md:
-- [ ] צילומי מסך - לגרור את **6** התמונות `01-home` עד `06-cities` מ-`store/screenshots/iphone-6.9/` ל-**iPhone 6.9" Display** (**לא** את `07-shop` - הוא מציג רכישות שלא קיימות ב-1.0)
+- [x] צילומי מסך - ✅ הועלו: **6** התמונות `01-home` עד `06-cities` מ-`store/screenshots/iphone-6.3/` (1206×2622) ל-**iPhone 6.3" Display** - הקטגוריה החובה. תמונות 1320×2868 (`iphone-6.9/`) נדחות שם עם "File dimensions are invalid" (פרטים: APP-STORE.md סעיף 8)
 - [ ] Promotional Text, Description, Keywords, Support URL, Marketing URL
 - [ ] **Build** ← לבחור את הגרסה שהועלתה
 - [ ] **App Review Information** ← פרטי קשר + חשבון בדיקה + Notes
@@ -280,7 +280,7 @@ npm run sync
       - [ ] רכישה עוברת (בלי חיוב אמיתי) והמטבעות נכנסים
       - [ ] ביטול באמצע - בלי הודעת שגיאה
       - [ ] סגירה ופתיחה - המטבעות לא נזקפים פעמיים
-4. לעדכן בחזרה את APP-STORE.md (סעיף 9 מפרט מה) ואת שלב 8 כאן: לסמן את המוצרים בעמוד הגרסה, ולהעלות גם את `07-shop.png`.
+4. לעדכן בחזרה את APP-STORE.md (סעיף 9 מפרט מה) ואת שלב 8 כאן: לסמן את המוצרים בעמוד הגרסה, ולהוסיף צילום חנות חדש ב-1206×2622 (ראו APP-STORE.md סעיף 9).
 
 | בעיה | פתרון |
 |---|---|
