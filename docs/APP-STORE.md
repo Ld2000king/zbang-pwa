@@ -1,6 +1,9 @@
 # App Store Connect - טקסטים להגשה
 
-כל מה שצריך להעתיק ל-App Store Connect, מוכן מראש. לפי הקוד בענף `IOS` (גרסת אתר v35).
+כל מה שצריך להעתיק ל-App Store Connect, מוכן מראש. לפי הקוד בענף `IOS` (גרסת אתר v37).
+
+> **גרסה 1.0 - חינמית לגמרי: בלי רכישות בכסף אמיתי ובלי פרסומות.** הקוד של הרכישות נשאר באפליקציה אבל לא פעיל: בלי מוצרים ב-App Store Connect, החנות לא מציגה את "קבל מטבעות". כל מה שצריך כדי להפעיל רכישות בעדכון עתידי נמצא בסעיף 9.
+
 שפה ראשית מומלצת: **עברית**. אפשר להוסיף לוקליזציה באנגלית (App Information ← Localizations) עם הטקסטים באנגלית.
 
 ---
@@ -128,23 +131,8 @@ hebrew,word game,words,letters,puzzle,word search,multiplayer,friends,vocabulary
 
 ## 4. רכישות בתוך האפליקציה (In-App Purchases)
 
-שלושה מוצרים מסוג **Consumable**. ה-Product ID חייב להיות **בדיוק** כמו כאן (הקוד מחפש אותו).
-
-| Reference Name | Product ID | מחיר מומלץ | Display Name (עברית) | Description (עברית, עד 45 תווים) |
-|---|---|---|---|---|
-| Coins Small | `com.zabang.royale.coins.small` | ₪4.90 | שק מטבעות | 500 מטבעות לקניית עזרים ודמויות |
-| Coins Medium | `com.zabang.royale.coins.medium` | ₪9.90 | תיבת אוצר | 1,200 מטבעות לקניית עזרים ודמויות |
-| Coins Large | `com.zabang.royale.coins.large` | ₪19.90 | אוצר ענק | 3,000 מטבעות לקניית עזרים ודמויות |
-
-**באנגלית:** Bag of Coins / Treasure Chest / Huge Treasure - "500 / 1,200 / 3,000 coins for power-ups and characters".
-
-**Review Note לכל מוצר** (אותו טקסט לשלושה):
-```
-Coins are added to the player's balance right after purchase. Find them in the Shop tab (bottom bar) under "קבל מטבעות" (Get coins).
-```
-**Review Screenshot לכל מוצר:** צילום מסך של לשונית החנות עם חבילות המטבעות (מצלמים במק / באייפון אחרי שהמוצרים נטענים).
-
-> המחירים ב-App Store Connect נבחרים מתוך טבלת מחירים (Price Tier) - לבחור את הקרוב ביותר ל-₪4.90 / ₪9.90 / ₪19.90. המחיר האמיתי שמוצג בחנות נלקח אוטומטית מאפל.
+**בגרסה 1.0 - אין.** לא ליצור מוצרים ב-App Store Connect ← Monetization ← In-App Purchases.
+המטבעות, היהלומים והחנות הפנימית עובדים כרגיל - מרוויחים אותם רק במשחק. ההוראות להפעלת רכישות בעתיד: סעיף 9.
 
 ---
 
@@ -162,14 +150,14 @@ Coins are added to the player's balance right after purchase. Find them in the S
 Zabang Royale is a Hebrew word game. No sign-in is needed: every player gets an anonymous session automatically.
 
 Where to find things (the app is in Hebrew, right-to-left):
-- Shop / in-app purchases: the "חנות" (Shop) tab in the bottom bar. The three coin packages are under "קבל מטבעות" (Get coins). Coins are consumable and are used for power-ups and characters.
+- Shop: the "חנות" (Shop) tab in the bottom bar sells power-ups and characters for virtual coins and diamonds, which are earned only by playing (game rewards, daily bonus). This version has no real-money purchases.
 - Optional account + account deletion: "פרופיל" (Profile) tab → "גיבוי בענן" (Cloud backup). A test account is provided above. To delete it: "מחיקת החשבון" (Delete account) → confirm → enter the password. This permanently deletes the account, its cloud backup and its leaderboard entries.
 - Reporting / blocking players (user-generated content = player names and profile photos): tap "⋯" next to any other player on the leaderboard ("דירוג" tab) or in a multiplayer match. Reports go to a moderation queue reviewed by the developer; blocked players are hidden. Offensive names are filtered when a player sets their name. Terms with a zero-tolerance policy are accepted when choosing a name.
 - Privacy policy, terms and support: the round menu button (☰) at the top of the home screen.
 
 Multiplayer needs a second player: Play → "מולטיפלייר עם חברים" (Multiplayer with friends) → "צור חדר" (Create room) on one device, and "הצטרף לחדר" (Join room) with the room code on another. "משחק אקראי" (Random game) waits for any other online player. All other modes are single-player.
 
-The app contains no ads and no third-party tracking.
+The app is free and contains no in-app purchases, no ads and no third-party tracking.
 ```
 
 ---
@@ -187,8 +175,7 @@ The app contains no ads and no third-party tracking.
 | User Content → **Gameplay Content** | כן | App Functionality | Yes | No | ניקוד, טבלת שיאים, התקדמות בגיבוי |
 | User Content → **Other User Content** | כן | App Functionality | Yes | No | שם השחקן, מילים שהוצעו, דיווחים על שחקנים |
 | Identifiers → **User ID** | כן | App Functionality | Yes | No | המזהה האנונימי של Firebase |
-| Purchases → **Purchase History** | כן | App Functionality | Yes | No | מזהי עסקאות נשמרים כדי לא לזכות פעמיים |
-| כל השאר (מיקום, אנשי קשר, בריאות, פיננסי, היסטוריית גלישה, חיפוש, Diagnostics, Usage Data...) | **לא** | | | | אין אנליטיקס ואין דיווחי קריסות |
+| כל השאר (רכישות, מיקום, אנשי קשר, בריאות, פיננסי, היסטוריית גלישה, חיפוש, Diagnostics, Usage Data...) | **לא** | | | | אין אנליטיקס ואין דיווחי קריסות |
 
 > חשוב: התשובות כאן חייבות להתאים ל-privacy.html. אם מוסיפים בעתיד אנליטיקס, Crashlytics או פרסומות - לעדכן גם כאן וגם שם.
 
@@ -214,7 +201,7 @@ The app contains no ads and no third-party tracking.
 | **User-Generated Content** | **Yes** (שמות ותמונות פרופיל של שחקנים) |
 | Messaging and Chat | No (אין צ'אט) |
 | Advertising | No |
-| In-App Purchases | Yes |
+| In-App Purchases | **No** (בגרסה 1.0) |
 | Parental Controls / Age Assurance | No |
 | Made for Kids | No |
 
@@ -224,9 +211,43 @@ The app contains no ads and no third-party tracking.
 
 ## 8. מה עוד צריך ביום ההגשה (לא טקסט)
 
-- [x] **צילומי מסך** - מוכנים ב-`store/screenshots/iphone-6.9/` (7 תמונות, 1320×2868): בית, משחק מהיר, באטל רויאל, מולטיפלייר, מגדל זבאנג, ערים, חנות. גוררים אותם ל-App Store Connect ← iPhone 6.9" Display. אפל משתמשת בהם גם לגדלים הקטנים יותר.
+- [x] **צילומי מסך** - מוכנים ב-`store/screenshots/iphone-6.9/` (1320×2868). בגרסה 1.0 מעלים **רק 6** - `01-home` עד `06-cities` (בית, משחק מהיר, באטל רויאל, מולטיפלייר, מגדל זבאנג, ערים). גוררים אותם ל-App Store Connect ← iPhone 6.9" Display. אפל משתמשת בהם גם לגדלים הקטנים יותר.
+  **לא להעלות את `07-shop.png`** - הוא מציג חבילות מטבעות בכסף אמיתי שלא קיימות בגרסה 1.0 (שמור לעדכון שיפעיל רכישות, סעיף 9).
 - [ ] **App Icon 1024×1024** - נוצר מ-`assets/` עם `npm run generate:native-assets` (הקובץ `store/app-store-icon-1024.png` כבר קיים).
 - [ ] **Build** - מועלה מ-Xcode (Product ← Archive).
 - [ ] **Export Compliance** - כבר מוגדר ב-Info.plist (`ITSAppUsesNonExemptEncryption = NO`), השאלה לא תופיע.
 - [ ] **Pricing and Availability** - האפליקציה חינמית (Free). זמינות: ישראל (או כל המדינות).
-- [ ] לסמן את שלושת המוצרים לרכישה בהגשה הראשונה (בעמוד הגרסה ← In-App Purchases).
+
+---
+
+## 9. פיתוח עתידי - הפעלת רכישות בכסף אמיתי (לא בגרסה 1.0)
+
+הקוד כבר מוכן (`iap.js`, `COIN_PACKAGES` ב-`game.js`) ואין צורך לשנות אותו. כשמחליטים להפעיל רכישות בעדכון:
+1. App Store Connect ← Business: לחתום על **Paid Apps Agreement**, ולמלא פרטי בנק וטופס מס (W-8BEN לתושב ישראל).
+2. ב-Xcode: להוסיף את ה-Capability **In-App Purchase** (ראו docs/IOS.md, "פיתוח עתידי").
+3. ליצור את שלושת המוצרים שלמטה, ולבדוק עם Sandbox Tester.
+4. לעדכן בחזרה את הסעיפים בקובץ הזה:
+   - **סעיף 5 (Review Notes):** להחזיר את השורה על "קבל מטבעות" ולהוריד את "no in-app purchases".
+   - **סעיף 6 (פרטיות):** להוסיף `Purchases → Purchase History | כן | App Functionality | Yes | No | מזהי עסקאות נשמרים כדי לא לזכות פעמיים`.
+   - **סעיף 7 (דירוג גיל):** `In-App Purchases` ← Yes.
+   - **סעיף 8:** להעלות גם את `07-shop.png` (רק אם המחירים זהים לטבלה), ולסמן את המוצרים בעמוד הגרסה ← In-App Purchases.
+
+### המוצרים
+
+שלושה מוצרים מסוג **Consumable**. ה-Product ID חייב להיות **בדיוק** כמו כאן (הקוד מחפש אותו).
+
+| Reference Name | Product ID | מחיר מומלץ | Display Name (עברית) | Description (עברית, עד 45 תווים) |
+|---|---|---|---|---|
+| Coins Small | `com.zabang.royale.coins.small` | ₪4.90 | שק מטבעות | 500 מטבעות לקניית עזרים ודמויות |
+| Coins Medium | `com.zabang.royale.coins.medium` | ₪9.90 | תיבת אוצר | 1,200 מטבעות לקניית עזרים ודמויות |
+| Coins Large | `com.zabang.royale.coins.large` | ₪19.90 | אוצר ענק | 3,000 מטבעות לקניית עזרים ודמויות |
+
+**באנגלית:** Bag of Coins / Treasure Chest / Huge Treasure - "500 / 1,200 / 3,000 coins for power-ups and characters".
+
+**Review Note לכל מוצר** (אותו טקסט לשלושה):
+```
+Coins are added to the player's balance right after purchase. Find them in the Shop tab (bottom bar) under "קבל מטבעות" (Get coins).
+```
+**Review Screenshot לכל מוצר:** צילום מסך של לשונית החנות עם חבילות המטבעות (מצלמים במק / באייפון אחרי שהמוצרים נטענים).
+
+> המחירים ב-App Store Connect נבחרים מתוך טבלת מחירים (Price Tier) - לבחור את הקרוב ביותר ל-₪4.90 / ₪9.90 / ₪19.90. המחיר האמיתי שמוצג בחנות נלקח אוטומטית מאפל.

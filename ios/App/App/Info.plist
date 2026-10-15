@@ -20,8 +20,14 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>המצלמה משמשת רק כדי לצלם תמונת פרופיל למשחק, ורק כשאתם בוחרים בכך.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>הגישה לתמונות משמשת רק כדי לבחור תמונת פרופיל למשחק, ורק כשאתם בוחרים בכך.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -62,11 +68,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>המצלמה משמשת רק כדי לצלם תמונת פרופיל למשחק, ורק כשאתם בוחרים בכך.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>הגישה לתמונות משמשת רק כדי לבחור תמונת פרופיל למשחק, ורק כשאתם בוחרים בכך.</string>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 </dict>
 </plist>
