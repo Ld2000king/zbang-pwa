@@ -260,8 +260,9 @@ function onRoomUpdate(room) {
             currentGame.gameActive = true;
             const roundBadge = document.getElementById('roundBadge');
             roundBadge.textContent = `סיבוב ${room.currentRound}/${room.totalRounds}`;
-            // a random 1v1 has no round counter on screen at all
-            roundBadge.style.display = room.matchType === 'random' ? 'none' : '';
+            // online matches (random and friends) are a single round - no round
+            // counter on screen at all; bots mode brings it back in startBattleRound()
+            roundBadge.style.display = 'none';
             document.getElementById('playerBattleScore').textContent = currentGame.playerScore;
             renderBoard('battleBoard');
             // each player sees the board in their OWN city theme (the room's
