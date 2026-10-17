@@ -25,11 +25,20 @@ const MP = {
     _freezeNotifiedFor: 0, // freezeUntil value already announced, so each freeze alerts once
     spectating: false, // eliminated player chose "watch the rest" - hides the elimination overlay
     rematchRequested: false, // I pressed "play again" as a guest and am waiting for the host's client to reset the room
-    rematching: false // host-side guard so a repeat 'finished' snapshot can't fire the room reset twice
+    rematching: false, // host-side guard so a repeat 'finished' snapshot can't fire the room reset twice
+    friendsTotalRounds: 0, // friends match length, fixed when round 1 starts (players - 1)
+    joinAcked: false, // my join write reached the server - only then may I judge a full room
+    startingRound: 0, // host-side guard: the round already being started (double-tap on start/next)
+    presenceRef: null, // .info/connected listener that re-announces me after a dropped connection
+    dropout: null, // { reason: 'host' | 'alone', timer } while a friends match waits out its grace period
+    endRoundDeferred: false // host: the clock hit 0 during that grace period - end the round if they return
 };
 
 const ROUND_SECONDS = 60;
 const TOTAL_ROUNDS = 5;
+// A friends room holds the host plus up to 5 guests. One player is knocked out
+// per round, so a match of N players lasts N - 1 rounds (2 -> 1 ... 6 -> 5).
+const FRIENDS_MAX_PLAYERS = 6;
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -186,9 +195,25 @@ async function joinRoom(code, opts = {}) {
     const room = snap.val();
     if (room.status !== 'waiting') { if (!opts.silent) showMessage('המשחק כבר התחיל', 'error'); return false; }
 
+    const isFriends = (room.matchType || 'friends') === 'friends';
+    if (isFriends && friendsLobbyPlayers(room).filter(([pid]) => pid !== MP.playerId).length >= FRIENDS_MAX_PLAYERS) {
+        if (!opts.silent) showMessage('החדר מלא - עד 6 שחקנים', 'error');
+        return false;
+    }
+
     MP.roomCode = code;
     MP.matchType = room.matchType || 'friends';
-    await db.ref('rooms/' + code + '/players/' + MP.playerId).set(myPlayerNode());
+    MP.joinAcked = false;
+    const node = myPlayerNode();
+    // Friends rooms: stamp the join with the server clock so every client can
+    // agree who came first if two people grab the last seat at once (see
+    // friendsSeatLost). It rides on freezeUntil - an existing field the Rules
+    // already let me set on my own node - and a freeze that ends "now" is
+    // already over, so it never freezes anyone. The host clears it to 0 when
+    // the match starts.
+    if (isFriends) node.freezeUntil = firebase.database.ServerValue.TIMESTAMP;
+    await db.ref('rooms/' + code + '/players/' + MP.playerId).set(node);
+    MP.joinAcked = true;
 
     attachPresence();
     listenToRoom(code);
@@ -198,10 +223,31 @@ async function joinRoom(code, opts = {}) {
 
 // mark this player disconnected if the tab closes / network drops
 function attachPresence() {
-    const connRef = db.ref('rooms/' + MP.roomCode + '/players/' + MP.playerId + '/connected');
+    const code = MP.roomCode;
+    const connRef = db.ref('rooms/' + code + '/players/' + MP.playerId + '/connected');
     connRef.onDisconnect().set(false);
     // keep the server clock offset up to date for a synced countdown
     db.ref('.info/serverTimeOffset').on('value', s => { MP.serverOffset = s.val() || 0; });
+
+    // A dropped connection fires the onDisconnect above (connected: false),
+    // and that handler is then used up. When the connection comes back, say
+    // "I'm here" again and re-arm it - otherwise a 2-second network blip would
+    // read as gone for the rest of the match. A transaction, so it only flips
+    // a slot that still exists: if the room was deleted meanwhile it aborts
+    // instead of writing a stray node into a closed room.
+    if (MP.presenceRef) MP.presenceRef.off();
+    let dropped = false;
+    MP.presenceRef = db.ref('.info/connected');
+    MP.presenceRef.on('value', snap => {
+        if (snap.val() !== true) { dropped = true; return; }
+        if (!dropped || MP.roomCode !== code) return;
+        dropped = false;
+        connRef.onDisconnect().set(false);
+        // applyLocally=false: no optimistic local copy - if the room is gone,
+        // a local "connected: true" would briefly show this client a room
+        // holding only itself (and its rollback trips a Firebase SDK assert)
+        connRef.transaction(cur => (cur === null ? undefined : true), undefined, false).catch(() => {});
+    });
 }
 
 // ---- the single shared realtime listener -----------------------------------
@@ -232,16 +278,20 @@ function onRoomUpdate(room) {
             // a match already ran in this room: the host pressed "play again",
             // so pull everyone still on the end screen back into the lobby
             if (MP.lastRound !== 0 || MP.resultApplied) resetLocalMatchState();
+            if (friendsSeatLost(room)) {
+                leaveMultiplayerRoom();
+                showMessage('החדר מלא - עד 6 שחקנים', 'error');
+                showScreen('gameModeScreen');
+                updateHomeUI();
+                return;
+            }
             renderLobby(room);
         }
         return;
     }
 
-    // host-disconnect guard
-    const host = room.players && room.players[room.hostId];
-    if (host && host.connected === false && room.status !== 'finished') {
-        showMessage('המארח התנתק - צאו למסך הבית', 'warning');
-    }
+    // host gone (friends and random) / everyone else gone (friends) - see below
+    watchFriendsDropouts(room);
 
     if (room.status === 'playing') {
         // the round is live - the matchmaking intro (if any) is over
@@ -258,11 +308,14 @@ function onRoomUpdate(room) {
             currentGame.foundWords = new Set();
             currentGame.playerScore = (room.players[MP.playerId] || {}).score || 0;
             currentGame.gameActive = true;
+            // Round counter: a random 1v1 and a 2-player friends match are a
+            // single round, so they show none. A bigger friends match shows
+            // "round r / total", total fixed when round 1 starts. Bots mode
+            // brings the counter back in startBattleRound().
+            const total = room.matchType === 'friends' ? friendsMatchRounds(room) : 1;
             const roundBadge = document.getElementById('roundBadge');
-            roundBadge.textContent = `סיבוב ${room.currentRound}/${room.totalRounds}`;
-            // online matches (random and friends) are a single round - no round
-            // counter on screen at all; bots mode brings it back in startBattleRound()
-            roundBadge.style.display = 'none';
+            roundBadge.textContent = `סיבוב ${room.currentRound}/${total}`;
+            roundBadge.style.display = total >= 2 ? '' : 'none';
             document.getElementById('playerBattleScore').textContent = currentGame.playerScore;
             renderBoard('battleBoard');
             // each player sees the board in their OWN city theme (the room's
@@ -305,14 +358,123 @@ function onRoomUpdate(room) {
     }
 }
 
+// ---- host gone / left alone (friends; random gets the host part) ---------
+// Only the host can end a round or start the next one, so a friends match
+// whose host has dropped out can't go on - everyone else would sit on a
+// frozen 0. And a player whose opponents have all left has nobody to play.
+// Either way, after a short grace period (a connection that drops and comes
+// straight back - see attachPresence - cancels it) this client leaves the
+// room and returns to the mode list. Nothing is written for the others and
+// no result screen is shown, so nobody is awarded a win, coins or trophies
+// for a match that simply stopped. A real win (the last player standing
+// after the eliminations) arrives as status 'finished' and is untouched.
+// The lobby is left alone too: a host may wait there by themselves.
+
+const MP_DROPOUT_GRACE_MS = 5000;
+
+// A random 1v1 gets only the host half of this: its host also runs the clock,
+// so a vanished host leaves the guest stuck the same way. A vanished GUEST is
+// still the host's win by forfeit there, as before - 'alone' is friends-only.
+function friendsDropoutReason(room) {
+    if (!room || (room.matchType !== 'friends' && room.matchType !== 'random')) return null;
+    if (room.status !== 'playing' && room.status !== 'roundEnd') return null;
+    if (room.matchType === 'friends') {
+        const others = Object.entries(room.players || {}).filter(([pid]) => pid !== MP.playerId);
+        if (others.length && others.every(([, p]) => p.connected === false)) return 'alone';
+    }
+    const host = (room.players || {})[room.hostId];
+    if (!MP.isHost && (!host || host.connected === false)) return 'host';
+    return null;
+}
+
+function dropoutMessage(reason, final) {
+    if (reason === 'alone') return 'כל השחקנים עזבו את החדר';
+    const who = MP.matchType === 'random' ? 'היריב' : 'מארח החדר';
+    return final ? `${who} התנתק. המשחק הסתיים.` : `${who} התנתק - ממתינים לחזרתו...`;
+}
+
+function clearDropoutWatch() {
+    if (MP.dropout) clearTimeout(MP.dropout.timer);
+    MP.dropout = null;
+}
+
+function watchFriendsDropouts(room) {
+    const reason = friendsDropoutReason(room);
+    if (!reason) {
+        if (!MP.dropout) return;
+        clearDropoutWatch(); // they're back (or the match ended normally)
+        // the round ran out while we were waiting - the host ends it now
+        if (MP.endRoundDeferred) {
+            MP.endRoundDeferred = false;
+            if (MP.isHost && room.status === 'playing') endMultiplayerRound();
+        }
+        return;
+    }
+    if (MP.dropout && MP.dropout.reason === reason) return; // already counting down
+    clearDropoutWatch();
+    const code = MP.roomCode;
+    MP.dropout = { reason, timer: setTimeout(() => abandonFriendsMatch(code), MP_DROPOUT_GRACE_MS) };
+    showMessage(dropoutMessage(reason, false), 'warning');
+}
+
+function abandonFriendsMatch(code) {
+    if (MP.roomCode !== code) return;
+    const reason = friendsDropoutReason(MP.room);
+    if (!reason) { clearDropoutWatch(); return; }
+    const message = dropoutMessage(reason, true); // before leaving clears MP.matchType
+    leaveMultiplayerRoom(); // stops the timer, detaches the listeners, clears match state
+    currentGame.gameActive = false;
+    showMessage(message, 'warning');
+    showScreen('gameModeScreen');
+    updateHomeUI();
+}
+
+// How many rounds this friends match lasts. One player is knocked out per round
+// until one is left, so it is the number of players in round 1, minus one
+// (capped at TOTAL_ROUNDS, where endMultiplayerRound() also stops). Worked out
+// once when round 1 starts and then kept, so a player leaving or being knocked
+// out later never changes it. A client that first sees a later round (it
+// can't normally - nobody joins mid-match) gets the same answer from the
+// players still in, plus one knocked out per round already played.
+function friendsMatchRounds(room) {
+    if (!MP.friendsTotalRounds) {
+        const active = Object.values(room.players || {}).filter(p => !p.eliminated).length;
+        const inRound1 = active + (room.currentRound || 1) - 1;
+        MP.friendsTotalRounds = Math.max(1, Math.min(TOTAL_ROUNDS, inRound1 - 1));
+    }
+    return MP.friendsTotalRounds;
+}
+
 // ---- lobby -----------------------------------------------------------------
+
+// Players actually in a lobby: those who left after a previous match stay in
+// the room data (only their own client can delete their node) - don't count them.
+function friendsLobbyPlayers(room) {
+    return Object.entries(room.players || {}).filter(([, p]) => p.connected !== false);
+}
+
+// Two people can read "5 players" and both join, leaving 7 in the room. Every
+// client orders the lobby the same way - host first, then by server join time
+// (freezeUntil stamp, see joinRoom; 0 for everyone already there before a
+// rematch, and for older clients that don't stamp), then by id - and whoever
+// lands past seat 6 leaves on their own. Judged only once my own join is
+// acknowledged, so my stamp is the server's value and not a local guess.
+function friendsSeatLost(room) {
+    if (MP.isHost || !MP.joinAcked || room.matchType === 'random') return false;
+    const lobby = friendsLobbyPlayers(room);
+    if (lobby.length <= FRIENDS_MAX_PLAYERS) return false;
+    lobby.sort(([aId, a], [bId, b]) => {
+        if ((aId === room.hostId) !== (bId === room.hostId)) return aId === room.hostId ? -1 : 1;
+        if ((a.freezeUntil || 0) !== (b.freezeUntil || 0)) return (a.freezeUntil || 0) - (b.freezeUntil || 0);
+        return aId < bId ? -1 : aId > bId ? 1 : 0;
+    });
+    return lobby.findIndex(([pid]) => pid === MP.playerId) >= FRIENDS_MAX_PLAYERS;
+}
 
 function renderLobby(room) {
     document.getElementById('lobbyRoomCode').textContent = MP.roomCode;
 
-    // players who left after the previous match stay in the room data (only
-    // their own client can delete their node) - don't show or count them
-    const lobbyPlayers = Object.entries(room.players || {}).filter(([, p]) => p.connected !== false);
+    const lobbyPlayers = friendsLobbyPlayers(room);
 
     const listEl = document.getElementById('lobbyPlayers');
     listEl.innerHTML = '';
@@ -327,12 +489,14 @@ function renderLobby(room) {
 
     const startBtn = document.getElementById('lobbyStartBtn');
     const waiting = document.getElementById('lobbyWaiting');
-    const canStart = MP.isHost && lobbyPlayers.length >= 2;
+    const overFull = lobbyPlayers.length > FRIENDS_MAX_PLAYERS;
+    const canStart = MP.isHost && lobbyPlayers.length >= 2 && !overFull;
     startBtn.style.display = canStart ? 'block' : 'none';
     waiting.style.display = MP.isHost
         ? (canStart ? 'none' : 'block')
         : 'block';
-    if (MP.isHost && !canStart) waiting.textContent = 'ממתין לשחקנים נוספים שיצטרפו...';
+    if (MP.isHost && overFull) waiting.textContent = 'יותר מ-6 שחקנים בחדר - ממתין שמישהו ייצא...';
+    else if (MP.isHost && !canStart) waiting.textContent = 'ממתין לשחקנים נוספים שיצטרפו...';
     else if (!MP.isHost) waiting.textContent = 'ממתין למארח שיתחיל את המשחק...';
 
     // round length: the host picks it, everyone else just sees the choice
@@ -526,6 +690,10 @@ function handleRandomWaitingRoom(room) {
     // "delete on disconnect" safety nets meant only for the lone-waiter window
     if (MP.isHost) {
         db.ref('rooms/' + MP.roomCode).onDisconnect().cancel();
+        // that cancel also drops every onDisconnect queued UNDER the room -
+        // including my own presence flag from attachPresence() - so re-arm it,
+        // or the guest would never learn that I dropped out mid-match
+        db.ref('rooms/' + MP.roomCode + '/players/' + MP.playerId + '/connected').onDisconnect().set(false);
         matchmakingQueueRef(MP.playerId).remove();
         matchmakingQueueRef(MP.playerId).onDisconnect().cancel();
         if (!MP.autoStarting) {
@@ -713,12 +881,19 @@ async function cancelRandomSearch() {
 // ---- host: start / advance rounds ------------------------------------------
 
 function hostStartMultiplayerGame() {
-    if (!MP.isHost) return;
+    if (!MP.isHost || !MP.room || MP.room.status !== 'waiting') return;
+    const lobbyCount = friendsLobbyPlayers(MP.room).length;
+    if (lobbyCount < 2 || lobbyCount > FRIENDS_MAX_PLAYERS) return;
     startMultiplayerRound(1);
 }
 
 function startMultiplayerRound(roundNum) {
     if (!MP.isHost) return;
+    // a double tap on "start" / "next round" would otherwise write two
+    // different boards for the same round - and a client whose snapshots got
+    // merged would render the second while everyone else plays the first
+    if (MP.startingRound === roundNum) return;
+    MP.startingRound = roundNum;
     const board = generateBoard();
     const updates = {
         status: 'playing',
@@ -735,13 +910,17 @@ function startMultiplayerRound(roundNum) {
         }
     });
     MP.roomRef.update(updates).catch(err => {
+        MP.startingRound = 0; // let the host try again
         console.error('Failed to start round:', err);
         showMessage('שגיאה בהתחלת הסיבוב - נסה שוב', 'error');
     });
 }
 
 function hostNextMultiplayerRound() {
-    if (!MP.isHost) return;
+    // only from the round-end screen: our own write updates MP.room at once
+    // (Firebase applies local writes immediately), so a second tap would
+    // otherwise see the new round and start the one after it as well
+    if (!MP.isHost || !MP.room || MP.room.status !== 'roundEnd') return;
     startMultiplayerRound((MP.room.currentRound || 1) + 1);
 }
 
@@ -770,8 +949,13 @@ function startMultiplayerTimer(room) {
         if (remaining <= 0) {
             stopMultiplayerTimer();
             currentGame.gameActive = false;
-            // only the host writes the authoritative round result
-            if (MP.isHost) endMultiplayerRound();
+            // only the host writes the authoritative round result - but not
+            // while everyone else is gone: that match is about to be dropped
+            // (no win for being left alone), or ended here if they come back
+            if (MP.isHost) {
+                if (MP.dropout) MP.endRoundDeferred = true;
+                else endMultiplayerRound();
+            }
         }
     }, 250);
 }
@@ -973,6 +1157,10 @@ function resetLocalMatchState() {
     stopMultiplayerTimer();
     currentGame.gameActive = false;
     MP.lastRound = 0;
+    MP.friendsTotalRounds = 0;
+    MP.startingRound = 0;
+    clearDropoutWatch();
+    MP.endRoundDeferred = false;
     MP.resultApplied = false;
     MP.spectating = false;
     MP.rematchRequested = false;
@@ -1224,6 +1412,9 @@ function shouldDeleteRoomOnLeave(room) {
 function leaveMultiplayerRoom() {
     stopMultiplayerTimer();
     mmIntroReset();
+    clearDropoutWatch();
+    MP.endRoundDeferred = false;
+    if (MP.presenceRef) { MP.presenceRef.off(); MP.presenceRef = null; }
     // defensive matchmaking cleanup - a safe no-op for friends-mode games,
     // and covers stray exits (e.g. goHome) while a random search is pending
     if (MP.playerId && db) {
@@ -1251,6 +1442,9 @@ function leaveMultiplayerRoom() {
     MP.isHost = false;
     MP.room = null;
     MP.lastRound = 0;
+    MP.friendsTotalRounds = 0;
+    MP.joinAcked = false;
+    MP.startingRound = 0;
     MP.matchType = null;
     MP.autoStarting = false;
     MP.resultApplied = false;
