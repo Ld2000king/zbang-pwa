@@ -126,7 +126,7 @@
                 <div class="mode-option" onclick="showSingleModeChoice()">
                     <div class="mode-icon icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 21 c0 -4.5 3.5 -7 8 -7 s8 2.5 8 7 Z"/></svg></div>
                     <div class="mode-details">
-                        <h3>משחקן יחיד</h3>
+                        <h3>שחקן יחיד</h3>
                         <p>משחק אישי נגד הזמן</p>
                     </div>
                     <div class="mode-arrow">›</div>
@@ -277,9 +277,27 @@
         <div id="mpSearchScreen" class="screen">
             <div class="modal-content">
                 <h2>משחק אקראי</h2>
-                <div class="mp-spinner"></div>
-                <p class="mp-hint" id="searchStatusText">מחפש יריב זמין...</p>
-                <button class="close-modal-btn" onclick="cancelRandomSearch()">בטל חיפוש</button>
+                <!-- matchmaking intro (multiplayer.js, mmIntro*): visual only -
+                     the opponent card shows a real player only once one has joined -->
+                <div class="mm-stage" id="mmStage" data-phase="search">
+                    <div class="mm-card mm-me">
+                        <div class="mm-frame"><div class="mm-avatar" id="mmMyAvatar"></div></div>
+                        <div class="mm-name" id="mmMyName"></div>
+                    </div>
+                    <div class="mm-vs" aria-hidden="true">
+                        <span class="mm-burst"></span>
+                        <span class="mm-vs-text">VS</span>
+                    </div>
+                    <div class="mm-card mm-opp">
+                        <div class="mm-frame">
+                            <div class="mm-reel-window" aria-hidden="true"><div class="mm-reel" id="mmReel"></div></div>
+                            <div class="mm-avatar mm-opp-avatar" id="mmOppAvatar"></div>
+                        </div>
+                        <div class="mm-name" id="mmOppName">?</div>
+                    </div>
+                </div>
+                <p class="mp-hint" id="searchStatusText" role="status" aria-live="polite">מחפש יריב זמין...</p>
+                <button class="close-modal-btn" id="mmCancelBtn" onclick="cancelRandomSearch()">בטל חיפוש</button>
             </div>
         </div>
 

@@ -2350,7 +2350,9 @@ function startBattleRound() {
 
     showScreen('battleScreen');
     const diffName = (BOT_DIFFICULTY[battleState.difficulty] || BOT_DIFFICULTY.medium).name;
-    document.getElementById('roundBadge').textContent = `סיבוב ${battleState.currentRound}/5 · ${diffName}`;
+    const roundBadge = document.getElementById('roundBadge');
+    roundBadge.textContent = `סיבוב ${battleState.currentRound}/5 · ${diffName}`;
+    roundBadge.style.display = ''; // a random online match hides it - bring it back
     // ensure the "shuffle opponents" power-up + pause button are visible in
     // bots mode (multiplayer mode hides both since they don't apply to real players)
     const shuffleBtn = document.getElementById('battleShuffleBtn');

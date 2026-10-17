@@ -244,6 +244,8 @@ function onRoomUpdate(room) {
     }
 
     if (room.status === 'playing') {
+        // the round is live - the matchmaking intro (if any) is over
+        if (MM.phase !== 'idle') mmIntroReset();
         // never let a leftover bots battle bleed into a real multiplayer game:
         // kill any bot interval and drop stale bots so they can't be rendered
         // into the shared player-status strip alongside the real players
@@ -256,7 +258,10 @@ function onRoomUpdate(room) {
             currentGame.foundWords = new Set();
             currentGame.playerScore = (room.players[MP.playerId] || {}).score || 0;
             currentGame.gameActive = true;
-            document.getElementById('roundBadge').textContent = `סיבוב ${room.currentRound}/${room.totalRounds}`;
+            const roundBadge = document.getElementById('roundBadge');
+            roundBadge.textContent = `סיבוב ${room.currentRound}/${room.totalRounds}`;
+            // a random 1v1 has no round counter on screen at all
+            roundBadge.style.display = room.matchType === 'random' ? 'none' : '';
             document.getElementById('playerBattleScore').textContent = currentGame.playerScore;
             renderBoard('battleBoard');
             // each player sees the board in their OWN city theme (the room's
@@ -378,6 +383,7 @@ async function findRandomGame() {
     // can take up to 8s on a cold/slow connection, and with no immediate
     // feedback the button click looks completely dead
     setSearchStatusText('מתחבר...');
+    mmIntroStart();
     showScreen('mpSearchScreen');
     try {
         await waitForAuth(); // Security Rules require auth != null - wait for anonymous sign-in first
@@ -500,8 +506,19 @@ function scheduleDoubleWaiterCheck() {
 // called from onRoomUpdate while a random-match room is still 'waiting'
 function handleRandomWaitingRoom(room) {
     const count = Object.keys(room.players || {}).length;
+    const introRunning = MM.phase !== 'idle' && MM.phase !== 'search';
     if (count < 2) {
+        // the opponent left while the VS intro was on screen - don't strand
+        // anyone on it (hostId check: ignore a stale snapshot of another room)
+        if (introRunning && room.hostId === MM.hostId) {
+            mmIntroAbort('היריב יצא - נסה שוב');
+            return;
+        }
         showScreen('mpSearchScreen');
+        return;
+    }
+    if (introRunning && mmOpponentEntry(room) && mmOpponentEntry(room)[1].connected === false) {
+        mmIntroAbort('היריב התנתק - נסה שוב');
         return;
     }
     // matched - normal presence tracking takes over from here, so drop the
@@ -512,10 +529,165 @@ function handleRandomWaitingRoom(room) {
         matchmakingQueueRef(MP.playerId).onDisconnect().cancel();
         if (!MP.autoStarting) {
             MP.autoStarting = true;
-            startMultiplayerRound(1);
+            // the round (and its server-timed clock) starts only after the
+            // VS intro, so nobody loses playing time to the animation. Both
+            // players then switch to the board on the same 'playing' snapshot,
+            // exactly as before.
+            const code = MP.roomCode;
+            MM.timers.push(setTimeout(() => hostStartAfterIntro(code), MM_INTRO_MS));
         }
     }
     setSearchStatusText('נמצא יריב! מתחילים...');
+    mmIntroReveal(room);
+}
+
+// host: the intro is over - start round 1 if the match is still on
+function hostStartAfterIntro(code) {
+    if (!MP.isHost || MP.roomCode !== code || !MP.room) return;
+    const room = MP.room;
+    if (room.status !== 'waiting') return;
+    const opp = mmOpponentEntry(room);
+    if (!opp || opp[1].connected === false) {
+        mmIntroAbort('היריב יצא - נסה שוב');
+        return;
+    }
+    startMultiplayerRound(1);
+}
+
+// ---- matchmaking intro (visual only) ------------------------------------
+// search: a reel of preset avatars spins behind a "?" name plate - it never
+//         names anyone, it only says "looking".
+// reveal: an opponent really joined the room - the reel slows down and stops
+//         on THEIR avatar.
+// vs:     both real players face off until the host starts the round.
+// The intro never decides anything: the room snapshot does. 'playing' tears
+// it down at once, and leaving/abort resets it.
+
+const MM_REVEAL_MS = 1400;       // reel slow-down
+const MM_INTRO_MS = 3600;        // match found -> host starts the round (~2s of VS)
+const MM_FAIL_MS = 12000;        // no round by then -> give up safely
+
+const MM = { phase: 'idle', hostId: null, timers: [], anim: null };
+
+function mmReducedMotion() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+function mmOpponentEntry(room) {
+    return Object.entries(room.players || {}).find(([pid]) => pid !== MP.playerId) || null;
+}
+
+function mmShuffledPresets(n) {
+    const pool = AVATARS.slice().sort(() => Math.random() - 0.5);
+    const out = [];
+    for (let i = 0; i < n; i++) out.push(pool[i % pool.length]);
+    return out;
+}
+
+function mmReelItem(svg) {
+    return `<div class="mm-reel-item">${svg}</div>`;
+}
+
+// put avatar markup in place; a broken photo falls back to the preset avatar
+function mmSetAvatar(el, markup, fallbackAvatarId) {
+    el.innerHTML = markup;
+    const img = el.querySelector('img');
+    if (img) img.addEventListener('error', () => { el.innerHTML = getAvatarById(fallbackAvatarId).svg; }, { once: true });
+}
+
+function mmIntroReset() {
+    MM.timers.forEach(clearTimeout);
+    MM.timers = [];
+    if (MM.anim) { try { MM.anim.cancel(); } catch (e) {} MM.anim = null; }
+    MM.phase = 'idle';
+    MM.hostId = null;
+}
+
+// entering random matchmaking: me on one side, the spinning reel on the other
+function mmIntroStart() {
+    mmIntroReset();
+    MM.phase = 'search';
+    const stage = document.getElementById('mmStage');
+    if (!stage) return;
+    stage.dataset.phase = 'search';
+    mmSetAvatar(document.getElementById('mmMyAvatar'), getOwnAvatarMarkup(), networkSafeAvatarId());
+    document.getElementById('mmMyName').textContent = gameState.playerName || 'שחקן';
+    document.getElementById('mmOppName').textContent = '?';
+    document.getElementById('mmOppAvatar').innerHTML = '';
+    const reel = document.getElementById('mmReel');
+    reel.style.transform = '';
+    const set = mmShuffledPresets(8).map(a => mmReelItem(a.svg)).join('');
+    reel.innerHTML = set + set; // two copies so the -50% loop is seamless
+    const cancelBtn = document.getElementById('mmCancelBtn');
+    if (cancelBtn) cancelBtn.style.display = '';
+}
+
+// a real opponent is in the room: slow the reel down onto them, then VS
+function mmIntroReveal(room) {
+    if (MM.phase !== 'search') return; // once per match
+    const opp = mmOpponentEntry(room);
+    const stage = document.getElementById('mmStage');
+    if (!opp || !stage) return;
+    const [oppId, oppData] = opp;
+    MM.phase = 'reveal';
+    MM.hostId = room.hostId;
+
+    // past this point a cancel would leave the other player hanging
+    const cancelBtn = document.getElementById('mmCancelBtn');
+    if (cancelBtn) cancelBtn.style.display = 'none';
+
+    const oppMarkup = avatarMarkupForPlayer(oppId, oppData);
+    mmSetAvatar(document.getElementById('mmOppAvatar'), oppMarkup, oppData.avatarId);
+    const oppName = safePlayerName(oppData.name, oppData.uid);
+
+    MM.timers.push(setTimeout(() => {
+        mmIntroAbort('ההתאמה נכשלה - נסה שוב');
+    }, MM_FAIL_MS));
+
+    const toVs = () => {
+        if (MM.phase !== 'reveal') return;
+        MM.phase = 'vs';
+        MM.anim = null;
+        document.getElementById('mmOppName').textContent = oppName;
+        stage.dataset.phase = 'vs';
+        setSearchStatusText('נמצא יריב! מתחילים...');
+    };
+
+    const reel = document.getElementById('mmReel');
+    const windowEl = reel && reel.parentElement;
+    if (mmReducedMotion() || !reel || !windowEl || typeof reel.animate !== 'function') {
+        toVs();
+        return;
+    }
+
+    // freeze the looping reel where it is, add a few more faces and the real
+    // opponent at the end, then decelerate onto that last slot
+    const itemH = windowEl.clientHeight || 1;
+    const startY = new DOMMatrixReadOnly(getComputedStyle(reel).transform).m42 || 0;
+    stage.dataset.phase = 'reveal'; // stops the CSS loop
+    reel.style.transform = `translateY(${startY}px)`;
+    reel.insertAdjacentHTML('beforeend',
+        mmShuffledPresets(6).map(a => mmReelItem(a.svg)).join('') + mmReelItem(oppMarkup));
+    const lastIndex = reel.children.length - 1;
+    const endY = -lastIndex * itemH;
+    MM.anim = reel.animate(
+        [{ transform: `translateY(${startY}px)` }, { transform: `translateY(${endY}px)` }],
+        { duration: MM_REVEAL_MS, easing: 'cubic-bezier(0.15, 0.7, 0.2, 1)', fill: 'forwards' }
+    );
+    MM.anim.onfinish = () => {
+        reel.style.transform = `translateY(${endY}px)`;
+        MM.timers.push(setTimeout(toVs, 150));
+    };
+}
+
+// something went wrong mid-intro: leave cleanly and go back to the mode list
+function mmIntroAbort(message) {
+    if (MM.phase === 'idle') return;
+    mmIntroReset();
+    leaveMultiplayerRoom();
+    if (message) showMessage(message, 'warning');
+    showScreen('gameModeScreen');
+    updateHomeUI();
 }
 
 // user pressed "cancel" while still searching / waiting for an opponent
@@ -1050,6 +1222,7 @@ function shouldDeleteRoomOnLeave(room) {
 
 function leaveMultiplayerRoom() {
     stopMultiplayerTimer();
+    mmIntroReset();
     // defensive matchmaking cleanup - a safe no-op for friends-mode games,
     // and covers stray exits (e.g. goHome) while a random search is pending
     if (MP.playerId && db) {
