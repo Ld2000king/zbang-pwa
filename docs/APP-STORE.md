@@ -54,7 +54,7 @@
 • מגדל זבאנג - מצב חשיבה בלי שעון: מחברים אותיות סמוכות, המילים נעלמות והאותיות נופלות. מילה ארוכה מפוצצת את מה שסביבה, ואות נדירה מנקה שורה שלמה. אל תתנו למגדל לגעת בתקרה!
 
 מה עוד יש
-• מאגר של יותר מ-24,000 מילים בעברית, שגדל כל הזמן - מצאתם מילה שחסרה? שלחו אותה לבדיקה.
+• מאגר של יותר מ-44,000 מילים בעברית, שגדל כל הזמן - מצאתם מילה שחסרה? שלחו אותה לבדיקה.
 • 16 ערים בישראל - ממזכרת בתיה ועד רמת גן. אספו גביעים, פתחו ערים חדשות וכל עיר מחליפה את עיצוב המשחק כולו.
 • עזרים: רמז, ערבוב לוח, הקפאת זמן, והקפאת יריבים בבאטל רויאל.
 • דמויות ותמונות פרופיל, או תמונה אישית משלכם.
@@ -109,7 +109,7 @@ Game modes
 • Zabang Tower - a no-clock thinking mode: connect neighbouring letters, words disappear and letters fall. A long word blasts its neighbours, and a rare letter clears a whole row. Don't let the tower touch the ceiling!
 
 And also
-• A dictionary of over 24,000 Hebrew words that keeps growing - found a missing word? Send it for review.
+• A dictionary of over 44,000 Hebrew words that keeps growing - found a missing word? Send it for review.
 • 16 Israeli cities - collect trophies to unlock new ones, and each city re-skins the whole game.
 • Power-ups: hint, shuffle, time freeze, and freezing opponents in Battle Royale.
 • Characters and profile pictures, or your own photo.

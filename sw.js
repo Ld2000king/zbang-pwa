@@ -17,7 +17,7 @@
 // index.html to match); activate() purges all older caches.
 // ============================================================================
 
-const VERSION = 'v38';
+const VERSION = 'v39';
 const APP_CACHE = 'zabang-app-' + VERSION;       // same-origin shell + code
 const RUNTIME_CACHE = 'zabang-runtime-' + VERSION; // fonts + CDN statics
 
@@ -33,6 +33,7 @@ const PRECACHE = [
     './words.js',
     './words-bulk.js',
     './words-bulk-2.js',
+    './words-bulk-3.js',
     './tower.js',
     './avatars.js',
     './assets/avatars/dan.webp',
