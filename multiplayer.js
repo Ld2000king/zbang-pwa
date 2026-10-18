@@ -39,6 +39,18 @@ const TOTAL_ROUNDS = 5;
 // A friends room holds the host plus up to 5 guests. One player is knocked out
 // per round, so a match of N players lasts N - 1 rounds (2 -> 1 ... 6 -> 5).
 const FRIENDS_MAX_PLAYERS = 6;
+// A tie for last place in a friends match replays the same round instead of
+// knocking someone out. Capped per match, so two idle players stuck on 0
+// can't loop forever - past it, the old tie-break applies (see
+// endMultiplayerRound).
+const MAX_TIE_REPLAYS = 3;
+
+// The round number players see. room.currentRound always moves forward (so
+// every client, older builds included, notices a new round), and room.replays
+// counts the tie replays - a replay shows the same number again.
+function displayedRound(room) {
+    return (room.currentRound || 1) - (room.replays || 0);
+}
 
 // ---- helpers ---------------------------------------------------------------
 
@@ -116,6 +128,7 @@ function avatarMarkupForPlayer(pid, p) {
 
 function showMultiplayerChoice() {
     if (!mpAvailable()) return;
+    if (needsModeHelp('friends', showMultiplayerChoice)) return;
     showScreen('mpChoiceScreen');
 }
 
@@ -314,7 +327,7 @@ function onRoomUpdate(room) {
             // brings the counter back in startBattleRound().
             const total = room.matchType === 'friends' ? friendsMatchRounds(room) : 1;
             const roundBadge = document.getElementById('roundBadge');
-            roundBadge.textContent = `סיבוב ${room.currentRound}/${total}`;
+            roundBadge.textContent = `סיבוב ${displayedRound(room)}/${total}`;
             roundBadge.style.display = total >= 2 ? '' : 'none';
             document.getElementById('playerBattleScore').textContent = currentGame.playerScore;
             renderBoard('battleBoard');
@@ -439,7 +452,7 @@ function abandonFriendsMatch(code) {
 function friendsMatchRounds(room) {
     if (!MP.friendsTotalRounds) {
         const active = Object.values(room.players || {}).filter(p => !p.eliminated).length;
-        const inRound1 = active + (room.currentRound || 1) - 1;
+        const inRound1 = active + displayedRound(room) - 1;
         MP.friendsTotalRounds = Math.max(1, Math.min(TOTAL_ROUNDS, inRound1 - 1));
     }
     return MP.friendsTotalRounds;
@@ -544,6 +557,7 @@ function setSearchStatusText(text) {
 
 async function findRandomGame() {
     if (!mpAvailable()) return;
+    if (needsModeHelp('random', findRandomGame)) return;
     // show the loading screen BEFORE awaiting auth - the anonymous sign-in
     // can take up to 8s on a cold/slow connection, and with no immediate
     // feedback the button click looks completely dead
@@ -980,9 +994,28 @@ function endMultiplayerRound() {
     });
     const [loserId] = active[0] || [];
 
-    const isFinal = (MP.room.currentRound || 1) >= (MP.room.totalRounds || TOTAL_ROUNDS);
+    const isFinal = displayedRound(MP.room) >= (MP.room.totalRounds || TOTAL_ROUNDS);
     const remainingAfter = active.length - 1;
     const updates = {};
+
+    // Friends match, two or more connected players tied for last place: no one
+    // is knocked out - the same round is played again (the next round keeps
+    // its number on screen, see displayedRound()). loserId '' tells every
+    // client the round ended in a tie.
+    const replays = MP.room.replays || 0;
+    const isTiedForLast = MP.room.matchType !== 'random' && active.length >= 2
+        && active[0][1].connected !== false && active[1][1].connected !== false
+        && (active[0][1].score || 0) === (active[1][1].score || 0);
+    if (isTiedForLast && replays < MAX_TIE_REPLAYS) {
+        updates['status'] = 'roundEnd';
+        updates['loserId'] = '';
+        updates['replays'] = replays + 1;
+        MP.roomRef.update(updates).catch(err => {
+            console.error('Failed to end round:', err);
+            showMessage('שגיאה בסיום הסיבוב - נסה שוב', 'error');
+        });
+        return;
+    }
 
     // A genuine head-to-head (exactly 2 still active - always true for a
     // random-matched 1v1, and also true for the deciding round of a larger
@@ -1033,6 +1066,16 @@ function showMultiplayerRoundEnd(room) {
     const loserName = !loser ? '' : room.loserId === MP.playerId ? loser.name : safePlayerName(loser.name, loser.uid);
     // reuse the existing round-end UI renderer
     showRoundEnd(standings, loserName);
+
+    // a tie for last place: nobody is out, the same round is played again
+    const isTieReplay = !room.loserId;
+    if (isTieReplay) {
+        // replays already counts this tie, so the round just played is one more
+        document.getElementById('eliminationNotice').textContent =
+            `שוויון במקום האחרון! אף אחד לא הודח - סיבוב ${displayedRound(room) + 1} ישוחק שוב`;
+    }
+    const nextBtnLabel = document.getElementById('nextRoundBtn');
+    if (nextBtnLabel) nextBtnLabel.textContent = isTieReplay ? 'שחקו שוב את הסיבוב ›' : 'סיבוב הבא ›';
 
     const iWasEliminated = room.loserId === MP.playerId;
     const nextBtn = document.getElementById('nextRoundBtn');
@@ -1114,6 +1157,7 @@ function hostRematchFriends() {
         winnerId: null,
         loserId: null,
         isDraw: null,
+        replays: null,
         board: null,
         roundStartTime: null
     };
