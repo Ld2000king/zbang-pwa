@@ -14,14 +14,14 @@
     <link rel="icon" type="image/png" href="icon-192.png">
     <!-- ?v= must match VERSION in sw.js - bump both on every release, so a
          fresh index.html can never be paired with an older cached script -->
-    <link rel="stylesheet" href="style.css?v=39">
-    <link rel="stylesheet" href="game.css?v=39">
+    <link rel="stylesheet" href="style.css?v=40">
+    <link rel="stylesheet" href="game.css?v=40">
 </head>
 <body>
     <div id="app">
         <!-- Home Screen -->
         <div id="homeScreen" class="screen tab-screen active">
-            <button class="help-btn icon" onclick="showInstructions()" title="הוראות משחק"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.5 a2.8 2.8 0 1 1 4.3 2.4 c-0.9 0.6 -1.5 1.1 -1.5 2.1"/><circle cx="12" cy="17" r="0.1" fill="currentColor" stroke-width="2.5"/></svg></button>
+            <button class="help-btn icon" onclick="showInstructions()" title="הוראות משחק" aria-label="הוראות משחק"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8.8 9 a3.2 3.2 0 1 1 4.9 2.7 c-1 0.6 -1.7 1.3 -1.7 2.5"/><circle cx="12" cy="18.6" r="1.5" fill="currentColor" stroke="none"/></svg></button>
             <button class="menu-btn icon" onclick="openMenu()" aria-label="תפריט" title="תפריט"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
             <div class="home-content">
                 <!-- the active city's skyline behind the title (see themes.js) -->
@@ -653,6 +653,17 @@
         </div>
     </div>
 
+    <!-- How-to-play for the other modes, shown the first time each one is opened.
+         Filled from MODE_HELP by showModeHelp() in game.js; same look as the tower's -->
+    <div id="modeHelpOverlay" class="confirm-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="modeHelpTitle">
+        <div class="confirm-box tower-help-box">
+            <h2 id="modeHelpTitle"></h2>
+            <ol class="tower-help-list" id="modeHelpList"></ol>
+            <p class="tower-help-tip" id="modeHelpTip"></p>
+            <button class="btn-large green-btn" onclick="closeModeHelp()">בוא נתחיל!</button>
+        </div>
+    </div>
+
     <!-- Set/rename player name - used for the first-run gate and every rename entry point -->
     <div id="nameOverlay" class="confirm-overlay" style="display:none;">
         <div class="confirm-box">
@@ -776,21 +787,21 @@
     <script src="vendor/firebase-app-compat.js"></script>
     <script src="vendor/firebase-database-compat.js"></script>
     <script src="vendor/firebase-auth-compat.js"></script>
-    <script src="firebase-config.js?v=39"></script>
-    <script src="avatars.js?v=39"></script>
-    <script src="icons.js?v=39"></script>
-    <script src="themes.js?v=39"></script>
-    <script src="game.js?v=39"></script>
-    <script src="words.js?v=39"></script>
-    <script src="words-bulk.js?v=39"></script>
-    <script src="words-bulk-2.js?v=39"></script>
-    <script src="words-bulk-3.js?v=39"></script>
-    <script src="tower.js?v=39"></script>
-    <script src="multiplayer.js?v=39"></script>
-    <script src="cloudsave.js?v=39"></script>
-    <script src="admin.js?v=39"></script>
-    <script src="moderation.js?v=39"></script>
-    <script src="iap.js?v=39"></script>
+    <script src="firebase-config.js?v=40"></script>
+    <script src="avatars.js?v=40"></script>
+    <script src="icons.js?v=40"></script>
+    <script src="themes.js?v=40"></script>
+    <script src="game.js?v=40"></script>
+    <script src="words.js?v=40"></script>
+    <script src="words-bulk.js?v=40"></script>
+    <script src="words-bulk-2.js?v=40"></script>
+    <script src="words-bulk-3.js?v=40"></script>
+    <script src="tower.js?v=40"></script>
+    <script src="multiplayer.js?v=40"></script>
+    <script src="cloudsave.js?v=40"></script>
+    <script src="admin.js?v=40"></script>
+    <script src="moderation.js?v=40"></script>
+    <script src="iap.js?v=40"></script>
     <script>
         // Register service worker for offline play & installability, but NOT
         // inside the Capacitor native shell: there the webview already bundles

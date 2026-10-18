@@ -243,6 +243,7 @@ let gameState = {
     bestSingleScorePrecise: 0, // personal best on the 2-minute ("precise") board
     bestTowerScore: 0,   // personal best in מגדל זבאנג (tower.js)
     towerTutorialSeen: false, // the tower's how-to-play opens by itself only once
+    modeHelpSeen: {},    // the other modes' how-to-play, same idea: { single: true, ... }
     playerId: null,      // stable per-device id for the global leaderboard entry
     lastDailyClaim: null, // 'YYYY-MM-DD' of the last claimed daily reward
     dailyStreak: 0        // consecutive-day login streak
@@ -658,6 +659,11 @@ function loadGameState() {
     if (typeof gameState.bestSingleScore !== 'number') gameState.bestSingleScore = 0;
     if (typeof gameState.bestSingleScorePrecise !== 'number') gameState.bestSingleScorePrecise = 0;
     if (typeof gameState.bestTowerScore !== 'number') gameState.bestTowerScore = 0;
+    // the per-mode how-to-play is for brand-new players: a save from before it
+    // existed belongs to someone who already knows the modes
+    if (!gameState.modeHelpSeen || typeof gameState.modeHelpSeen !== 'object') {
+        gameState.modeHelpSeen = saved ? { single: true, battle: true, friends: true, random: true } : {};
+    }
     // these two are shown directly on the profile, so an older/partial save
     // (including one restored from another device) must not render "undefined"
     if (typeof gameState.totalScore !== 'number') gameState.totalScore = 0;
@@ -1400,6 +1406,91 @@ function showGameModeSelection() {
     showScreen('gameModeScreen');
 }
 
+// ===== How-to-play per mode =====
+// Opens by itself the first time a player enters each mode, before the mode
+// starts (a timed round must not tick while they read), the way the tower's
+// does (showTowerHelp in tower.js). Closing it carries on into the mode.
+const MODE_HELP = {
+    single: {
+        title: 'איך משחקים במשחק יחיד?',
+        items: [
+            'גוררים את האצבע על <strong>אותיות סמוכות</strong> בלוח ויוצרים מילה של 3 אותיות לפחות.',
+            '<strong>משחק מהיר</strong> נמשך דקה, ו<strong>משחק מדויק</strong> נמשך 2 דקות - מצאו כמה שיותר מילים עד שהזמן נגמר.',
+            'מילה ארוכה שווה יותר: 100 נקודות על 3 אותיות, 250 על 4, ו<strong>500 על 5 אותיות</strong>.',
+            'מילה שלא במאגר? אפשר ללחוץ <strong>"מילה אמיתית?"</strong> ולשלוח אותה לבדיקה.',
+            'עזרים: <strong>רמז</strong> מסמן מילה, <strong>ערבוב</strong> מחליף את הלוח, <strong>הקפאה</strong> עוצרת את השעון ל-5 שניות.',
+            'נגמרו המילים בלוח? הוא מתערבב לבד.'
+        ],
+        tip: 'כל 10 נקודות = מטבע, ושיא חדש אפשר להוסיף לטבלת הזבאנג רויאל.'
+    },
+    battle: {
+        title: 'איך משחקים בבאטל רויאל?',
+        items: [
+            'אתם מול <strong>4 בוטים</strong>, ב-<strong>5 סיבובים</strong> של דקה.',
+            'כולם מחפשים מילים באותו לוח, ובסוף כל סיבוב <strong>מי שצבר הכי מעט ניקוד מודח</strong>.',
+            'שורדים את כל 5 הסיבובים? <strong>ניצחתם!</strong> +100 מטבעות ו-5 יהלומים, ועוד 25 מטבעות על כל סיבוב ששרדתם.',
+            '<strong>הקפא יריבים</strong> עוצר את הבוטים ל-8 שניות, ו<strong>ערבב ליריבים</strong> חותך את הניקוד שלהם בחצי.',
+            'צריכים הפסקה? כפתור ההשהיה עוצר את המשחק.'
+        ],
+        tip: 'שלוש רמות קושי - התחילו מזבאנג התחלתי.'
+    },
+    friends: {
+        title: 'איך משחקים עם חברים?',
+        items: [
+            '<strong>צרו חדר</strong> ושתפו את הקוד (5 תווים), או <strong>הצטרפו</strong> עם קוד שקיבלתם מחבר.',
+            'עד <strong>6 שחקנים</strong> בחדר. המארח בוחר סיבובים של דקה או 2 דקות ומתחיל את המשחק.',
+            'בסוף כל סיבוב <strong>מי שצבר הכי מעט ניקוד מודח</strong>, עד שנשאר מנצח אחד.',
+            'שוויון במקום האחרון? אף אחד לא מודח, ו<strong>הסיבוב משוחק שוב</strong>.',
+            '<strong>הקפא יריבים</strong> מקפיא את כל החברים ל-8 שניות - הם לא יכולים לגעת בלוח.',
+            'המנצח מקבל <strong>100 מטבעות</strong>, ו"שחק שוב" מחזיר את כולם לאותו חדר.'
+        ],
+        tip: 'במשחק עם שחקנים אמיתיים אין השהיה - השעון רץ לכולם.'
+    },
+    random: {
+        title: 'איך משחקים במשחק אקראי?',
+        items: [
+            'המשחק מוצא לכם <strong>יריב אמיתי</strong> שמחפש משחק עכשיו.',
+            'סיבוב אחד של דקה, על אותו לוח - <strong>מי שצובר יותר ניקוד מנצח</strong>.',
+            'ניצחון: <strong>+20 גביעים</strong> ו-100 מטבעות. הפסד: 10- גביעים. תיקו: בלי שינוי.',
+            'כל <strong>200 גביעים</strong> פותחים עיר חדשה, וכל עיר מלבישה את כל המשחק.',
+            '<strong>הקפא יריבים</strong> מקפיא את היריב ל-8 שניות.'
+        ],
+        tip: 'במשחק עם שחקנים אמיתיים אין השהיה - השעון רץ לכולם.'
+    }
+};
+
+let modeHelpThen = null;
+
+// Runs `then` right away once the player has seen this mode's how-to-play;
+// otherwise shows it first and runs `then` when it's closed. Returns true
+// when the help was opened (the caller should stop there).
+function needsModeHelp(mode, then) {
+    if (!MODE_HELP[mode] || (gameState.modeHelpSeen || {})[mode]) return false;
+    showModeHelp(mode, then);
+    return true;
+}
+
+function showModeHelp(mode, then) {
+    const help = MODE_HELP[mode];
+    if (!help) return;
+    modeHelpThen = { mode: mode, then: then || null };
+    document.getElementById('modeHelpTitle').textContent = help.title;
+    document.getElementById('modeHelpList').innerHTML = help.items.map(item => `<li>${item}</li>`).join('');
+    document.getElementById('modeHelpTip').textContent = help.tip;
+    document.getElementById('modeHelpOverlay').style.display = 'flex';
+}
+
+function closeModeHelp() {
+    document.getElementById('modeHelpOverlay').style.display = 'none';
+    const pending = modeHelpThen;
+    modeHelpThen = null;
+    if (!pending) return;
+    if (!gameState.modeHelpSeen) gameState.modeHelpSeen = {};
+    gameState.modeHelpSeen[pending.mode] = true;
+    saveGameState();
+    if (pending.then) pending.then();
+}
+
 function showInstructions() {
     showScreen('instructionsScreen');
 }
@@ -1865,6 +1956,7 @@ function showSingleModeChoice() {
 }
 
 function startSinglePlayer(singleMode = 'quick') {
+    if (needsModeHelp('single', () => startSinglePlayer(singleMode))) return;
     const duration = SINGLE_DURATIONS[singleMode] || SINGLE_DURATIONS.quick;
     currentGame.mode = 'single';
     currentGame.singleMode = singleMode; // remembered so "play again" replays the same length
@@ -2345,6 +2437,7 @@ function showBattleDifficulty() {
 }
 
 function startBattleRoyale(difficulty = 'medium') {
+    if (needsModeHelp('battle', () => startBattleRoyale(difficulty))) return;
     battleState.difficulty = BOT_DIFFICULTY[difficulty] ? difficulty : 'medium';
     currentGame.mode = 'battle';
     battleState.currentRound = 1;
@@ -2542,6 +2635,8 @@ function showRoundEnd(standings, eliminatedName) {
     `).join('');
 
     document.getElementById('eliminationNotice').textContent = `${eliminatedName} הודח/ה מהסיבוב!`;
+    // multiplayer relabels it for a tie replay (showMultiplayerRoundEnd)
+    document.getElementById('nextRoundBtn').textContent = 'סיבוב הבא ›';
     document.getElementById('standingsDisplay').innerHTML = standingsHTML;
     showScreen('roundEndScreen');
 }

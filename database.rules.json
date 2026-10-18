@@ -93,6 +93,9 @@
         "winnerId":       { ".validate": "newData.isString()", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
         "loserId":        { ".validate": "newData.isString()", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
         "isDraw":         { ".validate": "newData.isBoolean()", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
+        // tie replays in a friends match (multiplayer.js, endMultiplayerRound):
+        // how many rounds were played again after a tie for last place
+        "replays":        { ".validate": "newData.isNumber() && newData.val() >= 0", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
 
         // set once at creation only (no post-create writer)
         "hostId":           { ".validate": "newData.isString()" },
