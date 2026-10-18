@@ -72,7 +72,11 @@
    paint-order keeps the stroke behind the fill so Hebrew stays legible. */
 .main-title {
     font-family: var(--font-display);
-    font-size: 4em;
+    /* The ? and ☰ buttons sit in the top corners at the title's height, and
+       the app frame is at most --app-max-width wide - so the title scales
+       with the frame's width to keep clear of both (a fixed 4em ran into
+       them on wide screens; see the phone rule under Responsive). */
+    font-size: min(4em, calc(0.182 * min(100vw, var(--app-max-width)) - 30px));
     text-align: center;
     margin-bottom: 10px;
     font-weight: 900;
@@ -1757,8 +1761,11 @@ html[data-city="island"] .subtitle {
 
 /* Responsive */
 @media (max-width: 600px) {
+    /* Same clearance rule on phones: 2.6em at most, smaller on narrow
+       screens so it never reaches the corner buttons (it used to run into
+       them at 360px and below) */
     .main-title {
-        font-size: 2.6em;
+        font-size: min(2.6em, calc(18.2vw - 30px));
     }
 
     .board {

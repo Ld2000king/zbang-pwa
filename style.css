@@ -237,9 +237,13 @@ button {
     animation: tabSwitchIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
 }
 
+/* opacity only: a transform on the screen, even mid-animation, makes it the
+   containing block of its position:fixed children - the home screen's ? and
+   ☰ corner buttons jumped inward over the title for the length of the fade
+   on any viewport wider than the app frame */
 @keyframes tabSwitchIn {
-    from { opacity: 0; transform: scale(0.98); }
-    to   { opacity: 1; transform: scale(1); }
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
