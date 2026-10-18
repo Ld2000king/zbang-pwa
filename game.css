@@ -3870,6 +3870,15 @@ body.has-bottom-nav .music-toggle-btn {
     object-fit: cover;
 }
 
+/* The preset avatars are round portraits on a square canvas. These frames
+   are square, so zoom the portrait until its circle covers the corners and
+   the picture fills the whole frame (√2 over the ~95% circle). Custom photos
+   (img) are already square and stay as they are. */
+.mm-avatar svg,
+.mm-reel-item svg {
+    transform: scale(1.5);
+}
+
 /* the big "?" sitting behind the reel - what reduced-motion users see while searching */
 .mm-reel-window::before {
     content: '?';
@@ -3893,6 +3902,7 @@ body.has-bottom-nav .music-toggle-btn {
     width: var(--mm-size);
     height: var(--mm-size);
     background: var(--cream-3);
+    overflow: hidden; /* the zoomed portrait must not spill into the next slot */
 }
 
 .mm-stage[data-phase="search"] .mm-reel {

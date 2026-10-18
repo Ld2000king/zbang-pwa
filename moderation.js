@@ -69,7 +69,7 @@ function safePlayerName(name, uid) {
 function blockPlayer(uid, name) {
     if (!uid || isPlayerBlocked(uid)) return;
     // the name is only kept so the profile list can show who is blocked
-    blockedPlayers().push({ uid: uid, name: String(name || 'שחקן').slice(0, 20) });
+    blockedPlayers().push({ uid: uid, name: String(name || 'שחקן').slice(0, 10) });
     saveGameState();
     refreshAfterModerationChange();
     showMessage('השחקן נחסם. לא תראה יותר את השם והתמונה שלו', 'success');

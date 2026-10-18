@@ -333,11 +333,11 @@ function botFindDelay(tier) {
 }
 
 // ---- dictionary scan helpers ----------------------------------------------
-// The dictionary is big (12k+ words once the expansion packs are merged) and
+// The dictionary is big (24k+ words once the expansion packs are merged) and
 // both collectBoardWords() and findWordOnBoard() sweep all of it - and
 // findWordOnBoard() runs after every single word a player finds. Two cheap
 // guards keep that sweep fast: the key list is cached (Object.keys() was
-// allocating a 12k array per call) and a word is skipped outright when the
+// allocating a 24k array per call) and a word is skipped outright when the
 // board doesn't even contain one of its letters, which discards the vast
 // majority before the position scan. The letter test ignores repeats, so it
 // can only ever reject words that truly aren't on the board.
@@ -428,14 +428,16 @@ function backfillCustomAvatarSync() {
 }
 
 // Merge the expansion packs into the dictionary: words.js (EXTRA_WORDS, written
-// with natural final letters) and words-bulk.js (EXTRA_WORDS_BULK, already
-// normalized). Every word is normalized again here - a no-op for the bulk pack -
-// so it's findable on the board, and duplicates against the base dictionary
-// (and against each other) are skipped.
+// with natural final letters), words-bulk.js and words-bulk-2.js
+// (EXTRA_WORDS_BULK / EXTRA_WORDS_BULK_2, already normalized). Every word is
+// normalized again here - a no-op for the bulk packs - so it's findable on the
+// board, and duplicates against the base dictionary (and against each other)
+// are skipped.
 function mergeExtraWords() {
     const packs = [];
     if (typeof EXTRA_WORDS !== 'undefined') packs.push(EXTRA_WORDS);
     if (typeof EXTRA_WORDS_BULK !== 'undefined') packs.push(EXTRA_WORDS_BULK);
+    if (typeof EXTRA_WORDS_BULK_2 !== 'undefined') packs.push(EXTRA_WORDS_BULK_2);
 
     packs.forEach(pack => pack.forEach(w => {
         const word = normalizeFinals(w);
@@ -469,7 +471,7 @@ function applyRemovedWords() {
 // add/remove controls only render for a signed-in admin; those actions live in
 // admin.js and the Security Rules are what actually enforce them.
 
-const WORD_BANK_PAGE = 120; // 12k+ rows can't all live in the DOM at once
+const WORD_BANK_PAGE = 120; // 24k+ rows can't all live in the DOM at once
 
 let wordBankQuery = '';
 let wordBankShown = WORD_BANK_PAGE;
@@ -481,7 +483,7 @@ let wordBankSortedFrom = null;
 // Alphabetical dictionary keys, memoized against the key cache above so the
 // sort only runs when the dictionary actually changed. Hebrew letters are
 // contiguous and in alphabetical order in Unicode, so a plain compare sorts
-// correctly and far faster than localeCompare over 12k words.
+// correctly and far faster than localeCompare over 24k words.
 function sortedDictionaryWords() {
     const src = dictionaryWordList();
     if (wordBankSortedFrom !== src) {
@@ -630,6 +632,10 @@ function loadGameState() {
     const saved = localStorage.getItem('zabangState');
     if (saved) gameState = JSON.parse(saved);
     if (!gameState.avatarId) gameState.avatarId = 'dan';
+    // names from before the 10-character limit are cut down to it
+    if (typeof gameState.playerName === 'string' && gameState.playerName.length > PLAYER_NAME_MAX) {
+        gameState.playerName = cleanPlayerName(gameState.playerName) || 'שחקן';
+    }
     if (typeof gameState.trophies !== 'number') gameState.trophies = 0;
     if (typeof gameState.preferredTheme !== 'number') gameState.preferredTheme = 0;
     delete gameState.highestTrophies; // briefly used to unlock themes by peak - no longer read
@@ -2074,7 +2080,7 @@ function renameLeaderboardEntry(id) {
     if (raw === null) return; // cancelled
     // Same sanitising as saveNameFromModal(): this name is rendered for every
     // player, and the Rules cap it at 40 characters.
-    const cleaned = raw.trim().slice(0, 20).replace(/[<>&"']/g, '');
+    const cleaned = cleanPlayerName(raw);
     if (!cleaned) { showMessage('שם לא תקין', 'error'); return; }
 
     if (typeof authReady === 'undefined') return;
@@ -2887,11 +2893,19 @@ function closeNameModal() {
     document.getElementById('nameOverlay').style.display = 'none';
 }
 
+// Player names are at most PLAYER_NAME_MAX characters - they sit in narrow
+// spots (status strip, VS name plates, leaderboard rows).
+const PLAYER_NAME_MAX = 10;
+
+// Strips HTML-significant characters at the source (this name is shared with
+// other real players over Firebase) and caps the length.
+function cleanPlayerName(raw) {
+    return String(raw || '').replace(/[<>&"']/g, '').trim().slice(0, PLAYER_NAME_MAX).trim();
+}
+
 function saveNameFromModal() {
     const raw = document.getElementById('nameInput').value;
-    // Strip HTML-significant characters at the source - this name gets
-    // shared with other real players over Firebase in multiplayer mode
-    const cleaned = raw.trim().slice(0, 20).replace(/[<>&"']/g, '');
+    const cleaned = cleanPlayerName(raw);
     if (!cleaned) { showMessage('שם לא תקין', 'error'); return; }
     // the name is shown to other players - see moderation.js
     if (typeof isNameAllowed === 'function' && !isNameAllowed(cleaned)) {
