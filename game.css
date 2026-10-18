@@ -1183,6 +1183,10 @@ html[data-city="island"] .subtitle {
     border-radius: var(--radius-sm);
     padding: 2px 8px;
     vertical-align: middle;
+    /* keep the pill whole - as a plain inline box it broke across two lines
+       (and split its border) whenever the item name was long */
+    display: inline-block;
+    white-space: nowrap;
 }
 
 /* Generic yes/no confirmation modal */
@@ -2722,6 +2726,23 @@ html[data-city="island"] .subtitle {
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
+    /* when the row wraps (below), keep the buttons on the end side */
+    margin-inline-start: auto;
+}
+
+/* On phone widths emoji + name + ▶ + buy button don't fit on one line - the
+   buttons used to spill out of the card - so every sound-kit row puts them on
+   a second line. Wider viewports get the full 460px app frame, where the
+   one-line row fits, so they keep it. */
+@media (max-width: 460px) {
+    .shop-item:has(> .sound-kit-actions) {
+        flex-wrap: wrap;
+        row-gap: 12px;
+    }
+
+    .shop-item:has(> .sound-kit-actions) > .item-info {
+        flex-basis: 100%;
+    }
 }
 
 .sound-preview-btn {
