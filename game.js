@@ -333,11 +333,11 @@ function botFindDelay(tier) {
 }
 
 // ---- dictionary scan helpers ----------------------------------------------
-// The dictionary is big (24k+ words once the expansion packs are merged) and
+// The dictionary is big (44k+ words once the expansion packs are merged) and
 // both collectBoardWords() and findWordOnBoard() sweep all of it - and
 // findWordOnBoard() runs after every single word a player finds. Two cheap
 // guards keep that sweep fast: the key list is cached (Object.keys() was
-// allocating a 24k array per call) and a word is skipped outright when the
+// allocating a 44k array per call) and a word is skipped outright when the
 // board doesn't even contain one of its letters, which discards the vast
 // majority before the position scan. The letter test ignores repeats, so it
 // can only ever reject words that truly aren't on the board.
@@ -428,8 +428,8 @@ function backfillCustomAvatarSync() {
 }
 
 // Merge the expansion packs into the dictionary: words.js (EXTRA_WORDS, written
-// with natural final letters), words-bulk.js and words-bulk-2.js
-// (EXTRA_WORDS_BULK / EXTRA_WORDS_BULK_2, already normalized). Every word is
+// with natural final letters), words-bulk.js, words-bulk-2.js and
+// words-bulk-3.js (EXTRA_WORDS_BULK / _2 / _3, already normalized). Every word is
 // normalized again here - a no-op for the bulk packs - so it's findable on the
 // board, and duplicates against the base dictionary (and against each other)
 // are skipped.
@@ -438,6 +438,7 @@ function mergeExtraWords() {
     if (typeof EXTRA_WORDS !== 'undefined') packs.push(EXTRA_WORDS);
     if (typeof EXTRA_WORDS_BULK !== 'undefined') packs.push(EXTRA_WORDS_BULK);
     if (typeof EXTRA_WORDS_BULK_2 !== 'undefined') packs.push(EXTRA_WORDS_BULK_2);
+    if (typeof EXTRA_WORDS_BULK_3 !== 'undefined') packs.push(EXTRA_WORDS_BULK_3);
 
     packs.forEach(pack => pack.forEach(w => {
         const word = normalizeFinals(w);
@@ -471,7 +472,7 @@ function applyRemovedWords() {
 // add/remove controls only render for a signed-in admin; those actions live in
 // admin.js and the Security Rules are what actually enforce them.
 
-const WORD_BANK_PAGE = 120; // 24k+ rows can't all live in the DOM at once
+const WORD_BANK_PAGE = 120; // 44k+ rows can't all live in the DOM at once
 
 let wordBankQuery = '';
 let wordBankShown = WORD_BANK_PAGE;
@@ -483,7 +484,7 @@ let wordBankSortedFrom = null;
 // Alphabetical dictionary keys, memoized against the key cache above so the
 // sort only runs when the dictionary actually changed. Hebrew letters are
 // contiguous and in alphabetical order in Unicode, so a plain compare sorts
-// correctly and far faster than localeCompare over 24k words.
+// correctly and far faster than localeCompare over 44k words.
 function sortedDictionaryWords() {
     const src = dictionaryWordList();
     if (wordBankSortedFrom !== src) {
@@ -1427,6 +1428,20 @@ function goToProfile() {
     showScreen('profileScreen');
 }
 
+// Words generateBoard() may plant on a size x size grid, memoized against the
+// dictionary key cache so it's rebuilt only when the dictionary changes.
+let plantableWordsCache = null, plantableWordsFrom = null, plantableWordsSize = 0;
+
+function plantableWordList(size) {
+    const src = dictionaryWordList();
+    if (plantableWordsFrom !== src || plantableWordsSize !== size) {
+        plantableWordsFrom = src;
+        plantableWordsSize = size;
+        plantableWordsCache = src.filter(w => w.length <= size && /^[א-ת]+$/.test(w));
+    }
+    return plantableWordsCache;
+}
+
 // Board Generation
 function generateBoard() {
     const hebrewLetters = 'אבגדהוזחטיכלמנסעפצקרשת';
@@ -1438,8 +1453,12 @@ function generateBoard() {
     }
 
     // Plant some words
-    // Only plant words made purely of letters - never punctuation like the geresh (׳).
-    const words = Object.keys(HEBREW_DICTIONARY).filter(w => /^[א-ת]+$/.test(w)).sort(() => Math.random() - 0.5).slice(0, 5);
+    // Only plant words made purely of letters - never punctuation like the geresh (׳) -
+    // and short enough to fit the grid (the dictionary also holds longer words
+    // for מגדל זבאנג). Five random picks, not a shuffle of the whole dictionary.
+    const pool = plantableWordList(currentGame.gridSize);
+    const words = [];
+    for (let i = 0; i < 5 && pool.length; i++) words.push(pool[Math.floor(Math.random() * pool.length)]);
 
     for (let word of words) {
         let planted = false;
