@@ -118,6 +118,8 @@ const XP_REWARDS_ENABLED = true;
     function note(entry) {
         api.results.push(entry);
         if (api.results.length > 50) api.results.shift();
+        // what the player sees comes from this saved result (xp-ui.js)
+        if (window.ZbangXPUI) { try { window.ZbangXPUI.onReward(entry); } catch (e) { console.error('[XP UI]', e); } }
         return entry;
     }
 

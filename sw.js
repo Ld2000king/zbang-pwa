@@ -39,6 +39,7 @@ const PRECACHE = [
     './xp-engine.js',
     './xp-state.js',
     './xp-game.js',
+    './xp-ui.js',
     './avatars.js',
     './assets/avatars/dan.webp',
     './assets/avatars/maya.webp',
