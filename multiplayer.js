@@ -1066,6 +1066,10 @@ function showMultiplayerRoundEnd(room) {
     const loserName = !loser ? '' : room.loserId === MP.playerId ? loser.name : safePlayerName(loser.name, loser.uid);
     // reuse the existing round-end UI renderer
     showRoundEnd(standings, loserName);
+    // multiplayer rounds pay no coins (only the match winner does), so don't
+    // show the bots-battle "+coins" box here
+    const roundCoins = document.getElementById('roundEndCoins');
+    if (roundCoins) roundCoins.parentElement.style.display = 'none';
 
     // a tie for last place: nobody is out, the same round is played again
     const isTieReplay = !room.loserId;
@@ -1119,10 +1123,10 @@ function showMultiplayerResult(room) {
     } else if (room.winnerId === MP.playerId) {
         title.innerHTML = `${icon('trophy')} ניצחת! ${icon('trophy')}`;
         subtitle.textContent = isRandom1v1 ? 'ניצחת את היריב!' : 'ניצחת את כל החברים!';
-        rewards.innerHTML = `<div class="reward-box"><span class="coin-icon icon">${ICONS.coin}</span><span>+100 מטבעות!</span></div>`;
+        rewards.innerHTML = `<div class="reward-box"><span class="coin-icon icon">${ICONS.coin}</span><span>+${MP_WIN_COINS} מטבעות!</span></div>`;
         launchConfetti();
         if (!alreadyApplied) {
-            gameState.coins += 100;
+            gameState.coins += MP_WIN_COINS;
             saveGameState();
             updateHomeUI();
             if (isRandom1v1) awardTrophies(20, 'ניצחון');

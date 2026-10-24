@@ -267,6 +267,19 @@ const DAILY_REWARDS = [
 // Coins granted by watching a (mock) rewarded video ad.
 const AD_REWARD_COINS = 50;
 
+// End-of-game coin rewards (balanced down in 1.2). Every place that grants
+// or shows these reads them from here, so the screen always matches what is
+// saved. מגדל זבאנג keeps its own rate in tower.js; daily rewards and the 5
+// diamonds for a bots victory are unchanged.
+const SINGLE_POINTS_PER_COIN = 20; // was 10
+const BOT_ROUND_COINS = 15;        // per round survived in a bots battle, was 25
+const BOT_VICTORY_COINS = 60;      // winning a bots battle, was 100
+const MP_WIN_COINS = 60;           // winning a multiplayer match, was 100
+
+function singleGameCoins(score) {
+    return Math.floor(score / SINGLE_POINTS_PER_COIN);
+}
+
 // Real-money coin packages, purchased through Apple StoreKit / Google Play
 // Billing (see iap.js). `sku` must exactly match the consumable product id
 // created in App Store Connect / Google Play Console. `price` is only the
@@ -1421,14 +1434,14 @@ const MODE_HELP = {
             'עזרים: <strong>רמז</strong> מסמן מילה, <strong>ערבוב</strong> מחליף את הלוח, <strong>הקפאה</strong> עוצרת את השעון ל-5 שניות.',
             'נגמרו המילים בלוח? הוא מתערבב לבד.'
         ],
-        tip: 'כל 10 נקודות = מטבע, ושיא חדש אפשר להוסיף לטבלת הזבאנג רויאל.'
+        tip: `כל ${SINGLE_POINTS_PER_COIN} נקודות = מטבע, ושיא חדש אפשר להוסיף לטבלת הזבאנג רויאל.`
     },
     battle: {
         title: 'איך משחקים בבאטל רויאל?',
         items: [
             'אתם מול <strong>4 בוטים</strong>, ב-<strong>5 סיבובים</strong> של דקה.',
             'כולם מחפשים מילים באותו לוח, ובסוף כל סיבוב <strong>מי שצבר הכי מעט ניקוד מודח</strong>.',
-            'שורדים את כל 5 הסיבובים? <strong>ניצחתם!</strong> +100 מטבעות ו-5 יהלומים, ועוד 25 מטבעות על כל סיבוב ששרדתם.',
+            `שורדים את כל 5 הסיבובים? <strong>ניצחתם!</strong> +${BOT_VICTORY_COINS} מטבעות ו-5 יהלומים, ועוד ${BOT_ROUND_COINS} מטבעות על כל סיבוב ששרדתם.`,
             '<strong>הקפא יריבים</strong> עוצר את הבוטים ל-8 שניות, ו<strong>ערבב ליריבים</strong> חותך את הניקוד שלהם בחצי.',
             'צריכים הפסקה? כפתור ההשהיה עוצר את המשחק.'
         ],
@@ -1442,7 +1455,7 @@ const MODE_HELP = {
             'בסוף כל סיבוב <strong>מי שצבר הכי מעט ניקוד מודח</strong>, עד שנשאר מנצח אחד.',
             'שוויון במקום האחרון? אף אחד לא מודח, ו<strong>הסיבוב משוחק שוב</strong>.',
             '<strong>הקפא יריבים</strong> מקפיא את כל החברים ל-8 שניות - הם לא יכולים לגעת בלוח.',
-            'המנצח מקבל <strong>100 מטבעות</strong>, ו"שחק שוב" מחזיר את כולם לאותו חדר.'
+            `המנצח מקבל <strong>${MP_WIN_COINS} מטבעות</strong>, ו"שחק שוב" מחזיר את כולם לאותו חדר.`
         ],
         tip: 'במשחק עם שחקנים אמיתיים אין השהיה - השעון רץ לכולם.'
     },
@@ -1451,7 +1464,7 @@ const MODE_HELP = {
         items: [
             'המשחק מוצא לכם <strong>יריב אמיתי</strong> שמחפש משחק עכשיו.',
             'סיבוב אחד של דקה, על אותו לוח - <strong>מי שצובר יותר ניקוד מנצח</strong>.',
-            'ניצחון: <strong>+20 גביעים</strong> ו-100 מטבעות. הפסד: 10- גביעים. תיקו: בלי שינוי.',
+            `ניצחון: <strong>+20 גביעים</strong> ו-${MP_WIN_COINS} מטבעות. הפסד: 10- גביעים. תיקו: בלי שינוי.`,
             'כל <strong>200 גביעים</strong> פותחים עיר חדשה, וכל עיר מלבישה את כל המשחק.',
             '<strong>הקפא יריבים</strong> מקפיא את היריב ל-8 שניות.'
         ],
@@ -2066,7 +2079,7 @@ function endRound(mode) {
     currentGame.gameActive = false;
 
     if (mode === 'single') {
-        gameState.coins += Math.floor(currentGame.score / 10);
+        gameState.coins += singleGameCoins(currentGame.score);
         gameState.totalScore += currentGame.score;
         gameState.gamesPlayed++;
         // A new personal best unlocks the OPT-IN "add to זבאנג רויאל" button on
@@ -2088,7 +2101,7 @@ function endRound(mode) {
 function showGameOverDialog() {
     document.getElementById('srScore').textContent = currentGame.score;
     document.getElementById('srWords').textContent = currentGame.foundWords.size;
-    document.getElementById('srCoins').textContent = `+${Math.floor(currentGame.score / 10)} מטבעות`;
+    document.getElementById('srCoins').textContent = `+${singleGameCoins(currentGame.score)} מטבעות`;
 
     // Opt-in leaderboard button: only offered on a new personal best (only the
     // best score is submittable) and only when Firebase is available.
@@ -2619,15 +2632,16 @@ function endBattleRound() {
             if (bot.name === loser) bot.eliminated = true;
         }
 
-        gameState.coins += 25;
-        battleState.totalCoinsEarned += 25;
+        gameState.coins += BOT_ROUND_COINS;
+        battleState.totalCoinsEarned += BOT_ROUND_COINS;
+        saveGameState(); // keep the round's coins even if the app closes before the battle ends
         updateHomeUI();
 
         if (battleState.currentRound >= battleState.totalRounds) {
             // Victory! coins + a few blue diamonds as a premium bonus
-            gameState.coins += 100;
+            gameState.coins += BOT_VICTORY_COINS;
             gameState.diamonds += 5;
-            battleState.totalCoinsEarned += 100;
+            battleState.totalCoinsEarned += BOT_VICTORY_COINS;
             saveGameState();
             document.getElementById('victoryTitle').innerHTML = `${icon('trophy')} ניצחת! ${icon('trophy')}`;
             document.getElementById('victorySubtitle').textContent = `שרדת את כל ${battleState.totalRounds} הסיבובים!`;
@@ -2659,6 +2673,13 @@ function showRoundEnd(standings, eliminatedName) {
     `).join('');
 
     document.getElementById('eliminationNotice').textContent = `${eliminatedName} הודח/ה מהסיבוב!`;
+    // the coins a surviving bots-battle round paid (multiplayer hides this box -
+    // its rounds pay nothing, see showMultiplayerRoundEnd)
+    const roundCoins = document.getElementById('roundEndCoins');
+    if (roundCoins) {
+        roundCoins.textContent = `+${BOT_ROUND_COINS} מטבעות`;
+        roundCoins.parentElement.style.display = '';
+    }
     // multiplayer relabels it for a tie replay (showMultiplayerRoundEnd)
     document.getElementById('nextRoundBtn').textContent = 'סיבוב הבא ›';
     document.getElementById('standingsDisplay').innerHTML = standingsHTML;
