@@ -6,9 +6,9 @@
 // Firebase Emulator (firebase-test/), never against the real project.
 //
 // Where things live
-//   player_saves/<uid>/state     the existing JSON backup string (unchanged
-//                                shape; 1.2 adds `gemsInBalance` and keeps
-//                                `level` up to date so 1.1 shows it)
+//   player_saves/<uid>/state     the existing JSON backup string (same
+//                                shape; 1.2 adds the `xpProgress` counters and
+//                                keeps `level` up to date so 1.1 shows it)
 //   player_saves/<uid>/progress  NEW: { xp: {install: n}, gemsPaid: {install: n},
 //                                baseLevel } - counters that only go up.
 //                                Inside the same node on purpose: deleting the
@@ -22,18 +22,19 @@
 // so 1.2 keeps working on today's rules.
 //
 // Diamonds wallet
-//   `diamonds` in the state is a wallet, last-writer-wins as always.
-//   `gemsInBalance` says how many level-up diamonds that wallet already
-//   includes. syncWallet() credits the difference to the total level-up
-//   diamonds paid (from the merged counters), once - so a wallet restored
-//   from any snapshot, or written by another device, ends up holding every
-//   level-up reward exactly once.
+//   `diamonds` in the state is a wallet, last-writer-wins as always. Each
+//   level's 15 diamonds are paid once, into the wallet of the device that
+//   reached the level (booked in progress.gemsPaid). Merging or restoring
+//   only merges the counters - it never adds diamonds to a wallet, because
+//   "topping up" would give back diamonds a player already spent.
 // ============================================================================
 
 (function (root) {
     'use strict';
 
-    const XP = (typeof module !== 'undefined' && module.exports) ? require('./xp-engine.js') : root.ZbangXP;
+    const node = typeof module !== 'undefined' && module.exports;
+    const XP = node ? require('./xp-engine.js') : root.ZbangXP;
+    const XS = node ? require('./xp-state.js') : root.ZbangXPState;
 
     // engine progress -> what is stored in the cloud (events stay on the device)
     function toCloudProgress(progress) {
@@ -48,15 +49,6 @@
     function fromCloudProgress(raw) {
         if (!raw || typeof raw !== 'object') return XP.normalizeProgress(null);
         return XP.normalizeProgress({ xp: raw.xp, gemsPaid: raw.gemsPaid, baseLevel: raw.baseLevel });
-    }
-
-    // Credits level-up diamonds the wallet doesn't hold yet. Never takes any away.
-    function syncWallet(diamonds, gemsInBalance, progress) {
-        const paid = XP.diamondsPaid(XP.normalizeProgress(progress));
-        const have = Number.isFinite(gemsInBalance) && gemsInBalance > 0 ? gemsInBalance : 0;
-        const credited = Math.max(0, paid - have);
-        const wallet = Number.isFinite(diamonds) ? diamonds : 0;
-        return { diamonds: wallet + credited, gemsInBalance: Math.max(have, paid), credited };
     }
 
     // The value a 1.2 push writes, given what is in the cloud right now.
@@ -110,23 +102,26 @@
         return { node, progress: XP.mergeProgress(localProgress, fromCloudProgress(node && node.progress)) };
     }
 
-    // The player chose "restore the cloud copy": the state comes from the
-    // cloud, the progress is merged (never lowered), and the restored wallet
-    // gets any level-up diamonds it is missing.
+    // The player chose "restore the cloud copy": the state (wallet included)
+    // comes from the cloud, exactly like today; the progress is merged so it
+    // is never lowered and no level is paid again. The protected node's
+    // counters win over the ones inside the state string when both exist.
     function restoreFromNode(node, localProgress) {
         const cloudState = JSON.parse(node.state);
-        const progress = XP.mergeProgress(localProgress, fromCloudProgress(node.progress));
-        const wallet = syncWallet(cloudState.diamonds, cloudState.gemsInBalance, progress);
-        const state = Object.assign({}, cloudState, {
-            diamonds: wallet.diamonds,
-            gemsInBalance: wallet.gemsInBalance,
-            level: XP.levelOf(progress)
+        const fromNode = node.progress ? fromCloudProgress(node.progress) : null;
+        const backup = Object.assign({}, cloudState, {
+            xpProgress: fromNode
+                ? XP.mergeProgress(fromNode, cloudState.xpProgress || null)
+                : cloudState.xpProgress
         });
-        return { state, progress, credited: wallet.credited };
+        const progress = XS.progressAfterRestore(localProgress, backup);
+        const state = Object.assign({}, cloudState, { level: XP.levelOf(progress) });
+        delete state.gemsInBalance;
+        return { state, progress };
     }
 
     const api = {
-        toCloudProgress, fromCloudProgress, syncWallet, buildPushValue,
+        toCloudProgress, fromCloudProgress, buildPushValue,
         isPermissionDenied, pushSave, pullProgress, restoreFromNode
     };
 

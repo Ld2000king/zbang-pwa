@@ -125,24 +125,19 @@ class DeviceV12 {
         this.app = newDevice(label);
         this.installId = installId;
         this.progress = XP.createProgress();
-        this.state = { playerName: label, coins: 100, diamonds: 0, gemsInBalance: 0, level: 1, inventory: { hint: 3 } };
+        this.state = { playerName: label, coins: 100, diamonds: 0, level: 1, inventory: { hint: 3 } };
     }
     get uid() { return this.app.auth().currentUser.uid; }
     ref() { return this.app.database().ref('player_saves/' + this.uid); }
     earn(key, xp) {
         const r = XP.applyReward(this.progress, this.installId, key, xp, nextTime());
         this.progress = r.progress;
-        this.state.diamonds += r.diamonds;
-        this.state.gemsInBalance += r.diamonds;
+        this.state.diamonds += r.diamonds;   // each level's diamonds go into THIS wallet only
         this.state.level = XP.levelOf(this.progress);
         return r;
     }
-    syncWallet() {
-        const w = XPCloud.syncWallet(this.state.diamonds, this.state.gemsInBalance, this.progress);
-        this.state.diamonds = w.diamonds;
-        this.state.gemsInBalance = w.gemsInBalance;
-        this.state.level = XP.levelOf(this.progress);
-        return w.credited;
+    syncLevel() {
+        this.state.level = XP.levelOf(this.progress); // the wallet is never topped up
     }
     async push() {
         const r = await XPCloud.pushSave(this.ref(), {
@@ -150,13 +145,13 @@ class DeviceV12 {
             timestamp: firebase.database.ServerValue.TIMESTAMP
         });
         this.progress = r.progress;
-        this.syncWallet();
+        this.syncLevel();
         return r;
     }
     async pull() {
         const r = await XPCloud.pullProgress(this.ref(), this.progress);
         this.progress = r.progress;
-        this.syncWallet();
+        this.syncLevel();
         return r.node;
     }
     async restore() {
@@ -168,7 +163,43 @@ class DeviceV12 {
     }
 }
 
+// ---- a device running the REAL 1.2 code from this working tree ----------------
+// cloudsave.js (with its 1.2 changes) + xp-engine.js + xp-state.js + xp-game.js,
+// with stand-ins only for the game parts they hook into.
+function deviceV12Real(label, confirmAnswers = []) {
+    const app = newDevice(label);
+    const storage = new Map();
+    const ctx = {
+        firebase, db: app.database(), auth: app.auth(), FIREBASE_READY: true,
+        gameState: { playerName: label, coins: 100, diamonds: 0, level: 1, xp: 0, xpToNextLevel: 100, inventory: { hint: 3 } },
+        localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, String(v)), removeItem: k => storage.delete(k) },
+        location: { search: '' }, URLSearchParams,
+        messages: [], errors: [],
+        document: { getElementById: () => null },
+        icon: () => '', escapeHtml: s => s,
+        waitForAuth: () => Promise.resolve(app.auth().currentUser),
+        setTimeout, clearTimeout, Promise, JSON, Date, Object, Array, String, Number, Math, Map, Set, Error
+    };
+    ctx.window = ctx;
+    ctx.showMessage = (m, type) => ctx.messages.push({ type, m });
+    ctx.showConfirm = (msg, yes, no) => { (confirmAnswers.shift() === 'yes' ? yes : no || (() => {}))(); };
+    ctx.console = { log() {}, warn() {}, info() {}, error: (...a) => ctx.errors.push(a.map(String).join(' ')) };
+    ctx.saveGameState = () => ctx.localStorage.setItem('zabangState', JSON.stringify(ctx.gameState));
+    ctx.loadGameState = () => { const s = ctx.localStorage.getItem('zabangState'); if (s) ctx.gameState = JSON.parse(s); };
+    vm.createContext(ctx);
+    for (const f of ['cloudsave.js', 'xp-engine.js', 'xp-state.js', 'xp-game.js']) {
+        vm.runInContext(fs.readFileSync(path.join(REPO, f), 'utf8'), ctx, { filename: f });
+    }
+    vm.runInContext(`globalThis.__v12 = { pushCloudSave, resolveCloudSaveAfterSignIn, cloudCreateAccount, cloudSignIn, cloudDeleteAccount, collectCloudState };`, ctx);
+    ctx.loadGameState();
+    // a tower game over worth exactly `xp` (min(40, 10 + words) + 10 per clear)
+    const earn = (xp) => ctx.ZbangXPGame.grant({ mode: 'tower', completed: true, wordsFound: 30, clears: (xp - 40) / 10 },
+        'tower:' + label + ':' + (++earnSeq), nextTime());
+    return { app, ctx, api: ctx.__v12, earn, get gs() { return ctx.gameState; } };
+}
+let earnSeq = 0;
+
 module.exports = {
-    firebase, XP, XPCloud, REPO, BUILD_4, newDevice, deviceV11, DeviceV12,
+    firebase, XP, XPCloud, REPO, BUILD_4, newDevice, deviceV11, DeviceV12, deviceV12Real,
     owner, useRules, resetEmulator, disposeDevices, authUserExists, waitFor, nextTime
 };

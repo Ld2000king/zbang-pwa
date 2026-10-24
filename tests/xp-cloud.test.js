@@ -17,14 +17,6 @@ test('cloud progress keeps counters and baseLevel, never events', () => {
     assert.deepEqual(C.fromCloudProgress(undefined).xp, {});
 });
 
-test('syncWallet credits missing level diamonds once and never takes any away', () => {
-    const p = earn(XP.createProgress(), 'install-A1', 'k', 250).progress; // paid 30
-    assert.deepEqual(C.syncWallet(5, 0, p), { diamonds: 35, gemsInBalance: 30, credited: 30 });
-    assert.deepEqual(C.syncWallet(35, 30, p), { diamonds: 35, gemsInBalance: 30, credited: 0 });
-    assert.deepEqual(C.syncWallet(0, 999, p), { diamonds: 0, gemsInBalance: 999, credited: 0 });
-    assert.deepEqual(C.syncWallet(undefined, undefined, XP.createProgress()), { diamonds: 0, gemsInBalance: 0, credited: 0 });
-});
-
 test('buildPushValue merges what is in the cloud with the device copy', () => {
     const local = earn(XP.createProgress(), 'install-A1', 'a', 100).progress;
     const current = { state: '{}', progress: { baseLevel: 1, xp: { 'install-B1': 70 }, gemsPaid: {} } };
@@ -39,14 +31,21 @@ test('buildPushValue merges what is in the cloud with the device copy', () => {
     assert.deepEqual(C.buildPushValue(null, {}, local, 1).value.progress.xp, { 'install-A1': 100 });
 });
 
-test('restoring a 1.1-era snapshot (no gemsInBalance) onto a device with 1.2 progress keeps its level diamonds', () => {
+test('restoring from the cloud node: wallet as backed up, progress merged, no level paid again', () => {
     const local = earn(XP.createProgress(), 'install-A1', 'a', 250).progress; // level 3, paid 30
-    const node = { state: JSON.stringify({ coins: 40, diamonds: 7, level: 1 }) };   // written by 1.1
-    const r = C.restoreFromNode(node, local);
-    assert.equal(r.state.diamonds, 37);
+    // a 1.1-era snapshot: no XP data at all -> this device's progress stays, nothing is added
+    let r = C.restoreFromNode({ state: JSON.stringify({ coins: 40, diamonds: 7, level: 1 }) }, local);
+    assert.equal(r.state.diamonds, 7);
     assert.equal(r.state.level, 3);
-    assert.equal(r.state.coins, 40);
-    assert.equal(r.credited, 30);
+    assert.equal(XP.totalXp(r.progress), 250);
+    assert.equal(r.state.gemsInBalance, undefined);
+    // a 1.2 node with protected counters from another install
+    r = C.restoreFromNode({ state: JSON.stringify({ diamonds: 15, level: 2 }),
+        progress: { baseLevel: 1, xp: { 'install-B1': 150 }, gemsPaid: { 'install-B1': 15 } } }, local);
+    assert.equal(XP.totalXp(r.progress), 400);   // 250 + 150
+    assert.equal(r.state.level, 3);
+    assert.equal(r.state.diamonds, 15);          // the backed-up wallet, nothing topped up
+    assert.equal(XP.diamondsOwed(r.progress) - XP.diamondsPaid(r.progress), -15); // paid ahead, absorbed later
 });
 
 test('permission errors are recognised in both SDK spellings', () => {

@@ -24,7 +24,9 @@ const CLOUD_SAVE_FIELDS = [
     'playerName', 'coins', 'diamonds', 'inventory', 'totalScore', 'gamesPlayed',
     'level', 'xp', 'xpToNextLevel', 'avatarId', 'trophies', 'preferredTheme', 'themeAuto',
     'ownedAvatars', 'coinAvatarsGranted', 'bestSingleScore', 'bestSingleScorePrecise', 'bestTowerScore', 'towerTutorialSeen', 'modeHelpSeen', 'playerId', 'lastDailyClaim',
-    'dailyStreak', 'grantedIapTransactions', 'soundKit', 'ownedSoundKits', 'blockedPlayers'
+    'dailyStreak', 'grantedIapTransactions', 'soundKit', 'ownedSoundKits', 'blockedPlayers',
+    // 1.2: XP counters (see xp-state.js). Older versions ignore this field.
+    'xpProgress'
 ];
 
 // Progress changes in bursts (a word found bumps score, coins and xp in the
@@ -65,13 +67,21 @@ function collectCloudState() {
     CLOUD_SAVE_FIELDS.forEach(key => {
         if (gameState[key] !== undefined) out[key] = gameState[key];
     });
+    // the XP counters only - the reward-event list stays on this device
+    if (typeof xpProgressForCloud === 'function') {
+        const xp = xpProgressForCloud();
+        if (xp) out.xpProgress = xp; else delete out.xpProgress;
+    }
     return out;
 }
 
 function applyCloudState(state) {
+    const xpBefore = gameState.xpProgress; // this device's XP, merged back in below
     CLOUD_SAVE_FIELDS.forEach(key => {
         if (state[key] !== undefined) gameState[key] = state[key];
     });
+    // a restore never lowers XP or levels, and never pays a level twice
+    if (typeof xpAfterCloudRestore === 'function') xpAfterCloudRestore(xpBefore, state);
     // a cloud save from before the coin shop keeps the avatars that were free then
     if (state.coinAvatarsGranted === undefined && typeof grantLegacyCoinAvatars === 'function') grantLegacyCoinAvatars();
     localStorage.setItem('zabangState', JSON.stringify(gameState)); // not saveGameState(): that would re-trigger a sync
@@ -153,6 +163,11 @@ function resolveCloudSaveAfterSignIn() {
             },
             () => { // keep this device's progress, and overwrite the cloud copy with it
                 CloudSave.awaitingRestoreChoice = false;
+                // ...but keep the XP other devices saved there (counters only go up)
+                if (typeof xpMergeCloudCopy === 'function') {
+                    xpMergeCloudCopy(cloudState);
+                    localStorage.setItem('zabangState', JSON.stringify(gameState));
+                }
                 pushCloudSave();
                 showMessage('ההתקדמות המקומית נשמרה והחליפה את הגיבוי', 'info');
             }

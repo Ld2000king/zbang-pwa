@@ -6,8 +6,8 @@ const h = require('./helpers.js');
 const { XP } = h;
 
 const PASS = 'test-pass-123';
-// every level-up reward exactly once: wallet diamonds == 15 x (level - 1)
-const owedFor = d => 15 * (XP.levelOf(d.progress) - 1);
+// level-up diamonds are paid once, into the wallet of the device that leveled
+const unpaid = d => XP.diamondsOwed(d.progress) - XP.diamondsPaid(d.progress);
 
 async function account(email, installId) {
     const d = new h.DeviceV12('v12', installId);
@@ -35,22 +35,24 @@ test('one level = 15 diamonds, two levels at once = 30, stored in the cloud', as
     assert.equal(JSON.parse(node.state).level, 4);
 });
 
-test('two devices on one account playing at the same time: no XP lost, each level paid once', async () => {
+test('two devices on one account playing at the same time: no XP lost, no level paid twice', async () => {
     const a = await account('two@test.local', 'install-A1');
     const b = await sameAccount('two@test.local', 'install-B1');
-    a.earn('a1', 100);            // A: level 2, +15
-    b.earn('b1', 150);            // B (doesn't know about A yet): level 2, +15
+    a.earn('a1', 100);            // A: level 2, +15 into A's wallet
+    b.earn('b1', 150);            // B (doesn't know about A yet): level 2, +15 into B's wallet
     await Promise.all([a.push(), b.push()]);   // concurrent transactions
     await a.pull(); await b.pull();
     assert.equal(XP.totalXp(a.progress), 250);
     assert.equal(XP.levelOf(a.progress), 3);
-    for (const d of [a, b]) assert.equal(d.state.diamonds, owedFor(d));  // 30 each, not 45
+    assert.deepEqual([a.state.diamonds, b.state.diamonds], [15, 15]); // nobody topped up
+    // level 3 is already covered by the 15 paid twice for level 2 - no more diamonds for it
+    for (const d of [a, b]) assert.ok(unpaid(d) <= 0);
     const node = await h.owner('GET', 'player_saves/' + a.uid);
     assert.deepEqual(node.progress.xp, { 'install-A1': 100, 'install-B1': 150 });
-    // a reinstall restoring the cloud wallet also ends with exactly 30
     const fresh = await sameAccount('two@test.local', 'install-C1');
     const r = await fresh.restore();
-    assert.equal(r.state.diamonds, 30);
+    assert.equal(XP.levelOf(r.progress), 3);
+    assert.equal(fresh.earn('c1', 1).diamonds, 0);   // nothing owed on the new install either
 });
 
 test('reinstall + restore: level and diamonds come back, nothing paid twice', async () => {
@@ -63,7 +65,6 @@ test('reinstall + restore: level and diamonds come back, nothing paid twice', as
     assert.equal(r.state.level, 3);
     assert.equal(r.state.diamonds, 30);
     assert.equal(r.state.coins, 777);
-    assert.equal(r.credited, 0);
     assert.equal(reinstalled.earn('a2', 50).diamonds, 0);    // 300 XP, still level 3
     assert.equal(reinstalled.earn('a3', 150).diamonds, 15);  // 450 -> level 4, only that level
     assert.equal(reinstalled.state.diamonds, 45);
@@ -79,10 +80,11 @@ test('a device with an OLD local save ("keep this device") cannot lower the clou
     const node = await h.owner('GET', 'player_saves/' + a.uid);
     assert.equal(node.progress.xp['install-A1'], 450);      // not lowered
     assert.equal(XP.levelOf(stale.progress), 4);            // B picked up the newer progress
-    assert.equal(stale.state.diamonds, owedFor(stale));     // and the missing diamonds, once
+    assert.equal(stale.state.diamonds, 15);                 // B's own wallet, not topped up
+    assert.equal(unpaid(stale), 0);                         // levels 3-4 were paid on A, not again
 });
 
-test('restoring a wallet snapshot older than the progress adds the missing level diamonds once', async () => {
+test('LIMITATION: wallets stay last-writer-wins - a restore brings the last pushed wallet, never extra diamonds', async () => {
     const a = await account('snap@test.local', 'install-A1');
     a.earn('a1', 100); await a.push();               // cloud wallet 15
     const b = await sameAccount('snap@test.local', 'install-B1');
@@ -93,8 +95,9 @@ test('restoring a wallet snapshot older than the progress adds the missing level
     await b.push();                                 // B writes its (older) wallet again last
     const fresh = await sameAccount('snap@test.local', 'install-C1');
     const r = await fresh.restore();
-    assert.equal(XP.levelOf(r.progress), 3);        // 300 XP
-    assert.equal(r.state.diamonds, 30);             // the 30 level diamonds, exactly once
+    assert.equal(XP.levelOf(r.progress), 3);        // 300 XP: the level is safe
+    assert.equal(r.state.diamonds, 0);              // B pushed last: B's wallet (A's 30 stay on A)
+    assert.ok(XP.diamondsPaid(r.progress) >= XP.diamondsOwed(r.progress)); // and nothing paid again
 });
 
 test('offline: rewards earned without network are kept and merged after reconnecting', async () => {
@@ -114,15 +117,17 @@ test('offline: rewards earned without network are kept and merged after reconnec
     await a.pull(); await b.pull();
     assert.equal(XP.totalXp(a.progress), 150);
     assert.equal(XP.totalXp(b.progress), 150);
-    assert.equal(a.state.diamonds, 15);
-    assert.equal(b.state.diamonds, 15);
+    assert.equal(a.state.diamonds, 15);   // A reached level 2 and was paid
+    assert.equal(b.state.diamonds, 0);    // B sees level 2 too, but is not paid for it again
+    assert.equal(XP.levelOf(b.progress), 2);
+    assert.equal(unpaid(b), 0);
 });
 
 test('the same event never pays twice - not after a push, a restore, or a pull', async () => {
     const a = await account('dup@test.local', 'install-A1');
     const t = h.nextTime();
     let r = XP.applyReward(a.progress, a.installId, 'mp:ROOM:1', 100, t);
-    a.progress = r.progress; a.state.diamonds += r.diamonds; a.state.gemsInBalance += r.diamonds;
+    a.progress = r.progress; a.state.diamonds += r.diamonds;
     await a.push();
     await a.pull();
     const restored = XP.mergeProgress(a.progress, XP.createProgress());
