@@ -187,10 +187,10 @@ function deviceV12Real(label, confirmAnswers = []) {
     ctx.saveGameState = () => ctx.localStorage.setItem('zabangState', JSON.stringify(ctx.gameState));
     ctx.loadGameState = () => { const s = ctx.localStorage.getItem('zabangState'); if (s) ctx.gameState = JSON.parse(s); };
     vm.createContext(ctx);
-    for (const f of ['cloudsave.js', 'xp-engine.js', 'xp-state.js', 'xp-game.js']) {
+    for (const f of ['cloudsave.js', 'xp-engine.js', 'xp-state.js', 'xp-cloud.js', 'xp-game.js']) {
         vm.runInContext(fs.readFileSync(path.join(REPO, f), 'utf8'), ctx, { filename: f });
     }
-    vm.runInContext(`globalThis.__v12 = { pushCloudSave, resolveCloudSaveAfterSignIn, cloudCreateAccount, cloudSignIn, cloudDeleteAccount, collectCloudState };`, ctx);
+    vm.runInContext(`globalThis.__v12 = { pushCloudSave, pullCloudProgress, resolveCloudSaveAfterSignIn, cloudCreateAccount, cloudSignIn, cloudDeleteAccount, collectCloudState, CloudSave };`, ctx);
     ctx.loadGameState();
     // a tower game over worth exactly `xp` (min(40, 10 + words) + 10 per clear)
     const earn = (xp) => ctx.ZbangXPGame.grant({ mode: 'tower', completed: true, wordsFound: 30, clears: (xp - 40) / 10 },

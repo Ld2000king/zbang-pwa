@@ -38,6 +38,7 @@ const PRECACHE = [
     './tower.js',
     './xp-engine.js',
     './xp-state.js',
+    './xp-cloud.js',
     './xp-game.js',
     './xp-ui.js',
     './avatars.js',

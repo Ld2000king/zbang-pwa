@@ -130,7 +130,7 @@
         box.className = 'reward-box xp-reward-box';
         box.setAttribute('role', 'status');
         let html = `<span class="xp-gained">${STAR}<span dir="ltr">${t().gained(num(result.xp))}</span></span>`;
-        if (result.levelsGained > 0 && result.diamonds > 0) {
+        if (result.diamonds > 0) { // diamonds actually paid (a level reached, here or merged in from another device)
             html += `<span class="xp-levelup-line">${diamondIcon()}<span>${t().levelUpLine(num(result.levelAfter), num(result.diamonds))}</span></span>`;
         }
         box.innerHTML = html;
@@ -180,7 +180,7 @@
         if (result.saved) {
             if (host) showRoundBox(host, result);
             refreshHome();
-            if (result.levelsGained > 0 && result.diamonds > 0) celebrate(result);
+            if (result.diamonds > 0) celebrate(result);
             return;
         }
         if (result.reason === 'save-failed') {

@@ -79,6 +79,17 @@ const XP_REWARDS_ENABLED = true;
         gameState.xpProgress = XS.progressAfterRestore(localProgressBefore, backupState);
         XS.syncDerived(gameState);
     };
+    // after a save / on opening: take in the XP counters the cloud holds
+    // (other devices). Counters only go up; the wallet is never touched.
+    // Written straight to storage - not saveGameState(), which would start
+    // another cloud sync.
+    window.xpAdoptCloudProgress = (progress) => {
+        if (!progress || typeof progress !== 'object') return;
+        XS.ensureXpState(gameState);
+        XS.mergeIntoState(gameState, XP.normalizeProgress(progress));
+        try { localStorage.setItem('zabangState', JSON.stringify(gameState)); } catch (e) { /* kept in memory, saved next time */ }
+        if (window.ZbangXPUI) { try { window.ZbangXPUI.refreshHome(); } catch (e) { /* UI only */ } }
+    };
     // "keep this device's progress": take in the cloud copy's counters first,
     // so other devices' XP isn't thrown away
     window.xpMergeCloudCopy = (cloudState) => {

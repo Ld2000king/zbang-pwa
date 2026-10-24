@@ -53,11 +53,12 @@
 
     // The value a 1.2 push writes, given what is in the cloud right now.
     // Pure, so it can run inside a transaction (which may call it repeatedly).
-    function buildPushValue(current, stateObj, localProgress, timestamp, photo) {
+    // `state` may be the state object or the JSON string cloudsave.js already built
+    function buildPushValue(current, state, localProgress, timestamp, photo) {
         const cloudProgress = fromCloudProgress(current && current.progress);
         const merged = XP.mergeProgress(localProgress, cloudProgress);
         const value = {
-            state: JSON.stringify(stateObj),
+            state: typeof state === 'string' ? state : JSON.stringify(state),
             updatedAt: timestamp,
             progress: toCloudProgress(merged)
         };
@@ -71,14 +72,14 @@
     }
 
     // Pushes this device's save. `ref` is player_saves/<uid> (compat SDK ref).
-    //   opts: { stateObj, progress, timestamp, photo }
+    //   opts: { stateJson (or stateObj), progress, timestamp, photo }
     // Resolves { mode: 'progress' | 'state-only', progress } where `progress`
     // is the merged progress the device should keep (events preserved).
     async function pushSave(ref, opts) {
         let merged = XP.normalizeProgress(opts.progress);
         try {
             const res = await ref.transaction(current => {
-                const built = buildPushValue(current, opts.stateObj, opts.progress, opts.timestamp, opts.photo);
+                const built = buildPushValue(current, opts.stateJson || opts.stateObj, opts.progress, opts.timestamp, opts.photo);
                 merged = built.merged;
                 return built.value;
             }, undefined, false);
@@ -87,7 +88,7 @@
         } catch (err) {
             if (!isPermissionDenied(err)) throw err;
             // today's rules don't know `progress` yet: same backup as 1.1 does
-            const value = { state: JSON.stringify(opts.stateObj), updatedAt: opts.timestamp };
+            const value = { state: opts.stateJson || JSON.stringify(opts.stateObj), updatedAt: opts.timestamp };
             if (opts.photo) value.photo = opts.photo;
             await ref.set(value);
             return { mode: 'state-only', progress: XP.normalizeProgress(opts.progress) };
@@ -120,9 +121,19 @@
         return { state, progress };
     }
 
+    // All XP counters a save node holds: the protected node's and the copy
+    // inside the state string (the only one older rules allow), merged.
+    function progressFromNode(node, stateObj) {
+        const inState = stateObj && stateObj.xpProgress && typeof stateObj.xpProgress === 'object'
+            ? XP.normalizeProgress(stateObj.xpProgress) : null;
+        const inNode = node && node.progress ? fromCloudProgress(node.progress) : null;
+        if (inState && inNode) return XP.mergeProgress(inNode, inState);
+        return inNode || inState || null;
+    }
+
     const api = {
         toCloudProgress, fromCloudProgress, buildPushValue,
-        isPermissionDenied, pushSave, pullProgress, restoreFromNode
+        isPermissionDenied, pushSave, pullProgress, restoreFromNode, progressFromNode
     };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
