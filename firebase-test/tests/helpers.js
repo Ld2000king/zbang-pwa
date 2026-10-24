@@ -57,9 +57,11 @@ async function owner(method, p = '', body) {
     return res.json();
 }
 
+// which: 'current' | 'proposal' | a path to any rules file
 async function useRules(which) {
+    const file = RULES[which] || which;
     const res = await fetch(`${DB}/.settings/rules.json?ns=${NS}`, {
-        method: 'PUT', headers: { Authorization: 'Bearer owner' }, body: fs.readFileSync(RULES[which], 'utf8')
+        method: 'PUT', headers: { Authorization: 'Bearer owner' }, body: fs.readFileSync(file, 'utf8')
     });
     if (!res.ok) throw new Error(`rules ${which}: ${res.status} ${await res.text()}`);
 }

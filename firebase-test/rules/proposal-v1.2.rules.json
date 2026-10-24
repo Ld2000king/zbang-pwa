@@ -203,6 +203,9 @@
         // (see xp-engine.js). A counter can only go up, so an old or buggy
         // copy can never lower someone's progress.
         "progress": {
+          // a counter map or baseLevel, once there, can't be removed as a
+          // whole (a rule on the parent also runs when a child is deleted)
+          ".validate": "newData.hasChildren(['baseLevel']) && (!data.child('xp').exists() || newData.child('xp').exists()) && (!data.child('gemsPaid').exists() || newData.child('gemsPaid').exists())",
           "xp": {
             "$install": { ".validate": "$install.matches(/^[A-Za-z0-9_-]{4,40}$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000 && (!data.exists() || newData.val() >= data.val())" }
           },
