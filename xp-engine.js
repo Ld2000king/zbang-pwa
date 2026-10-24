@@ -11,8 +11,11 @@
 //   * Every level gained pays exactly 15 diamonds - 30 for two levels at once,
 //     45 for three, with no upper level limit.
 //   * XP only for a completed round in which the player found at least one
-//     valid word. Each reward has a unique event key; the same key never pays
-//     twice.
+//     valid word. Each reward has a unique event key and the time the event
+//     happened; the same key never pays twice. Only the newest 100 events are
+//     kept, and anything not newer than the newest event ever dropped from
+//     that list (eventFloor) is refused - so an old event can't pay again
+//     after it has left the list.
 //
 // Progress is kept as COUNTERS PER INSTALL rather than one total: every
 // install of the game only ever raises its own counters. Combining two copies
@@ -127,14 +130,16 @@
     //   gemsPaid:  { [installId]: level-up diamonds paid on that install },
     //   baseLevel: level the player had when 1.2 started counting
     //              (no diamonds for levels at or below it),
-    //   events:    the most recent reward keys, oldest first
+    //   events:    the newest reward events as [key, timeMs] pairs (max 100),
+    //   eventFloor: newest time ever dropped from `events`; events at or before
+    //              it are refused
     // }
 
     // A fresh progress object. `legacyLevel` is the level an older save
     // already shows: it is kept (seeded as legacy XP) but pays no diamonds.
     function createProgress(legacyLevel) {
         const base = Number.isInteger(legacyLevel) && legacyLevel > 1 ? legacyLevel : 1;
-        const progress = { xp: {}, gemsPaid: {}, baseLevel: base, events: [] };
+        const progress = { xp: {}, gemsPaid: {}, baseLevel: base, events: [], eventFloor: 0 };
         if (base > 1) progress.xp[LEGACY_INSTALL] = totalXpForLevel(base);
         return progress;
     }
@@ -157,10 +162,22 @@
             xp: clean(raw.xp),
             gemsPaid: clean(raw.gemsPaid),
             baseLevel: Number.isInteger(raw.baseLevel) && raw.baseLevel >= 1 ? raw.baseLevel : 1,
-            events: Array.isArray(raw.events)
-                ? raw.events.filter(e => typeof e === 'string' && e).slice(-MAX_RECENT_EVENTS)
-                : []
+            ...keepRecent(Array.isArray(raw.events)
+                ? raw.events.filter(e => Array.isArray(e) && typeof e[0] === 'string' && e[0]
+                    && Number.isFinite(e[1]) && e[1] > 0).map(e => [e[0], e[1]])
+                : [], Number.isFinite(raw.eventFloor) && raw.eventFloor > 0 ? raw.eventFloor : 0)
         };
+    }
+
+    // Keeps the MAX_RECENT_EVENTS newest events (by time); the newest time it
+    // drops raises the floor. Returns { events, eventFloor }.
+    function keepRecent(events, floor) {
+        const byKey = new Map();
+        for (const [k, t] of events) if (t > floor) byKey.set(k, Math.max(byKey.get(k) || 0, t));
+        const sorted = [...byKey.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
+        let eventFloor = floor;
+        for (const [, t] of sorted.slice(MAX_RECENT_EVENTS)) eventFloor = Math.max(eventFloor, t);
+        return { events: sorted.slice(0, MAX_RECENT_EVENTS).reverse(), eventFloor };
     }
 
     const sum = (obj) => Object.values(obj).reduce((a, b) => a + b, 0);
@@ -173,7 +190,10 @@
     function diamondsPaid(progress) { return sum(progress.gemsPaid); }
 
     function copyProgress(p) {
-        return { xp: { ...p.xp }, gemsPaid: { ...p.gemsPaid }, baseLevel: p.baseLevel, events: p.events.slice() };
+        return {
+            xp: { ...p.xp }, gemsPaid: { ...p.gemsPaid }, baseLevel: p.baseLevel,
+            events: p.events.map(e => e.slice()), eventFloor: p.eventFloor
+        };
     }
 
     // Combines two copies of the same player's progress. Per install the
@@ -187,14 +207,11 @@
             for (const [k, v] of Object.entries(y)) out[k] = Math.max(out[k] || 0, v);
             return out;
         };
-        const events = pa.events.slice();
-        const seen = new Set(events);
-        for (const e of pb.events) if (!seen.has(e)) { events.push(e); seen.add(e); }
         return {
             xp: maxMerge(pa.xp, pb.xp),
             gemsPaid: maxMerge(pa.gemsPaid, pb.gemsPaid),
             baseLevel: Math.max(pa.baseLevel, pb.baseLevel),
-            events: events.slice(-MAX_RECENT_EVENTS)
+            ...keepRecent(pa.events.concat(pb.events), Math.max(pa.eventFloor, pb.eventFloor))
         };
     }
 
@@ -213,8 +230,10 @@
 
     // The single entry point for granting a reward. Pure: returns a NEW
     // progress object (the input is never changed), plus what happened.
-    //   duplicate: true -> this event key was already rewarded; nothing paid
-    function applyReward(progress, installId, key, xp) {
+    //   eventTime: when the event happened (ms since 1970) - required
+    //   duplicate: true -> this event was already rewarded (or is older than
+    //              the events still remembered); nothing paid
+    function applyReward(progress, installId, key, xp, eventTime) {
         if (!INSTALL_ID_RE.test(installId || '')) throw new Error('bad installId');
         const p = copyProgress(normalizeProgress(progress));
         const levelBefore = levelOf(p);
@@ -224,14 +243,15 @@
         }, extra);
 
         if (typeof key !== 'string' || !key) return result({ rejected: 'bad-key' });
-        if (p.events.includes(key)) return result({ duplicate: true });
+        if (!Number.isFinite(eventTime) || eventTime <= 0) return result({ rejected: 'bad-time' });
+        if (p.events.some(e => e[0] === key)) return result({ duplicate: true });
+        if (eventTime <= p.eventFloor) return result({ duplicate: true, tooOld: true });
         const amount = Math.floor(Number(xp));
         if (!Number.isFinite(amount) || amount <= 0) return result({ rejected: 'no-xp' });
 
         const gained = Math.min(amount, MAX_XP_PER_EVENT);
         p.xp[installId] = (p.xp[installId] || 0) + gained;
-        p.events.push(key);
-        if (p.events.length > MAX_RECENT_EVENTS) p.events.splice(0, p.events.length - MAX_RECENT_EVENTS);
+        Object.assign(p, keepRecent(p.events.concat([[key, Math.floor(eventTime)]]), p.eventFloor));
 
         const settled = settleDiamonds(p, installId);
         const levelAfter = levelOf(settled.progress);

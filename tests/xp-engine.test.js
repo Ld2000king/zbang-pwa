@@ -5,6 +5,11 @@ const XP = require('../xp-engine.js');
 
 const A = 'deviceA01', B = 'deviceB02';
 
+// every reward needs the time its event happened; a ticking fake clock
+let clock = 1700000000000;
+const T = () => (clock += 1000);
+const apply = (p, id, key, xp, t = T()) => XP.applyReward(p, id, key, xp, t);
+
 // ---- level curve -------------------------------------------------------------
 
 test('XP to next level is 50 x level + 50', () => {
@@ -104,7 +109,7 @@ test('no XP without a completed round and at least one word', () => {
 // ---- rewards, diamonds and duplicates ----------------------------------------
 
 test('one level up pays exactly 15 diamonds', () => {
-    const r = XP.applyReward(XP.createProgress(), A, 'single:1', 100);
+    const r = apply(XP.createProgress(), A, 'single:1', 100);
     assert.equal(r.levelBefore, 1);
     assert.equal(r.levelAfter, 2);
     assert.equal(r.levelsGained, 1);
@@ -112,16 +117,16 @@ test('one level up pays exactly 15 diamonds', () => {
 });
 
 test('two and three levels in one reward pay 30 and 45', () => {
-    let r = XP.applyReward(XP.createProgress(), A, 'e1', 250); // 1 -> 3
+    let r = apply(XP.createProgress(), A, 'e1', 250); // 1 -> 3
     assert.equal(r.levelsGained, 2);
     assert.equal(r.diamonds, 30);
-    r = XP.applyReward(XP.createProgress(), A, 'e1', 450);     // 1 -> 4
+    r = apply(XP.createProgress(), A, 'e1', 450);     // 1 -> 4
     assert.equal(r.levelsGained, 3);
     assert.equal(r.diamonds, 45);
 });
 
 test('XP that stays inside a level pays no diamonds', () => {
-    const r = XP.applyReward(XP.createProgress(), A, 'e1', 99);
+    const r = apply(XP.createProgress(), A, 'e1', 99);
     assert.equal(r.levelAfter, 1);
     assert.equal(r.diamonds, 0);
     assert.equal(r.xpGained, 99);
@@ -129,23 +134,23 @@ test('XP that stays inside a level pays no diamonds', () => {
 
 test('the same event key pays once; a different key pays again', () => {
     let p = XP.createProgress();
-    const first = XP.applyReward(p, A, 'mp:ROOM1:1700000000000', 100);
+    const first = apply(p, A, 'mp:ROOM1:1700000000000', 100);
     p = first.progress;
-    const again = XP.applyReward(p, A, 'mp:ROOM1:1700000000000', 100);
+    const again = apply(p, A, 'mp:ROOM1:1700000000000', 100);
     assert.equal(again.duplicate, true);
     assert.equal(again.xpGained, 0);
     assert.equal(again.diamonds, 0);
     assert.equal(XP.totalXp(again.progress), 100);
-    const next = XP.applyReward(p, A, 'mp:ROOM1:1700000060000', 150);
+    const next = apply(p, A, 'mp:ROOM1:1700000060000', 150);
     assert.equal(next.duplicate, false);
     assert.equal(XP.totalXp(next.progress), 250);
     assert.equal(next.diamonds, 15); // level 2 -> 3
 });
 
 test('replaying an event many times never adds diamonds', () => {
-    let p = XP.applyReward(XP.createProgress(), A, 'battle:x:1', 300).progress;
+    let p = apply(XP.createProgress(), A, 'battle:x:1', 300).progress;
     const paid = XP.diamondsPaid(p);
-    for (let i = 0; i < 20; i++) p = XP.applyReward(p, A, 'battle:x:1', 300).progress;
+    for (let i = 0; i < 20; i++) p = apply(p, A, 'battle:x:1', 300).progress;
     assert.equal(XP.diamondsPaid(p), paid);
     assert.equal(XP.totalXp(p), 300);
 });
@@ -153,26 +158,26 @@ test('replaying an event many times never adds diamonds', () => {
 test('applyReward never changes the object it was given', () => {
     const p = XP.createProgress();
     const snapshot = JSON.stringify(p);
-    XP.applyReward(p, A, 'e1', 500);
+    apply(p, A, 'e1', 500);
     assert.equal(JSON.stringify(p), snapshot);
 });
 
 test('bad input is rejected without paying anything', () => {
     const p = XP.createProgress();
-    assert.equal(XP.applyReward(p, A, '', 50).rejected, 'bad-key');
-    assert.equal(XP.applyReward(p, A, null, 50).rejected, 'bad-key');
-    assert.equal(XP.applyReward(p, A, 'k', 0).rejected, 'no-xp');
-    assert.equal(XP.applyReward(p, A, 'k', -10).rejected, 'no-xp');
-    assert.equal(XP.applyReward(p, A, 'k', 'abc').rejected, 'no-xp');
-    assert.throws(() => XP.applyReward(p, 'x', 'k', 10));   // install id too short
-    assert.throws(() => XP.applyReward(p, 'a b c d', 'k', 10));
+    assert.equal(apply(p, A, '', 50).rejected, 'bad-key');
+    assert.equal(apply(p, A, null, 50).rejected, 'bad-key');
+    assert.equal(apply(p, A, 'k', 0).rejected, 'no-xp');
+    assert.equal(apply(p, A, 'k', -10).rejected, 'no-xp');
+    assert.equal(apply(p, A, 'k', 'abc').rejected, 'no-xp');
+    assert.throws(() => apply(p, 'x', 'k', 10));   // install id too short
+    assert.throws(() => apply(p, 'a b c d', 'k', 10));
     // a rejected reward does not burn the key
-    const ok = XP.applyReward(XP.applyReward(p, A, 'k', 0).progress, A, 'k', 10);
+    const ok = apply(apply(p, A, 'k', 0).progress, A, 'k', 10);
     assert.equal(ok.xpGained, 10);
 });
 
 test('a single reward is capped', () => {
-    const r = XP.applyReward(XP.createProgress(), A, 'e', 1e9);
+    const r = apply(XP.createProgress(), A, 'e', 1e9);
     assert.equal(r.xpGained, XP.MAX_XP_PER_EVENT);
 });
 
@@ -184,10 +189,10 @@ test('event keys: built from parts, missing parts give null', () => {
 
 test('the recent-events list stays bounded and keeps the newest keys', () => {
     let p = XP.createProgress();
-    for (let i = 0; i < XP.MAX_RECENT_EVENTS + 30; i++) p = XP.applyReward(p, A, 'e' + i, 1).progress;
+    for (let i = 0; i < XP.MAX_RECENT_EVENTS + 30; i++) p = apply(p, A, 'e' + i, 1).progress;
     assert.equal(p.events.length, XP.MAX_RECENT_EVENTS);
-    assert.equal(p.events.at(-1), 'e' + (XP.MAX_RECENT_EVENTS + 29));
-    assert.ok(!p.events.includes('e0'));
+    assert.equal(p.events.at(-1)[0], 'e' + (XP.MAX_RECENT_EVENTS + 29));
+    assert.ok(!p.events.some(e => e[0] === 'e0'));
 });
 
 // ---- existing players, merges and restores -----------------------------------
@@ -202,7 +207,7 @@ test('a legacy level is kept and pays no diamonds retroactively', () => {
     const p = XP.createProgress(5);
     assert.equal(XP.levelOf(p), 5);
     assert.equal(XP.diamondsOwed(p) - XP.diamondsPaid(p), 0);
-    const r = XP.applyReward(p, A, 'e1', XP.xpToNextLevel(5)); // 5 -> 6
+    const r = apply(p, A, 'e1', XP.xpToNextLevel(5)); // 5 -> 6
     assert.equal(r.levelAfter, 6);
     assert.equal(r.diamonds, 15);
 });
@@ -217,15 +222,16 @@ test('merging a legacy-level save with a fresh one pays no retroactive diamonds'
 });
 
 test('normalizeProgress ignores garbage and never throws', () => {
-    const p = XP.normalizeProgress({ xp: { [A]: 120, 'bad id!': 999, [B]: -5, x: 'y' }, gemsPaid: 'nope', baseLevel: 0, events: [1, 'ok', null] });
-    assert.deepEqual(p, { xp: { [A]: 120 }, gemsPaid: {}, baseLevel: 1, events: ['ok'] });
+    const p = XP.normalizeProgress({ xp: { [A]: 120, 'bad id!': 999, [B]: -5, x: 'y' }, gemsPaid: 'nope', baseLevel: 0,
+        events: [1, 'old-string', ['ok', 5], ['no-time'], ['neg', -1], null], eventFloor: 'x' });
+    assert.deepEqual(p, { xp: { [A]: 120 }, gemsPaid: {}, baseLevel: 1, events: [['ok', 5]], eventFloor: 0 });
     assert.doesNotThrow(() => XP.normalizeProgress('junk'));
 });
 
 test('merge is order-free, repeatable, and never double counts', () => {
     let a = XP.createProgress(), b = XP.createProgress();
-    a = XP.applyReward(a, A, 'a1', 120).progress;
-    b = XP.applyReward(b, B, 'b1', 200).progress;
+    a = apply(a, A, 'a1', 120).progress;
+    b = apply(b, B, 'b1', 200).progress;
     const ab = XP.mergeProgress(a, b), ba = XP.mergeProgress(b, a);
     assert.equal(XP.totalXp(ab), 320);
     assert.deepEqual(ab.xp, ba.xp);
@@ -237,9 +243,9 @@ test('merge is order-free, repeatable, and never double counts', () => {
 
 test('restoring an older save never lowers XP or the level', () => {
     let p = XP.createProgress();
-    p = XP.applyReward(p, A, 'e1', 300).progress;
+    p = apply(p, A, 'e1', 300).progress;
     const old = JSON.parse(JSON.stringify(p));      // backup taken here
-    p = XP.applyReward(p, A, 'e2', 500).progress;   // more progress after it
+    p = apply(p, A, 'e2', 500).progress;   // more progress after it
     const restored = XP.mergeProgress(p, old);
     assert.equal(XP.totalXp(restored), 800);
     assert.equal(XP.levelOf(restored), XP.levelOf(p));
@@ -247,7 +253,7 @@ test('restoring an older save never lowers XP or the level', () => {
 
 test('a restored save cannot be used to claim the same diamonds again', () => {
     let p = XP.createProgress();
-    p = XP.applyReward(p, A, 'e1', 450).progress;           // levels 2-4 paid: 45
+    p = apply(p, A, 'e1', 450).progress;           // levels 2-4 paid: 45
     const old = XP.createProgress();                         // an old save from before
     const merged = XP.mergeProgress(old, p);
     const s = XP.settleDiamonds(merged, A);
@@ -256,9 +262,9 @@ test('a restored save cannot be used to claim the same diamonds again', () => {
 });
 
 test('two devices merged pay for each level once', () => {
-    let a = XP.applyReward(XP.createProgress(), A, 'a1', 100).progress; // A: level 2, paid 15
+    let a = apply(XP.createProgress(), A, 'a1', 100).progress; // A: level 2, paid 15
     let b = XP.mergeProgress(XP.createProgress(), a);                    // B picks up A's state
-    b = XP.applyReward(b, B, 'b1', 150).progress;                         // B: level 3, pays 15
+    b = apply(b, B, 'b1', 150).progress;                         // B: level 3, pays 15
     const merged = XP.mergeProgress(a, b);
     assert.equal(XP.levelOf(merged), 3);
     assert.equal(XP.diamondsPaid(merged), 30); // levels 2 and 3, once each
@@ -267,10 +273,10 @@ test('two devices merged pay for each level once', () => {
 
 test('two offline devices crossing the same level: the extra is absorbed later', () => {
     const base = XP.createProgress();
-    const a = XP.applyReward(base, A, 'a1', 60).progress; // A alone: 60 XP
-    const b = XP.applyReward(base, B, 'b1', 60).progress; // B alone: 60 XP
-    let a2 = XP.applyReward(a, A, 'a2', 40);              // A reaches level 2 -> 15
-    let b2 = XP.applyReward(b, B, 'b2', 40);              // B reaches level 2 -> 15
+    const a = apply(base, A, 'a1', 60).progress; // A alone: 60 XP
+    const b = apply(base, B, 'b1', 60).progress; // B alone: 60 XP
+    let a2 = apply(a, A, 'a2', 40);              // A reaches level 2 -> 15
+    let b2 = apply(b, B, 'b2', 40);              // B reaches level 2 -> 15
     assert.equal(a2.diamonds + b2.diamonds, 30);
     let merged = XP.mergeProgress(a2.progress, b2.progress);
     assert.equal(XP.levelOf(merged), 2);                   // 200 XP -> still level 2
@@ -281,11 +287,11 @@ test('two offline devices crossing the same level: the extra is absorbed later',
     assert.equal(XP.diamondsPaid(s.progress), 30);
     assert.deepEqual(s.progress.gemsPaid, merged.gemsPaid);
     // reaching level 3 pays nothing - it was prepaid
-    const r3 = XP.applyReward(merged, A, 'a3', 50);        // 250 -> level 3
+    const r3 = apply(merged, A, 'a3', 50);        // 250 -> level 3
     assert.equal(r3.levelAfter, 3);
     assert.equal(r3.diamonds, 0);
     // level 4 pays normally again
-    const r4 = XP.applyReward(r3.progress, A, 'a4', 200);  // 450 -> level 4
+    const r4 = apply(r3.progress, A, 'a4', 200);  // 450 -> level 4
     assert.equal(r4.diamonds, 15);
     assert.equal(XP.diamondsPaid(r4.progress), XP.diamondsOwed(r4.progress));
 });
@@ -303,7 +309,7 @@ test('random merges and replays always end with paid == owed and no lost XP', ()
             copies[i] = XP.mergeProgress(copies[i], copies[j]);
         } else {
             const key = ids[i] + ':' + Math.floor(rand() * 400); // keys repeat on purpose
-            const r = XP.applyReward(copies[i], ids[i], key, 1 + Math.floor(rand() * 60));
+            const r = apply(copies[i], ids[i], key, 1 + Math.floor(rand() * 60));
             copies[i] = r.progress;
             if (!r.duplicate) earned[ids[i]] = (earned[ids[i]] || 0) + r.xpGained;
         }
@@ -318,7 +324,50 @@ test('random merges and replays always end with paid == owed and no lost XP', ()
 test('the progress object stays small enough for the cloud save', () => {
     let p = XP.createProgress();
     for (let d = 0; d < 10; d++) {
-        for (let i = 0; i < 200; i++) p = XP.applyReward(p, 'device' + String(d).padStart(4, '0'), `mp:ROOM${d}:${1700000000000 + i}`, 50).progress;
+        for (let i = 0; i < 200; i++) p = apply(p, 'device' + String(d).padStart(4, '0'), `mp:ROOM${d}:${1700000000000 + i}`, 50).progress;
     }
     assert.ok(JSON.stringify(p).length < 6000, String(JSON.stringify(p).length));
+});
+
+// ---- old events after they leave the recent list (item 8) -----------------------
+
+test('a reward without a valid event time is refused', () => {
+    const p = XP.createProgress();
+    assert.equal(XP.applyReward(p, A, 'k', 10).rejected, 'bad-time');
+    assert.equal(XP.applyReward(p, A, 'k', 10, NaN).rejected, 'bad-time');
+    assert.equal(XP.applyReward(p, A, 'k', 10, -5).rejected, 'bad-time');
+});
+
+test('an event that fell out of the newest 100 can never pay again', () => {
+    let p = XP.createProgress();
+    const firstTime = T();
+    p = XP.applyReward(p, A, 'mp:ROOM:first', 10, firstTime).progress;
+    for (let i = 0; i < XP.MAX_RECENT_EVENTS; i++) p = apply(p, A, 'later' + i, 1).progress;
+    assert.ok(!p.events.some(e => e[0] === 'mp:ROOM:first')); // forgotten...
+    assert.ok(p.eventFloor >= firstTime);                    // ...but behind the floor
+    const replay = XP.applyReward(p, A, 'mp:ROOM:first', 10, firstTime);
+    assert.equal(replay.duplicate, true);
+    assert.equal(replay.tooOld, true);
+    assert.equal(replay.xpGained, 0);
+    // a genuinely new event still pays
+    assert.equal(apply(p, A, 'brand-new', 10).xpGained, 10);
+});
+
+test('the floor survives merges, so a merge cannot revive an old event', () => {
+    let a = XP.createProgress();
+    const oldTime = T();
+    a = XP.applyReward(a, A, 'old', 5, oldTime).progress;
+    const backup = JSON.parse(JSON.stringify(a));            // still remembers 'old'
+    for (let i = 0; i < XP.MAX_RECENT_EVENTS + 5; i++) a = apply(a, A, 'n' + i, 1).progress;
+    const merged = XP.mergeProgress(backup, a);              // restore the old backup
+    assert.ok(merged.eventFloor >= oldTime);
+    assert.ok(!merged.events.some(e => e[0] === 'old'));
+    assert.equal(XP.applyReward(merged, A, 'old', 5, oldTime).xpGained, 0);
+    assert.equal(merged.events.length, XP.MAX_RECENT_EVENTS);
+});
+
+test('an event recorded with the same key twice keeps one entry', () => {
+    let p = apply(XP.createProgress(), A, 'k1', 5).progress;
+    const merged = XP.mergeProgress(p, p);
+    assert.equal(merged.events.filter(e => e[0] === 'k1').length, 1);
 });
