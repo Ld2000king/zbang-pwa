@@ -4140,6 +4140,13 @@ body.has-bottom-nav .music-toggle-btn {
     min-width: 116px;
 }
 
+/* narrow phones (iPhone SE, 320pt): the minimum width would push the coins
+   column out of the card - let the bar take the column's own width there */
+@media (max-width: 360px) {
+    .xp-bar-wrap { min-width: 0; }
+    .xp-bar-text { white-space: nowrap; font-size: 0.7em; }
+}
+
 .xp-bar {
     height: 14px;
     background: var(--cream-3);
