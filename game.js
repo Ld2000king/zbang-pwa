@@ -1627,6 +1627,8 @@ function renderBoard(boardId = 'board') {
         e.preventDefault();
         isDragging = true;
         dragPath = [];
+        lastDragPoint = { x: e.clientX, y: e.clientY };
+        dragSampleStep = measureDragSampleStep(boardEl);
         detectTileAt(e.clientX, e.clientY);
     };
 }
@@ -1634,13 +1636,30 @@ function renderBoard(boardId = 'board') {
 // Drag logic - works on both mouse and touch.
 // Detection runs at document level with elementFromPoint, because on
 // touch devices the pointer gets captured by the first tile touched.
+// The path rules (adjacent tiles only, no repeats) live in board-path.js.
 let isDragging = false;
 let dragPath = [];
+let lastDragPoint = null; // where the previous pointer event was
+let dragSampleStep = 12;  // px between checked points on a fast swipe
+
+// A quarter of a tile: small enough that a straight swipe always lands inside
+// the centre zone of every tile it crosses (see detectTileAt).
+function measureDragSampleStep(boardEl) {
+    const tile = boardEl && boardEl.querySelector('.letter-tile');
+    const r = tile && tile.getBoundingClientRect();
+    return r && r.width > 0 ? Math.min(r.width, r.height) * 0.25 : 12;
+}
 
 document.addEventListener('pointermove', (e) => {
     if (!isDragging) return;
     e.preventDefault();
-    detectTileAt(e.clientX, e.clientY);
+    // A fast swipe can jump over a whole tile between two events - check the
+    // points in between too, so the tiles the finger crossed join the path in
+    // order instead of the path getting stuck on a "far" tile.
+    const from = lastDragPoint || { x: e.clientX, y: e.clientY };
+    lastDragPoint = { x: e.clientX, y: e.clientY };
+    pointerSamples(from.x, from.y, e.clientX, e.clientY, dragSampleStep)
+        .forEach(p => detectTileAt(p.x, p.y));
 }, { passive: false });
 
 document.addEventListener('pointerup', () => {
@@ -1704,8 +1723,10 @@ function detectTileAt(x, y) {
     const radius = Math.min(rect.width, rect.height) * 0.42;
     if (Math.abs(x - cx) > radius || Math.abs(y - cy) > radius) return;
 
+    // only a tile that touches the previous one and isn't already used joins
+    // the path - passing over any other tile does nothing
     const idx = parseInt(el.dataset.index, 10);
-    if (!dragPath.includes(idx)) {
+    if (canExtendBoardPath(dragPath, idx, currentGame.gridSize)) {
         dragPath.push(idx);
         updateSelection();
         playLetterTick(dragPath.length);
@@ -1716,6 +1737,9 @@ function endDrag() {
     isDragging = false;
     // a freeze (or elimination) that landed mid-drag voids the word instead of scoring it
     if (isBoardInputBlocked()) { cancelDrag(); return; }
+    // check the whole path again before any scoring - a path that didn't come
+    // from a normal drag (non-adjacent or repeated tiles) is never scored
+    if (dragPath.length && !isValidBoardPath(dragPath, currentGame.gridSize)) { cancelDrag(); return; }
     // board is all-regular forms, but normalize defensively so lookups match
     const word = normalizeFinals(dragPath.map(i => currentGame.board[i]).join(''));
 

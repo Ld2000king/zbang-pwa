@@ -31,6 +31,7 @@ const EXCLUDE = new Set([
     'database.rules.json', // server-side Firebase rules, not a web asset
     'docs',                // store-submission notes, not part of the app
     'store',               // store icons + screenshots for App Store Connect
+    'tests',               // node --test files, not part of the app
     '.DS_Store',
     'Thumbs.db'
 ]);
