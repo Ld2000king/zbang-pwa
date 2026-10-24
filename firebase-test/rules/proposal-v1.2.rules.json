@@ -1,7 +1,3 @@
-// ZBANG 1.2 - PROPOSED rules for local Firebase Emulator tests ONLY.
-// Same as ../../database.rules.json except the [1.2 PROPOSAL] parts of
-// player_saves. NOT deployed anywhere. Before any deploy it must be compared
-// with the rules that are live in the Firebase Console.
 {
   // ==========================================================================
   // Firebase Realtime Database Security Rules - Zabang Royale
