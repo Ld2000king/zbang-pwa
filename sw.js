@@ -36,6 +36,8 @@ const PRECACHE = [
     './words-bulk-2.js',
     './words-bulk-3.js',
     './tower.js',
+    './xp-engine.js',
+    './xp-game.js',
     './avatars.js',
     './assets/avatars/dan.webp',
     './assets/avatars/maya.webp',
