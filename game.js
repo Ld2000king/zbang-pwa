@@ -2325,13 +2325,14 @@ function consumeItemPayment(key) {
     if (!hasInfiniteCoins()) gameState.coins -= item.cost;
 }
 
-// ---- single-player hint (1.2) ----------------------------------------------
+// ---- single-player and bots hint (1.2) --------------------------------------
 // The hint SHOWS the path of one word not found yet (board-words.js: 8
 // directions, zigzag, shortest words first, random pick) and the player drags
 // it. It never scores, gives XP or marks the word found - only endDrag does.
 // Payment is taken only when a word was really shown, and a second tap while
-// the path is on the board does nothing (board-hint.js). Bots, multiplayer
-// and the tower hint are unchanged.
+// the path is on the board does nothing (board-hint.js). Used by useHint
+// (single, #board) and useBattleHint (bots, #battleBoard); the bots never see
+// it. Multiplayer and the tower hint are unchanged.
 let hintWordIndex = null;
 let hintWordIndexWords = null; // the dictionaryWordList() array it was built from
 let singleHint = null;
@@ -2345,8 +2346,10 @@ function hintWordIndexForDictionary() {
     return hintWordIndex;
 }
 
+const HINT_MODES = ['single', 'battle']; // the boards this hint works on
+
 function hintTileEl(idx) {
-    return document.querySelector(`#board .letter-tile[data-index="${idx}"]`);
+    return document.querySelector(`#${activeBoardId()} .letter-tile[data-index="${idx}"]`);
 }
 
 function showHintPath(path) {
@@ -2360,7 +2363,7 @@ function showHintPath(path) {
 }
 
 function clearHintPath() {
-    document.querySelectorAll('#board .letter-tile.hint-path').forEach(el => {
+    document.querySelectorAll('#board .letter-tile.hint-path, #battleBoard .letter-tile.hint-path').forEach(el => {
         el.classList.remove('hint-path');
         el.style.removeProperty('--hint-step');
         delete el.dataset.hintStep;
@@ -2370,7 +2373,7 @@ function clearHintPath() {
 function singleHintController() {
     if (singleHint || typeof ZbangBoardHint === 'undefined' || typeof ZbangBoardWords === 'undefined') return singleHint;
     singleHint = ZbangBoardHint.createHintController({
-        isPlayable: () => currentGame.mode === 'single' && currentGame.gameActive && !currentGame.paused,
+        isPlayable: () => HINT_MODES.includes(currentGame.mode) && currentGame.gameActive && !currentGame.paused,
         canPay: () => canPayForItem('hint'),
         pay: () => consumeItemPayment('hint'),
         findHint: () => ZbangBoardWords.findHintWord(currentGame.board, currentGame.gridSize,
@@ -2386,7 +2389,10 @@ function singleHintController() {
     return singleHint;
 }
 
-function useHint() {
+// mode: the game mode the pressed button belongs to - a button never works
+// in another mode's game
+function requestBoardHint(mode) {
+    if (currentGame.mode !== mode) return;
     const hint = singleHintController();
     if (!hint) return;
     const result = hint.request();
@@ -2397,6 +2403,10 @@ function useHint() {
     } else if (result === 'none') { // 'busy': the path is already pulsing on the board - no message on top of it
         showBoardMessage('אין מילה להצגה כרגע', 'warning', 1000);
     }
+}
+
+function useHint() {
+    requestBoardHint('single');
 }
 
 // Find a dictionary word that actually exists on the board (horizontal or
@@ -2482,34 +2492,10 @@ function useBattleShuffle() {
     showMessage('הבוטים מבולבלים!', 'success');
 }
 
+// Bots battle: the same show-the-path hint on the battle board. The player's
+// score, found words and XP change only when the player drags the word.
 function useBattleHint() {
-    if (!canPayForItem('hint')) return;
-
-    let indices = findWordOnBoard();
-    if (indices.length === 0) {
-        autoShuffleIfExhausted();
-        indices = findWordOnBoard();
-        if (indices.length === 0) return;
-    }
-
-    const word = indices.map(i => currentGame.board[i]).join('');
-    const points = HEBREW_DICTIONARY[word];
-
-    consumeItemPayment('hint');
-    currentGame.foundWords.add(word);
-    currentGame.playerScore += points;
-    document.getElementById('playerBattleScore').textContent = currentGame.playerScore;
-    updateBattleUI();
-    saveGameState();
-    updateHomeUI();
-
-    const tiles = document.querySelectorAll(`#${activeBoardId()} .letter-tile`);
-    indices.forEach(i => tiles[i]?.classList.add('selected'));
-    setTimeout(() => tiles.forEach(t => t.classList.remove('selected')), 1500);
-
-    showMessage(`${word} - כל הכבוד! +${points}`, 'success');
-    playWordSound(points);
-    launchSparkles();
+    requestBoardHint('battle');
 }
 
 // Battle Royale

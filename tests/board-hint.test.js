@@ -186,6 +186,11 @@ function makeDocument() {
             return byId.get(id);
         },
         querySelectorAll(sel) {
+            if (sel.includes(',')) { // a selector list: the union, like the real DOM
+                const all = [];
+                sel.split(',').forEach(one => this.querySelectorAll(one).forEach(e => { if (!all.includes(e)) all.push(e); }));
+                return all;
+            }
             const parts = sel.trim().split(/\s+/);
             let scope = [body];
             parts.forEach((part, i) => {
@@ -247,8 +252,22 @@ function startGame() {
         state: () => JSON.parse(run(`JSON.stringify({ coins: gameState.coins, hints: gameState.inventory.hint, score: currentGame.score,
                             found: [...currentGame.foundWords], shown: document.getElementById('scoreDisplay').textContent,
                             board: currentGame.board.slice() })`)),
-        hintTiles() {
-            return ctx.document.querySelectorAll('#board .letter-tile.hint-path')
+        // a bots battle round on #battleBoard, with 4 bots that have scores
+        setBattle(board) {
+            run(`currentGame.mode = 'battle'; currentGame.gridSize = 5; currentGame.foundWords.clear();
+                 currentGame.playerScore = 0; currentGame.score = 0; currentGame.gameActive = true; currentGame.paused = false;
+                 battleState.players = ['א', 'ב', 'ג', 'ד'].map((name, i) => ({ name, score: 100 * (i + 1), eliminated: false }));
+                 battleState.boardWords = [{ word: 'בוט', points: 10 }]; battleState.botsFrozenSeconds = 0;`);
+            ctx.__board = board;
+            run(`currentGame.board = __board.slice(); renderBoard('battleBoard');`);
+        },
+        battle: () => JSON.parse(run(`JSON.stringify({ coins: gameState.coins, hints: gameState.inventory.hint,
+                            playerScore: currentGame.playerScore, shown: document.getElementById('playerBattleScore').textContent,
+                            found: [...currentGame.foundWords], bots: battleState.players.map(b => b.score),
+                            pool: battleState.boardWords, frozen: battleState.botsFrozenSeconds })`)),
+        tapBattle: () => run('useBattleHint()'),
+        hintTiles(boardId = 'board') {
+            return ctx.document.querySelectorAll(`#${boardId} .letter-tile.hint-path`)
                 .map(e => ({ idx: Number(e.dataset.index), step: Number(e.dataset.hintStep), cssStep: e.style.getPropertyValue('--hint-step') }))
                 .sort((a, b) => a.step - b.step);
         },
@@ -443,4 +462,128 @@ test('game: 300 random real boards with the full dictionary - every hint is vali
         }
     }
     assert.ok(shown > 300, `hints shown: ${shown}, empty: ${none}`);
+});
+
+// ---------------------------------------------------------------------------
+// 3. bots battle (useBattleHint) - same hint, on the battle board
+// ---------------------------------------------------------------------------
+const DGL = () => boardWith({ [at(1, 0)]: 'ד', [at(2, 1)]: 'ג', [at(1, 2)]: 'ל' }); // zigzag: down-left, up-left
+
+test('bots: the hint shows the path on the battle board; no score, no found word, bots untouched', () => {
+    const g = startGame();
+    g.onlyWords(['דגל']);
+    g.wallet(1000, 0);
+    g.setBattle(DGL());
+    const before = g.battle();
+    for (let i = 0; i < 5; i++) g.tapBattle(); // fast taps
+    const tiles = g.hintTiles('battleBoard');
+    assert.deepEqual(tiles.map(t => t.idx), [at(1, 0), at(2, 1), at(1, 2)], 'path in letter order');
+    assert.deepEqual(tiles.map(t => t.step), [1, 2, 3]);
+    assert.deepEqual(g.hintTiles('board'), [], 'nothing drawn on the single-player board');
+    const s = g.battle();
+    assert.equal(s.coins, 950, 'one charge of the current price (50)');
+    assert.equal(s.playerScore, 0);
+    assert.deepEqual(s.found, []);
+    assert.deepEqual(s.bots, before.bots, 'bot scores unchanged');
+    assert.deepEqual(s.pool, before.pool, 'bot word pool unchanged');
+    assert.equal(s.frozen, 0, 'bots not frozen');
+    assert.equal(xpForRound({ mode: 'battle', completed: true, wordsFound: s.found.length, survived: false }), 0, 'no XP from the hint');
+});
+
+test('bots: dragging the hinted word scores for the player and counts for XP', () => {
+    const g = startGame();
+    g.onlyWords(['דגל']);
+    g.wallet(1000, 0);
+    g.setBattle(DGL());
+    g.tapBattle();
+    g.drag([at(1, 0), at(2, 1), at(1, 2)]);
+    const s = g.battle();
+    assert.equal(s.playerScore, 10);
+    assert.equal(s.shown, '10');
+    assert.deepEqual(s.found, ['דגל']);
+    assert.deepEqual(g.hintTiles('battleBoard'), [], 'path removed once dragged');
+    assert.deepEqual(s.bots, [100, 200, 300, 400], 'bots unchanged');
+    assert.ok(xpForRound({ mode: 'battle', completed: true, wordsFound: 1, survived: false }) > 0);
+});
+
+test('bots: inventory before coins, one hint per tap while shown', () => {
+    const g = startGame();
+    g.onlyWords(['דגל']);
+    g.wallet(1000, 1);
+    g.setBattle(DGL());
+    g.tapBattle(); g.tapBattle();
+    assert.equal(g.battle().hints, 0);
+    assert.equal(g.battle().coins, 1000);
+    g.advance(DEFAULT_SHOW_MS);
+    assert.deepEqual(g.hintTiles('battleBoard'), []);
+    g.tapBattle(); g.tapBattle();
+    assert.equal(g.battle().coins, 950, 'then coins, once');
+});
+
+test('bots: no word, paused, round over, no funds, wrong mode - no hint and no charge', () => {
+    const g = startGame();
+    g.onlyWords(['דגל']);
+    g.wallet(1000, 2);
+    g.setBattle(new Array(25).fill(FILL));
+    g.tapBattle();
+    assert.deepEqual([g.battle().coins, g.battle().hints], [1000, 2], 'no word');
+    assert.ok(g.messages().includes('אין מילה להצגה כרגע'));
+    for (const setup of ['currentGame.paused = true; currentGame.gameActive = false;', 'currentGame.gameActive = false;']) {
+        g.setBattle(DGL());
+        g.run(setup);
+        g.tapBattle();
+        assert.deepEqual([g.battle().coins, g.battle().hints], [1000, 2], setup);
+        assert.deepEqual(g.hintTiles('battleBoard'), [], setup);
+    }
+    g.setBattle(DGL());
+    g.wallet(10, 0);
+    g.tapBattle();
+    assert.equal(g.battle().coins, 10, 'no funds');
+    g.wallet(1000, 0);
+    g.tap(); // the single-player button in a bots game
+    assert.equal(g.battle().coins, 1000);
+    g.setBoard(DGL()); // single game
+    g.tapBattle();     // the bots button in a single game
+    assert.equal(g.state().coins, 1000);
+    assert.deepEqual(g.hintTiles('board'), []);
+    g.run("currentGame.mode = 'multiplayer'; currentGame.gameActive = true;");
+    g.tapBattle();
+    assert.equal(g.state().coins, 1000, 'multiplayer untouched by this hint');
+});
+
+test('bots: a new round (board redrawn) drops the old path', () => {
+    const g = startGame();
+    g.onlyWords(['דגל']);
+    g.wallet(1000, 0);
+    g.setBattle(DGL());
+    g.tapBattle();
+    g.run("renderBoard('battleBoard');");
+    assert.deepEqual(g.hintTiles('battleBoard'), []);
+    assert.equal(g.run('singleHint.current()'), null);
+});
+
+test('bots: 150 random real battle boards - every hint is valid, draggable and leaves the bots alone', () => {
+    const g = startGame();
+    const { isValidBoardPath } = require('../board-path.js');
+    g.wallet(1e9, 0);
+    let shown = 0;
+    for (let i = 0; i < 150; i++) {
+        g.setBattle(g.run('generateBoard()'));
+        const bots = g.battle().bots;
+        g.tapBattle();
+        const p = g.hintTiles('battleBoard').map(t => t.idx);
+        if (!p.length) continue;
+        shown++;
+        g.ctx.__hp = p;
+        const word = g.run('normalizeFinals(__hp.map(i => currentGame.board[i]).join(""))');
+        assert.ok(isValidBoardPath(p, 5));
+        assert.ok(g.run(`HEBREW_DICTIONARY[${JSON.stringify(word)}] !== undefined`));
+        assert.equal(g.battle().playerScore, 0);
+        g.drag(p);
+        const s = g.battle();
+        assert.ok(s.found.includes(word));
+        assert.equal(s.playerScore, g.run(`HEBREW_DICTIONARY[${JSON.stringify(word)}]`));
+        assert.deepEqual(s.bots, bots);
+    }
+    assert.ok(shown > 140, `shown ${shown}`);
 });
