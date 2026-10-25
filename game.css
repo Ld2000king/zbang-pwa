@@ -777,6 +777,58 @@ html[data-city="island"] .subtitle {
     box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), var(--sink);
 }
 
+/* Single-player hint (1.2): the path of one word, a blue ring on each tile
+   and a numbered badge in letter order, pulsing one tile after the other.
+   Drawing only - the badge is a pseudo-element, so drags still hit the tile. */
+.letter-tile.hint-path {
+    position: relative;
+    background: var(--cream-mint);
+    --btn-base: var(--blue-base);
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.4), 0 0 0 3px var(--blue), var(--bevel-sm);
+    animation: hintPath 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--hint-step, 0) * 0.15s) 4;
+}
+
+.letter-tile.hint-path::after {
+    content: attr(data-hint-step);
+    position: absolute;
+    top: -7px;
+    inset-inline-start: -7px;
+    min-width: 1.35em;
+    height: 1.35em;
+    padding: 0 0.2em;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: max(11px, 0.36em);
+    font-weight: 900;
+    line-height: 1;
+    color: var(--ink-on-color);
+    text-shadow: 0 1px 0 rgba(78, 49, 22, 0.45);
+    background: var(--blue);
+    border: 2px solid var(--wood-dark);
+    border-radius: var(--radius-pill);
+    box-shadow: 0 2px 0 var(--blue-base);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* while the player drags over it, the normal gold selection wins */
+.letter-tile.hint-path.selected {
+    background: var(--gold);
+    --btn-base: var(--gold-base);
+    animation: none;
+}
+
+@keyframes hintPath {
+    50% { transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .letter-tile.hint-path { animation: none; }
+}
+
 /* ===== Arena board themes (skins) =====
    applyBoardTheme() in game.js adds .arena-themed to the .board and sets
    the per-city vars inline (--tile-bg, --tile-text, --board-accent) straight

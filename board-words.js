@@ -5,9 +5,10 @@
 // skipping, no tile twice, no wrap-around between board edges. Returns each
 // word with the exact tile path.
 //
-// NOT CONNECTED YET: nothing in the game calls this (hint buttons and the
-// automatic shuffle still use findWordOnBoard in game.js). Pure functions,
-// no DOM - the tests run it in Node. מגדל זבאנג (tower.js) is not touched.
+// Used by the single-player hint (board-hint.js / useHint in game.js). The
+// bots and multiplayer hints and the automatic shuffle still use
+// findWordOnBoard in game.js. Pure functions, no DOM - the tests run it in
+// Node. מגדל זבאנג (tower.js) is not touched.
 //
 // Speed: a depth-first search that only follows letter sequences which are
 // the start of some dictionary word (a prefix index), with a hard step

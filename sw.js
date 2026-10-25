@@ -30,6 +30,8 @@ const PRECACHE = [
     './style.css',
     './game.css',
     './board-path.js',
+    './board-words.js',
+    './board-hint.js',
     './game.js',
     './words.js',
     './words-bulk.js',

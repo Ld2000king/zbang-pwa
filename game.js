@@ -1625,6 +1625,7 @@ function generateBoard() {
 // Render board
 function renderBoard(boardId = 'board') {
     const boardEl = document.getElementById(boardId);
+    if (singleHint) singleHint.cancel(); // new tiles: an old hint path means nothing
     boardEl.innerHTML = '';
 
     currentGame.board.forEach((letter, idx) => {
@@ -1769,6 +1770,7 @@ function endDrag() {
         const points = HEBREW_DICTIONARY[word];
         currentGame.foundWords.add(word);
         currentGame.score += points;
+        if (singleHint) singleHint.wordFound(word); // the hinted word was dragged
 
         if (currentGame.mode === 'single') {
             document.getElementById('scoreDisplay').textContent = currentGame.score;
@@ -2323,35 +2325,78 @@ function consumeItemPayment(key) {
     if (!hasInfiniteCoins()) gameState.coins -= item.cost;
 }
 
-function useHint() {
-    if (!canPayForItem('hint')) return;
+// ---- single-player hint (1.2) ----------------------------------------------
+// The hint SHOWS the path of one word not found yet (board-words.js: 8
+// directions, zigzag, shortest words first, random pick) and the player drags
+// it. It never scores, gives XP or marks the word found - only endDrag does.
+// Payment is taken only when a word was really shown, and a second tap while
+// the path is on the board does nothing (board-hint.js). Bots, multiplayer
+// and the tower hint are unchanged.
+let hintWordIndex = null;
+let hintWordIndexWords = null; // the dictionaryWordList() array it was built from
+let singleHint = null;
 
-    let indices = findWordOnBoard();
-    if (indices.length === 0) {
-        autoShuffleIfExhausted();
-        indices = findWordOnBoard();
-        if (indices.length === 0) return;
+function hintWordIndexForDictionary() {
+    const words = dictionaryWordList(); // a new array after invalidateDictionaryCache()
+    if (hintWordIndexWords !== words) {
+        hintWordIndex = ZbangBoardWords.buildWordIndex(words);
+        hintWordIndexWords = words;
     }
+    return hintWordIndex;
+}
 
-    const word = indices.map(i => currentGame.board[i]).join('');
-    const points = HEBREW_DICTIONARY[word];
+function hintTileEl(idx) {
+    return document.querySelector(`#board .letter-tile[data-index="${idx}"]`);
+}
 
-    consumeItemPayment('hint');
-    currentGame.foundWords.add(word);
-    currentGame.score += points;
-    document.getElementById('scoreDisplay').textContent = currentGame.score;
-    updateFoundWords();
-    saveGameState();
-    updateHomeUI();
+function showHintPath(path) {
+    path.forEach((idx, i) => {
+        const el = hintTileEl(idx);
+        if (!el) return;
+        el.style.setProperty('--hint-step', i);
+        el.dataset.hintStep = String(i + 1); // the number drawn on the tile
+        el.classList.add('hint-path');
+    });
+}
 
-    // Flash the word's tiles for 1.5 seconds
-    const tiles = document.querySelectorAll(`#${activeBoardId()} .letter-tile`);
-    indices.forEach(i => tiles[i]?.classList.add('selected'));
-    setTimeout(() => tiles.forEach(t => t.classList.remove('selected')), 1500);
+function clearHintPath() {
+    document.querySelectorAll('#board .letter-tile.hint-path').forEach(el => {
+        el.classList.remove('hint-path');
+        el.style.removeProperty('--hint-step');
+        delete el.dataset.hintStep;
+    });
+}
 
-    showMessage(`${word} - כל הכבוד! +${points}`, 'success');
-    playWordSound(points);
-    launchSparkles();
+function singleHintController() {
+    if (singleHint || typeof ZbangBoardHint === 'undefined' || typeof ZbangBoardWords === 'undefined') return singleHint;
+    singleHint = ZbangBoardHint.createHintController({
+        isPlayable: () => currentGame.mode === 'single' && currentGame.gameActive && !currentGame.paused,
+        canPay: () => canPayForItem('hint'),
+        pay: () => consumeItemPayment('hint'),
+        findHint: () => ZbangBoardWords.findHintWord(currentGame.board, currentGame.gridSize,
+            hintWordIndexForDictionary(), { exclude: currentGame.foundWords }),
+        isShowable: hint => ZbangBoardHint.isShowableHint(hint, currentGame.board, currentGame.gridSize,
+            HEBREW_DICTIONARY, currentGame.foundWords, normalizeFinals),
+        onExhausted: autoShuffleIfExhausted, // same automatic shuffle as before
+        show: showHintPath,
+        clear: clearHintPath,
+        setTimer: (fn, ms) => setTimeout(fn, ms),
+        clearTimer: id => clearTimeout(id)
+    });
+    return singleHint;
+}
+
+function useHint() {
+    const hint = singleHintController();
+    if (!hint) return;
+    const result = hint.request();
+    if (result === 'shown') {
+        saveGameState();
+        updateHomeUI();
+        showBoardMessage('רמז: גרור לפי המספרים', 'info', 1600);
+    } else if (result === 'none') { // 'busy': the path is already pulsing on the board - no message on top of it
+        showBoardMessage('אין מילה להצגה כרגע', 'warning', 1000);
+    }
 }
 
 // Find a dictionary word that actually exists on the board (horizontal or
