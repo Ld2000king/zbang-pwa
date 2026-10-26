@@ -311,7 +311,7 @@ test('game: the hint takes no score or XP; only the real drag scores, and then X
     g.wallet(1000, 0);
     g.setBoard(boardWith({ [at(2, 1)]: 'ד', [at(2, 2)]: 'ג', [at(2, 3)]: 'ל' }));
     const s = expectHint(g, 'דגל', [at(2, 1), at(2, 2), at(2, 3)]);
-    assert.equal(s.coins, 950, 'paid with coins (price unchanged: 50)');
+    assert.equal(s.coins, 925, 'paid with coins (hint price 75)');
     assert.equal(s.shown, '', 'score display untouched');
     const words = () => g.run('currentGame.foundWords.size');
     assert.equal(xpForRound({ mode: 'single', singleMode: 'quick', completed: true, wordsFound: words() }), 0, 'no XP from the hint alone');
@@ -324,7 +324,7 @@ test('game: the hint takes no score or XP; only the real drag scores, and then X
     assert.deepEqual(g.hintTiles(), [], 'path removed once dragged');
     assert.ok(xpForRound({ mode: 'single', singleMode: 'quick', completed: true, wordsFound: words() }) > 0, 'XP once dragged');
     g.tap();
-    assert.equal(g.state().coins, 950, 'board now has no word: nothing shown, nothing charged');
+    assert.equal(g.state().coins, 925, 'board now has no word: nothing shown, nothing charged');
     assert.ok(g.messages().includes('אין מילה להצגה כרגע'));
 });
 
@@ -356,7 +356,7 @@ test('game: another word can be dragged normally while the hint is shown', () =>
 test('game: a word already found is never chosen', () => {
     const g = startGame();
     g.onlyWords(['דגל', 'ילד']);
-    g.wallet(1000, 0);
+    g.wallet(20 * 75, 0); // 20 hints at 75
     g.setBoard(boardWith({ [at(0, 0)]: 'ד', [at(0, 1)]: 'ג', [at(0, 2)]: 'ל', [at(2, 4)]: 'י', [at(3, 4)]: 'ל', [at(4, 4)]: 'ד' }));
     g.drag([0, 1, 2]);
     for (let i = 0; i < 20; i++) {
@@ -398,7 +398,7 @@ test('game: fast taps charge once (inventory first, then coins)', () => {
     assert.deepEqual(g.hintTiles(), [], 'path disappears after the timeout');
     g.tap(); g.tap();
     s = g.state();
-    assert.equal(s.coins, 950, 'next hint from coins, once');
+    assert.equal(s.coins, 925, 'next hint from coins, once');
 });
 
 test('game: no funds, paused, ended or other modes - no hint, no charge', () => {
@@ -430,7 +430,7 @@ test('game: a redrawn board (shuffle) drops the old path and frees the button', 
     assert.deepEqual(g.hintTiles(), []);
     assert.equal(g.run('singleHint.current()'), null);
     g.tap();
-    assert.equal(g.state().coins, 900, 'a new hint can be taken');
+    assert.equal(g.state().coins, 850, 'a new hint can be taken');
 });
 
 test('game: 300 random real boards with the full dictionary - every hint is valid and draggable', () => {
@@ -481,7 +481,7 @@ test('bots: the hint shows the path on the battle board; no score, no found word
     assert.deepEqual(tiles.map(t => t.step), [1, 2, 3]);
     assert.deepEqual(g.hintTiles('board'), [], 'nothing drawn on the single-player board');
     const s = g.battle();
-    assert.equal(s.coins, 950, 'one charge of the current price (50)');
+    assert.equal(s.coins, 925, 'one charge of the hint price (75)');
     assert.equal(s.playerScore, 0);
     assert.deepEqual(s.found, []);
     assert.deepEqual(s.bots, before.bots, 'bot scores unchanged');
@@ -517,7 +517,7 @@ test('bots: inventory before coins, one hint per tap while shown', () => {
     g.advance(DEFAULT_SHOW_MS);
     assert.deepEqual(g.hintTiles('battleBoard'), []);
     g.tapBattle(); g.tapBattle();
-    assert.equal(g.battle().coins, 950, 'then coins, once');
+    assert.equal(g.battle().coins, 925, 'then coins, once');
 });
 
 test('bots: no word, paused, round over, no funds, wrong mode - no hint and no charge', () => {
@@ -586,4 +586,132 @@ test('bots: 150 random real battle boards - every hint is valid, draggable and l
         assert.deepEqual(s.bots, bots);
     }
     assert.ok(shown > 140, `shown ${shown}`);
+});
+
+// ---------------------------------------------------------------------------
+// 3. hint prices (1.2): 75 in single / bots / multiplayer and in the shop,
+//    50 in the tower, 20 for every other power-up. The hint stays one shared
+//    inventory item, used before coins. tower.js and multiplayer.js are the
+//    real files, loaded unchanged into the same sandbox.
+// ---------------------------------------------------------------------------
+const TOWER_SRC = fs.readFileSync(path.join(ROOT, 'tower.js'), 'utf8');
+const MP_SRC = fs.readFileSync(path.join(ROOT, 'multiplayer.js'), 'utf8');
+const INDEX_HTML = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+
+function startFullGame() {
+    const g = startGame();
+    vm.runInContext(TOWER_SRC, g.ctx, { filename: 'tower.js' });
+    vm.runInContext(MP_SRC, g.ctx, { filename: 'multiplayer.js' });
+    g.run('saveGameState = () => {};');
+    return g;
+}
+const wallet = g => JSON.parse(g.run('JSON.stringify({ coins: gameState.coins, hints: gameState.inventory.hint })'));
+
+test('prices: one place - hint 75, tower hint 50, every other power-up 20', () => {
+    const g = startGame();
+    assert.equal(g.run('HINT_COST'), 75);
+    assert.equal(g.run('TOWER_HINT_COST'), 50);
+    const shop = JSON.parse(g.run('JSON.stringify(SHOP_ITEMS.map(i => [i.key, i.cost]))'));
+    assert.deepEqual(shop, [['hint', 75], ['shuffle', 20], ['freeze', 20], ['freezeOpponents', 20], ['tornado', 20]]);
+    const cost = (mode, key) => g.run(`currentGame.mode = '${mode}'; itemUseCost('${key}')`);
+    for (const mode of ['single', 'battle', 'multiplayer']) assert.equal(cost(mode, 'hint'), 75, mode);
+    assert.equal(cost('tower', 'hint'), 50);
+    for (const mode of ['single', 'battle', 'multiplayer', 'tower'])
+        for (const key of ['shuffle', 'freeze', 'freezeOpponents', 'tornado']) assert.equal(cost(mode, key), 20, mode + ' ' + key);
+});
+
+test('prices: every in-game button label equals the price charged', () => {
+    const g = startGame();
+    const labels = [...INDEX_HTML.matchAll(/onclick="([\w]+)\(\)"[^>]*>(?:(?!<\/button>).)*?<span class="pu-cost">(\d+)<\/span>/gs)]
+        .map(m => [m[1], Number(m[2])]);
+    assert.deepEqual(labels, [
+        ['useHint', g.run('HINT_COST')], ['useShuffle', 20], ['useFreeze', 20],
+        ['handleBattleHint', g.run('HINT_COST')], ['useShuffle', 20], ['handleBattleFreeze', 20], ['useBattleShuffle', 20],
+        ['useTowerHint', g.run('TOWER_HINT_COST')]
+    ]);
+    const shopCost = k => g.run(`getShopItem('${k}').cost`);
+    assert.equal(shopCost('shuffle'), 20); assert.equal(shopCost('freeze'), 20);
+    assert.equal(shopCost('freezeOpponents'), 20); assert.equal(shopCost('tornado'), 20);
+});
+
+test('prices: single - 74 coins is not enough (message says 75), 75 is charged exactly', () => {
+    const g = startGame();
+    g.onlyWords(['דגל']);
+    g.setBoard(boardWith({ [at(2, 1)]: 'ד', [at(2, 2)]: 'ג', [at(2, 3)]: 'ל' }));
+    g.wallet(74, 0);
+    g.tap();
+    assert.equal(g.state().coins, 74);
+    assert.deepEqual(g.hintTiles(), []);
+    assert.ok(g.messages().includes('אין מספיק מטבעות! (רמז עולה 75)'));
+    g.wallet(75, 0);
+    g.tap();
+    assert.equal(g.state().coins, 0);
+    assert.equal(g.hintTiles().length, 3);
+});
+
+test('prices: bots - 75 coins, inventory first', () => {
+    const g = startGame();
+    g.onlyWords(['דגל']);
+    g.wallet(74, 0);
+    g.setBattle(DGL());
+    g.tapBattle();
+    assert.equal(g.battle().coins, 74, 'not enough for 75');
+    g.wallet(500, 2);
+    g.tapBattle();
+    assert.deepEqual([g.battle().coins, g.battle().hints], [500, 1], 'inventory, no coins');
+});
+
+function setTower(g, foundPath) {
+    g.run(`currentGame.mode = 'tower'; currentGame.gameActive = true; tower.busy = false;`);
+    g.ctx.__tp = foundPath;
+    g.run('towerFindWord = () => __tp; towerTileEl = () => null; showBoardMessage = () => {};');
+}
+
+test('prices: tower (real tower.js) - 50 coins, inventory first, no charge without a word', () => {
+    const g = startFullGame();
+    setTower(g, [{ c: 0, r: 0 }, { c: 1, r: 0 }]);
+    g.run('gameState.coins = 1000; gameState.inventory.hint = 0;');
+    g.run('useTowerHint()');
+    assert.deepEqual(wallet(g), { coins: 950, hints: 0 }, 'tower hint costs 50');
+    g.run('gameState.coins = 50;'); g.run('useTowerHint()');
+    assert.deepEqual(wallet(g), { coins: 0, hints: 0 }, '50 coins is enough in the tower');
+    g.run('gameState.coins = 49;'); g.run('useTowerHint()');
+    assert.deepEqual(wallet(g), { coins: 49, hints: 0 });
+    assert.ok(g.messages().includes('אין מספיק מטבעות! (רמז עולה 50)'));
+    g.run('gameState.coins = 1000; gameState.inventory.hint = 1;'); g.run('useTowerHint()');
+    assert.deepEqual(wallet(g), { coins: 1000, hints: 0 }, 'inventory first');
+    setTower(g, null);
+    g.run('useTowerHint()');
+    assert.deepEqual(wallet(g), { coins: 1000, hints: 0 }, 'no word -> no charge');
+});
+
+test('prices: multiplayer (real multiplayer.js) - 75 coins, inventory first, no charge without a word', () => {
+    const g = startFullGame();
+    g.onlyWords(['דגל']);
+    g.setBattle(boardWith({ [at(2, 1)]: 'ד', [at(2, 2)]: 'ג', [at(2, 3)]: 'ל' }));
+    g.run(`currentGame.mode = 'multiplayer'; blockedByFreeze = () => false; submitMultiplayerWord = () => {};
+           gameState.coins = 1000; gameState.inventory.hint = 0;`);
+    g.run('handleBattleHint()');
+    assert.deepEqual(wallet(g), { coins: 925, hints: 0 }, 'multiplayer hint costs 75');
+    g.run('gameState.inventory.hint = 1; currentGame.foundWords.clear();');
+    g.run('handleBattleHint()');
+    assert.deepEqual(wallet(g), { coins: 925, hints: 0 }, 'inventory first');
+    g.run('gameState.coins = 74; currentGame.foundWords.clear();');
+    g.run('handleBattleHint()');
+    assert.deepEqual(wallet(g), { coins: 74, hints: 0 }, 'not enough for 75');
+    g.run("gameState.coins = 1000; autoShuffleIfExhausted = () => {}; currentGame.foundWords.add('דגל');");
+    g.run('handleBattleHint()'); // the only word is already found
+    assert.deepEqual(wallet(g), { coins: 1000, hints: 0 }, 'no word -> no charge');
+});
+
+test('prices: the shop sells the shared hint at 75 and charges what it shows', () => {
+    const g = startGame();
+    g.run(`showConfirm = (text, ok) => { __confirm = text; ok(); }; renderShop = () => {}; updateCoinsDisplay = () => {};`);
+    for (const mode of ['single', 'tower']) {
+        g.run(`currentGame.mode = '${mode}'; gameState.coins = 1000; gameState.inventory.hint = 0; buyItem('hint');`);
+        assert.equal(g.run('__confirm'), 'האם אתה בטוח? קניית רמז ב-75 מטבעות', mode);
+        assert.deepEqual(wallet(g), { coins: 925, hints: 1 }, 'shop price is the same from any screen: ' + mode);
+    }
+    g.run(`gameState.coins = 1000; gameState.inventory.shuffle = 0; buyItem('shuffle');`);
+    assert.equal(g.run('gameState.coins'), 980);
 });

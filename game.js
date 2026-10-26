@@ -109,8 +109,15 @@ function normalizeDictionary() {
     invalidateDictionaryCache();
 }
 
+// Hint prices (1.2). The hint is ONE shared inventory item for every mode;
+// the shop sells it at HINT_COST. Paid with coins (no hint in inventory) it
+// costs HINT_COST in single, bots and multiplayer, and TOWER_HINT_COST in the
+// tower. All other power-ups cost 20. itemUseCost() picks the price.
+const HINT_COST = 75;
+const TOWER_HINT_COST = 50;
+
 const SHOP_ITEMS = [
-    { key: 'hint', icon: 'hint', name: 'רמז', desc: 'מסמן בלוח מילה שעוד לא מצאת', cost: 50 },
+    { key: 'hint', icon: 'hint', name: 'רמז', desc: 'מסמן בלוח מילה שעוד לא מצאת', cost: HINT_COST },
     { key: 'shuffle', icon: 'shuffle', name: 'ערבב לוח', desc: 'מחליף את אותיות הלוח', cost: 20 },
     { key: 'freeze', icon: 'freeze', name: 'הקפא זמן', desc: 'מקפיא את השעון ל-5 שניות', cost: 20 },
     { key: 'freezeOpponents', icon: 'freezeOpponents', name: 'הקפא יריבים', desc: 'באטל רויאל: מקפיא את הבוטים ל-8 שניות', cost: 20 },
@@ -2308,10 +2315,18 @@ function getShopItem(key) {
 // Every power-up is paid from its own shop-bought inventory slot first, then
 // coins. Split into "can pay" / "consume" so the charge only happens after
 // the power-up's effect was actually applied (e.g. a hint word was found).
+// Coin price of using a power-up in the game being played now (the shop price
+// is always item.cost). Only the hint differs: the tower pays TOWER_HINT_COST.
+function itemUseCost(key) {
+    if (key === 'hint' && currentGame.mode === 'tower') return TOWER_HINT_COST;
+    return getShopItem(key).cost;
+}
+
 function canPayForItem(key) {
     const item = getShopItem(key);
-    if (gameState.inventory[key] > 0 || hasInfiniteCoins() || gameState.coins >= item.cost) return true;
-    showMessage(`אין מספיק מטבעות! (${item.name} עולה ${item.cost})`, 'error');
+    const cost = itemUseCost(key);
+    if (gameState.inventory[key] > 0 || hasInfiniteCoins() || gameState.coins >= cost) return true;
+    showMessage(`אין מספיק מטבעות! (${item.name} עולה ${cost})`, 'error');
     return false;
 }
 
@@ -2322,7 +2337,7 @@ function consumeItemPayment(key) {
         showMessage(`${item.name} נוצל מהמלאי (נשארו ${gameState.inventory[key]})`, 'info');
         return;
     }
-    if (!hasInfiniteCoins()) gameState.coins -= item.cost;
+    if (!hasInfiniteCoins()) gameState.coins -= itemUseCost(key);
 }
 
 // ---- single-player and bots hint (1.2) --------------------------------------
