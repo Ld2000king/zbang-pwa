@@ -976,6 +976,7 @@ function startMultiplayerTimer(room) {
 
 function stopMultiplayerTimer() {
     if (MP.timer) { clearInterval(MP.timer); MP.timer = null; }
+    if (typeof cancelBoardHint === 'function') cancelBoardHint(); // round over / left: no hint path left behind
     renderFreezeOverlay(0); // never leave the lockout on a screen we left
 }
 
@@ -1251,31 +1252,20 @@ function updateMultiplayerUI(room) {
 
 // ---- power-ups (multiplayer variants) --------------------------------------
 
+// The round on my board is being played right now: the room is 'playing' this
+// same round, and I'm neither frozen nor eliminated. (gameActive alone is not
+// enough - a guest's stays true on the round-end screen.)
+function isMultiplayerRoundLive() {
+    return !!(MP.room && MP.roomCode && MP.room.status === 'playing' && MP.room.currentRound === MP.lastRound)
+        && !isBoardInputBlocked();
+}
+
+// 1.2: the same show-the-path hint as single player and bots (game.js
+// requestBoardHint). It only draws on this device - no room write, no score;
+// the player drags the word and endDrag scores + syncs it as usual.
 function useMultiplayerHint() {
     if (blockedByFreeze()) return;
-    if (!canPayForItem('hint')) return;
-
-    let indices = findWordOnBoard();
-    if (indices.length === 0) { autoShuffleIfExhausted(); indices = findWordOnBoard(); if (indices.length === 0) return; }
-
-    const word = indices.map(i => currentGame.board[i]).join('');
-    const points = HEBREW_DICTIONARY[word];
-
-    consumeItemPayment('hint');
-    currentGame.foundWords.add(word);
-    currentGame.playerScore += points;
-    document.getElementById('playerBattleScore').textContent = currentGame.playerScore;
-    submitMultiplayerWord(word, currentGame.playerScore);
-    saveGameState();
-    updateHomeUI();
-
-    const tiles = document.querySelectorAll('#battleBoard .letter-tile');
-    indices.forEach(i => tiles[i]?.classList.add('selected'));
-    setTimeout(() => tiles.forEach(t => t.classList.remove('selected')), 1500);
-
-    showMessage(`${word} - כל הכבוד! +${points}`, 'success');
-    playWordSound(points);
-    launchSparkles();
+    requestBoardHint('multiplayer');
 }
 
 // ---- elimination gate --------------------------------------------------------

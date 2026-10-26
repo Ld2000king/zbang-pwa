@@ -368,6 +368,10 @@ test('game: a word already found is never chosen', () => {
 
 test('game: board with no word - nothing shown, nothing charged (coins and inventory)', () => {
     const g = startGame();
+    // the auto-shuffle is switched off (before the hint is first used - the
+    // hint keeps that function): its random mix sometimes puts ד ג ל side by
+    // side below, and then a hint is (correctly) shown
+    g.run('autoShuffleIfExhausted = () => {};');
     g.onlyWords(['דגל']);
     g.wallet(1000, 2);
     g.setBoard(new Array(25).fill(FILL));
@@ -685,23 +689,150 @@ test('prices: tower (real tower.js) - 50 coins, inventory first, no charge witho
     assert.deepEqual(wallet(g), { coins: 1000, hints: 0 }, 'no word -> no charge');
 });
 
-test('prices: multiplayer (real multiplayer.js) - 75 coins, inventory first, no charge without a word', () => {
+// ---------------------------------------------------------------------------
+// 4. multiplayer hint (1.2): the same show-the-path hint, local to this device
+//    (real multiplayer.js; `db` is a recorder, so every room write is seen)
+// ---------------------------------------------------------------------------
+function startMultiplayer(board, opts = {}) {
     const g = startFullGame();
-    g.onlyWords(['דגל']);
-    g.setBattle(boardWith({ [at(2, 1)]: 'ד', [at(2, 2)]: 'ג', [at(2, 3)]: 'ל' }));
-    g.run(`currentGame.mode = 'multiplayer'; blockedByFreeze = () => false; submitMultiplayerWord = () => {};
+    g.run('__writes = [];');
+    // copied out through JSON: the array lives in the sandbox's realm
+    Object.defineProperty(g, 'writes', { get: () => JSON.parse(g.run('JSON.stringify(__writes)')) });
+    g.run(`db = { ref: path => ({
+                set: v => { __writes.push([path, 'set', JSON.parse(JSON.stringify(v === undefined ? null : v))]); return Promise.resolve(); },
+                update: v => { __writes.push([path, 'update', JSON.parse(JSON.stringify(v))]); return Promise.resolve(); },
+                remove: () => { __writes.push([path, 'remove']); return Promise.resolve(); },
+                transaction: () => { __writes.push([path, 'transaction']); return Promise.resolve({}); },
+                onDisconnect: () => ({ cancel() {}, set() {}, remove() {}, update() {} }),
+                off() {}, on() {}, once: () => Promise.resolve({ val: () => null })
+            }) };`);
+    g.onlyWords(opts.words || ['דגל']);
+    g.setBattle(board);
+    g.ctx.__mt = opts.matchType || 'friends';
+    g.run(`currentGame.mode = 'multiplayer';
+           MP.roomCode = 'ROOM1'; MP.playerId = 'me'; MP.matchType = __mt; MP.serverOffset = 0; MP.lastRound = 1;
+           MP.room = { status: 'playing', matchType: __mt, hostId: 'me', currentRound: 1,
+                       players: { me: { score: 0, connected: true }, other: { score: 0, connected: true } } };
            gameState.coins = 1000; gameState.inventory.hint = 0;`);
-    g.run('handleBattleHint()');
-    assert.deepEqual(wallet(g), { coins: 925, hints: 0 }, 'multiplayer hint costs 75');
-    g.run('gameState.inventory.hint = 1; currentGame.foundWords.clear();');
-    g.run('handleBattleHint()');
-    assert.deepEqual(wallet(g), { coins: 925, hints: 0 }, 'inventory first');
-    g.run('gameState.coins = 74; currentGame.foundWords.clear();');
-    g.run('handleBattleHint()');
-    assert.deepEqual(wallet(g), { coins: 74, hints: 0 }, 'not enough for 75');
-    g.run("gameState.coins = 1000; autoShuffleIfExhausted = () => {}; currentGame.foundWords.add('דגל');");
-    g.run('handleBattleHint()'); // the only word is already found
-    assert.deepEqual(wallet(g), { coins: 1000, hints: 0 }, 'no word -> no charge');
+    g.tapMP = () => g.run('handleBattleHint()');
+    g.mp = () => JSON.parse(g.run(`JSON.stringify({ coins: gameState.coins, hints: gameState.inventory.hint,
+        playerScore: currentGame.playerScore, shown: document.getElementById('playerBattleScore').textContent,
+        found: [...currentGame.foundWords], board: currentGame.board.slice() })`));
+    return g;
+}
+const DGL_ROW = () => boardWith({ [at(2, 1)]: 'ד', [at(2, 2)]: 'ג', [at(2, 3)]: 'ל' });
+
+for (const matchType of ['friends', 'random']) {
+    test(`multiplayer (${matchType}): hint shows the path only - no score, no found word, no room write`, () => {
+        const g = startMultiplayer(DGL_ROW(), { matchType });
+        const before = g.mp();
+        for (let i = 0; i < 6; i++) g.tapMP(); // fast taps
+        const tiles = g.hintTiles('battleBoard');
+        assert.deepEqual(tiles.map(t => t.idx), [at(2, 1), at(2, 2), at(2, 3)], 'path in letter order');
+        assert.deepEqual(tiles.map(t => t.step), [1, 2, 3]);
+        const s = g.mp();
+        assert.equal(s.coins, 925, 'one charge of 75');
+        assert.equal(s.playerScore, 0);
+        assert.equal(s.shown, before.shown, 'score display untouched');
+        assert.deepEqual(s.found, []);
+        assert.deepEqual(s.board, before.board, 'board unchanged');
+        assert.deepEqual(g.writes, [], 'nothing written to the room - the opponent sees nothing');
+        assert.equal(xpForRound(matchType === 'random'
+            ? { mode: 'random', completed: true, wordsFound: s.found.length, result: 'win' }
+            : { mode: 'friends', completed: true, wordsFound: s.found.length, wonMatch: true }), 0, 'no XP from the hint, even on a win');
+    });
+
+    test(`multiplayer (${matchType}): dragging the hinted word scores and syncs like any word`, () => {
+        const g = startMultiplayer(DGL_ROW(), { matchType });
+        g.tapMP();
+        g.drag([at(2, 1), at(2, 2), at(2, 3)]);
+        const s = g.mp();
+        assert.equal(s.playerScore, 10);
+        assert.equal(s.shown, '10');
+        assert.deepEqual(s.found, ['דגל']);
+        assert.deepEqual(g.hintTiles('battleBoard'), [], 'path removed once dragged');
+        assert.deepEqual(g.writes, [
+            ['rooms/ROOM1/players/me/score', 'set', 10],
+            ['rooms/ROOM1/players/me/foundWords/דגל', 'set', true]
+        ], 'the normal word sync, once');
+    });
+}
+
+test('multiplayer: inventory before coins; a new hint only after the path is gone', () => {
+    const g = startMultiplayer(DGL_ROW());
+    g.run('gameState.inventory.hint = 1;');
+    g.tapMP(); g.tapMP();
+    assert.deepEqual([g.mp().coins, g.mp().hints], [1000, 0], 'from the inventory, once');
+    g.advance(DEFAULT_SHOW_MS);
+    assert.deepEqual(g.hintTiles('battleBoard'), [], 'path gone after the timeout');
+    g.tapMP(); g.tapMP();
+    assert.deepEqual([g.mp().coins, g.mp().hints], [925, 0], 'then coins, once');
+    g.run('gameState.coins = 74;');
+    g.advance(DEFAULT_SHOW_MS);
+    g.tapMP();
+    assert.equal(g.mp().coins, 74, '74 coins is not enough');
+    assert.deepEqual(g.hintTiles('battleBoard'), []);
+});
+
+test('multiplayer: no hint and no charge when the round is over, frozen, eliminated or no word', () => {
+    const cases = [
+        ['round over', 'currentGame.gameActive = false;'],
+        // a guest's gameActive stays true on the round-end screen - the room status decides
+        ['round-end screen (guest)', "MP.room.status = 'roundEnd';"],
+        ['match finished', "MP.room.status = 'finished';"],
+        ['next round not drawn here yet', 'MP.room.currentRound = 2;'],
+        ['left the room', 'MP.roomCode = null;'],
+        ['frozen by an opponent', 'MP.room.players.me.freezeUntil = Date.now() + 60000;'],
+        ['eliminated', 'MP.room.players.me.eliminated = true;'],
+        ['not in multiplayer', "currentGame.mode = 'battle';"]
+    ];
+    for (const [name, setup] of cases) {
+        const g = startMultiplayer(DGL_ROW());
+        g.run(setup);
+        g.run("currentGame.mode === 'multiplayer' ? handleBattleHint() : useMultiplayerHint()");
+        assert.deepEqual([g.mp().coins, g.mp().hints], [1000, 0], name);
+        assert.deepEqual(g.hintTiles('battleBoard'), [], name);
+        assert.deepEqual(g.writes, [], name);
+    }
+    // no word on the board: the normal auto-shuffle (local board only) is tried
+    const g = startMultiplayer(new Array(25).fill(FILL));
+    g.run('gameState.inventory.hint = 2;');
+    g.tapMP();
+    assert.deepEqual([g.mp().coins, g.mp().hints], [1000, 2], 'no word');
+    assert.deepEqual(g.writes, [], 'the shuffle is local - nothing written');
+});
+
+test('multiplayer: the path is cleared at round end, on leaving and on a new round', () => {
+    const g = startMultiplayer(DGL_ROW());
+    g.tapMP();
+    assert.equal(g.hintTiles('battleBoard').length, 3);
+    g.run('stopMultiplayerTimer()'); // round end / finished / leave all go through here
+    assert.deepEqual(g.hintTiles('battleBoard'), []);
+    assert.equal(g.run('singleHint.current()'), null);
+
+    g.run('gameState.coins = 1000;');
+    g.tapMP();
+    assert.equal(g.hintTiles('battleBoard').length, 3);
+    g.run('leaveMultiplayerRoom()'); // home button / disconnect / abandoned match
+    assert.deepEqual(g.hintTiles('battleBoard'), []);
+
+    const g2 = startMultiplayer(DGL_ROW());
+    g2.tapMP();
+    g2.ctx.__room = { status: 'playing', matchType: 'friends', hostId: 'other', currentRound: 2, roundStartTime: Date.now(),
+        board: DGL_ROW(), players: { me: { score: 0, connected: true }, other: { score: 0, connected: true } } };
+    g2.run(`applyBoardTheme = () => {}; preferredThemeIndex = () => 0; showScreen = () => {}; startMultiplayerTimer = () => {};
+            friendsMatchRounds = () => 2; displayedRound = () => 2; updateMultiplayerUI = () => {}; applyFreezeFromRoom = () => {};
+            renderEliminatedOverlay = () => {}; watchFriendsDropouts = () => {}; onRoomUpdate(__room);`);
+    assert.deepEqual(g2.hintTiles('battleBoard'), [], 'new round board: old path gone');
+    assert.equal(g2.run('singleHint.current()'), null);
+});
+
+test('multiplayer: other power-ups still work the same (freeze opponents)', () => {
+    const g = startMultiplayer(DGL_ROW());
+    g.run('handleBattleFreeze()');
+    const freezeWrites = g.writes.filter(w => w[0].startsWith('rooms/ROOM1'));
+    assert.ok(freezeWrites.length > 0, 'the freeze is still written to the room');
+    assert.equal(g.mp().coins, 980, 'freeze opponents still costs 20');
 });
 
 test('prices: the shop sells the shared hint at 75 and charges what it shows', () => {

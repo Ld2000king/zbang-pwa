@@ -2346,8 +2346,11 @@ function consumeItemPayment(key) {
 // it. It never scores, gives XP or marks the word found - only endDrag does.
 // Payment is taken only when a word was really shown, and a second tap while
 // the path is on the board does nothing (board-hint.js). Used by useHint
-// (single, #board) and useBattleHint (bots, #battleBoard); the bots never see
-// it. Multiplayer and the tower hint are unchanged.
+// (single, #board), useBattleHint (bots, #battleBoard) and useMultiplayerHint
+// (friends + random, #battleBoard); the bots never see it. In multiplayer it
+// is local to this device: nothing is written to the room, so opponents never
+// see the path - only a real drag scores and syncs (submitMultiplayerWord).
+// The tower hint is unchanged.
 let hintWordIndex = null;
 let hintWordIndexWords = null; // the dictionaryWordList() array it was built from
 let singleHint = null;
@@ -2361,7 +2364,7 @@ function hintWordIndexForDictionary() {
     return hintWordIndex;
 }
 
-const HINT_MODES = ['single', 'battle']; // the boards this hint works on
+const HINT_MODES = ['single', 'battle', 'multiplayer']; // the boards this hint works on
 
 function hintTileEl(idx) {
     return document.querySelector(`#${activeBoardId()} .letter-tile[data-index="${idx}"]`);
@@ -2388,7 +2391,10 @@ function clearHintPath() {
 function singleHintController() {
     if (singleHint || typeof ZbangBoardHint === 'undefined' || typeof ZbangBoardWords === 'undefined') return singleHint;
     singleHint = ZbangBoardHint.createHintController({
-        isPlayable: () => HINT_MODES.includes(currentGame.mode) && currentGame.gameActive && !currentGame.paused,
+        isPlayable: () => HINT_MODES.includes(currentGame.mode) && currentGame.gameActive && !currentGame.paused
+            // multiplayer: only while this round is live for me (not on the round-end
+            // screen, not frozen, not eliminated) - see multiplayer.js
+            && (currentGame.mode !== 'multiplayer' || (typeof isMultiplayerRoundLive === 'function' && isMultiplayerRoundLive())),
         canPay: () => canPayForItem('hint'),
         pay: () => consumeItemPayment('hint'),
         findHint: () => ZbangBoardWords.findHintWord(currentGame.board, currentGame.gridSize,
@@ -2422,6 +2428,11 @@ function requestBoardHint(mode) {
 
 function useHint() {
     requestBoardHint('single');
+}
+
+// removes a hint path that is on the board (multiplayer: round over, left the room)
+function cancelBoardHint() {
+    if (singleHint) singleHint.cancel();
 }
 
 // Find a dictionary word that actually exists on the board (horizontal or

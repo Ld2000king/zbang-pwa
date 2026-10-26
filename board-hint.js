@@ -17,8 +17,9 @@
 //   - while a hint is on the board, another tap does nothing (no second
 //     charge from fast taps)
 //
-// Used only by useHint() (single player). Bots, multiplayer and מגדל זבאנג
-// (tower.js) are not connected to it.
+// Used by useHint() (single player), useBattleHint() (bots) and
+// useMultiplayerHint() (friends + random). מגדל זבאנג (tower.js) is not
+// connected to it.
 // ============================================================================
 
 (function (root) {
