@@ -17,6 +17,8 @@ const MP = {
     roomRef: null,
     serverOffset: 0,   // ms difference between server clock and this device
     lastRound: 0,      // detect round changes to (re)render the board once
+    hintsUsed: 0,      // hints shown to me this round (max MP_HINTS_PER_ROUND) - reset with each new round's board
+    hintLimitMsgAt: 0, // when the "2 hints used" message was last shown (no stacking on fast taps)
     timer: null,       // local countdown interval
     room: null,        // latest room snapshot
     matchType: null,   // 'random' while this room came from random matchmaking
@@ -317,6 +319,7 @@ function onRoomUpdate(room) {
         // (re)render the board once per new round
         if (room.currentRound !== MP.lastRound) {
             MP.lastRound = room.currentRound;
+            MP.hintsUsed = 0; // a new round (tie replays included) - a fresh hint quota
             currentGame.board = room.board.slice();
             currentGame.foundWords = new Set();
             currentGame.playerScore = (room.players[MP.playerId] || {}).score || 0;
@@ -1263,9 +1266,30 @@ function isMultiplayerRoundLive() {
 // 1.2: the same show-the-path hint as single player and bots (game.js
 // requestBoardHint). It only draws on this device - no room write, no score;
 // the player drags the word and endDrag scores + syncs it as usual.
+//
+// At most MP_HINTS_PER_ROUND hints per player per round (friends + random).
+// Only a hint that was really shown counts; a blocked one costs nothing.
+// The count lives in memory and is reset only where a new round's board is
+// drawn (onRoomUpdate). A network drop keeps the page, so the count stays;
+// a refresh drops the player out of the room, and a room that is already
+// playing can't be joined again (joinRoom) - so neither gives more hints.
+const MP_HINTS_PER_ROUND = 2;
+const HINT_LIMIT_MSG_MS = 1600;
+
 function useMultiplayerHint() {
     if (blockedByFreeze()) return;
-    requestBoardHint('multiplayer');
+    // a tap while the path is still on the board, or outside a live round,
+    // goes on to requestBoardHint, which ignores it without a charge
+    if (MP.hintsUsed >= MP_HINTS_PER_ROUND && isMultiplayerRoundLive() && !boardHintShowing()) {
+        // fast taps: one message at a time, not a stack of them
+        const now = Date.now();
+        if (!(now - MP.hintLimitMsgAt < HINT_LIMIT_MSG_MS)) {
+            MP.hintLimitMsgAt = now;
+            showBoardMessage('ניצלת את 2 הרמזים של הסיבוב הזה', 'warning', HINT_LIMIT_MSG_MS);
+        }
+        return;
+    }
+    if (requestBoardHint('multiplayer') === 'shown') MP.hintsUsed++;
 }
 
 // ---- elimination gate --------------------------------------------------------

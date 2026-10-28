@@ -2412,6 +2412,8 @@ function singleHintController() {
 
 // mode: the game mode the pressed button belongs to - a button never works
 // in another mode's game
+// Returns the controller's result ('shown' | 'busy' | 'inactive' | 'no-funds' |
+// 'none'), or undefined when nothing ran - multiplayer counts its 'shown' ones.
 function requestBoardHint(mode) {
     if (currentGame.mode !== mode) return;
     const hint = singleHintController();
@@ -2424,6 +2426,12 @@ function requestBoardHint(mode) {
     } else if (result === 'none') { // 'busy': the path is already pulsing on the board - no message on top of it
         showBoardMessage('אין מילה להצגה כרגע', 'warning', 1000);
     }
+    return result;
+}
+
+// a hint path is pulsing on the board right now
+function boardHintShowing() {
+    return !!(singleHint && singleHint.current());
 }
 
 function useHint() {

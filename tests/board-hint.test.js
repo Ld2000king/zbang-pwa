@@ -827,6 +827,179 @@ test('multiplayer: the path is cleared at round end, on leaving and on a new rou
     assert.equal(g2.run('singleHint.current()'), null);
 });
 
+// ---------------------------------------------------------------------------
+// 5. multiplayer: at most 2 hints per player per round (friends + random)
+// ---------------------------------------------------------------------------
+const LIMIT_MSG = 'ניצלת את 2 הרמזים של הסיבוב הזה';
+const limitMsgs = g => g.messages().filter(m => m === LIMIT_MSG).length;
+
+// the room listener delivers a new snapshot (new round / tie replay / same round again)
+function roomSnapshot(g, room) {
+    g.ctx.__room = Object.assign({ status: 'playing', matchType: 'friends', hostId: 'other', roundStartTime: Date.now(),
+        board: DGL_ROW(), players: { me: { score: 0, connected: true }, other: { score: 0, connected: true } } }, room);
+    g.run(`applyBoardTheme = () => {}; preferredThemeIndex = () => 0; showScreen = () => {}; startMultiplayerTimer = () => {};
+           friendsMatchRounds = () => 3; updateMultiplayerUI = () => {}; applyFreezeFromRoom = () => {};
+           renderEliminatedOverlay = () => {}; watchFriendsDropouts = () => {}; handleRandomWaitingRoom = () => {};
+           friendsSeatLost = () => false; renderLobby = () => {};
+           MP.room = __room; onRoomUpdate(__room);`);
+}
+// one hint, then let its path time out so the next tap is a new request
+const hintAndWait = g => { g.tapMP(); const n = g.hintTiles('battleBoard').length; g.advance(DEFAULT_SHOW_MS); return n; };
+
+for (const matchType of ['friends', 'random']) {
+    test(`multiplayer limit (${matchType}): hints 1 and 2 work, the 3rd is blocked with no charge`, () => {
+        const g = startMultiplayer(DGL_ROW(), { matchType });
+        assert.equal(hintAndWait(g), 3, 'hint 1 shown');
+        assert.equal(g.mp().coins, 925);
+        assert.equal(hintAndWait(g), 3, 'hint 2 shown');
+        assert.equal(g.mp().coins, 850);
+        g.tapMP();
+        assert.deepEqual(g.hintTiles('battleBoard'), [], 'hint 3 not shown');
+        assert.deepEqual([g.mp().coins, g.mp().hints], [850, 0], 'hint 3 not charged');
+        assert.equal(limitMsgs(g), 1, 'clear Hebrew message');
+        for (let i = 0; i < 5; i++) g.tapMP();
+        assert.equal(g.mp().coins, 850, 'more taps cost nothing');
+        assert.equal(limitMsgs(g), 1, 'fast taps: one message, not a stack');
+        const s = g.mp();
+        assert.equal(s.playerScore, 0, 'no score from hints');
+        assert.deepEqual(s.found, []);
+        assert.deepEqual(g.writes, [], 'nothing written to the room');
+        assert.equal(g.run('MP.hintsUsed'), 2);
+    });
+}
+
+test('multiplayer limit: inventory first, then coins; a 3rd hint leaves both untouched', () => {
+    const g = startMultiplayer(DGL_ROW());
+    g.run('gameState.inventory.hint = 1;');
+    hintAndWait(g);
+    assert.deepEqual([g.mp().coins, g.mp().hints], [1000, 0], 'hint 1 from the inventory');
+    hintAndWait(g);
+    assert.deepEqual([g.mp().coins, g.mp().hints], [925, 0], 'hint 2 from coins');
+    g.run('gameState.inventory.hint = 3;');
+    g.tapMP();
+    assert.deepEqual([g.mp().coins, g.mp().hints], [925, 3], 'hint 3: no item used, no coins taken');
+});
+
+test('multiplayer limit: fast taps can not get past 2', () => {
+    const g = startMultiplayer(DGL_ROW());
+    for (let round = 0; round < 4; round++) {
+        for (let i = 0; i < 10; i++) g.tapMP();
+        g.advance(DEFAULT_SHOW_MS);
+    }
+    assert.equal(g.mp().coins, 850, 'exactly 2 charges');
+    assert.equal(g.run('MP.hintsUsed'), 2);
+    // a tap while the 2nd path is still on the board is just ignored (no limit message on top of it)
+    const g2 = startMultiplayer(DGL_ROW());
+    hintAndWait(g2); g2.tapMP(); g2.tapMP(); g2.tapMP();
+    assert.equal(g2.hintTiles('battleBoard').length, 3);
+    assert.equal(limitMsgs(g2), 0);
+    assert.equal(g2.mp().coins, 850);
+});
+
+test('multiplayer limit: a failed or blocked hint does not use the quota', () => {
+    const g = startMultiplayer(DGL_ROW());
+    const blocked = [
+        "MP.room.status = 'roundEnd';",            // round not live
+        'MP.room.players.me.freezeUntil = Date.now() + 60000;', // frozen
+        'gameState.coins = 10;'                    // no funds
+    ];
+    const undo = ["MP.room.status = 'playing';", 'MP.room.players.me.freezeUntil = 0;', 'gameState.coins = 1000;'];
+    blocked.forEach((b, i) => { g.run(b); g.tapMP(); g.run(undo[i]); });
+    assert.equal(g.run('MP.hintsUsed'), 0, 'blocked taps did not count');
+    assert.equal(g.mp().coins, 1000);
+    // no word on the board
+    const empty = startMultiplayer(new Array(25).fill(FILL));
+    empty.tapMP(); empty.tapMP(); empty.tapMP();
+    assert.equal(empty.run('MP.hintsUsed'), 0, 'no word: nothing counted');
+    assert.equal(empty.mp().coins, 1000);
+    assert.equal(limitMsgs(empty), 0);
+    // the full 2 are still there
+    assert.equal(hintAndWait(g), 3);
+    assert.equal(hintAndWait(g), 3);
+    assert.equal(g.mp().coins, 850);
+});
+
+test('multiplayer limit: round over / frozen / eliminated with the quota used - no message, no charge', () => {
+    for (const setup of ["MP.room.status = 'roundEnd';", "MP.room.status = 'finished';",
+        'MP.room.players.me.freezeUntil = Date.now() + 60000;', 'MP.room.players.me.eliminated = true;']) {
+        const g = startMultiplayer(DGL_ROW());
+        hintAndWait(g); hintAndWait(g);
+        g.run(setup);
+        g.tapMP();
+        assert.equal(g.mp().coins, 850, setup);
+        assert.equal(limitMsgs(g), 0, setup);
+        assert.deepEqual(g.hintTiles('battleBoard'), [], setup);
+    }
+});
+
+test('multiplayer limit: a new round, a tie replay and a rematch each give a fresh 2', () => {
+    const g = startMultiplayer(DGL_ROW());
+    hintAndWait(g); hintAndWait(g);
+    g.tapMP();
+    assert.equal(g.mp().coins, 850, 'round 1: used up');
+
+    roomSnapshot(g, { currentRound: 2 }); // next round
+    assert.equal(g.run('MP.hintsUsed'), 0);
+    assert.equal(hintAndWait(g), 3); assert.equal(hintAndWait(g), 3);
+    g.tapMP();
+    assert.equal(g.mp().coins, 700, 'round 2: exactly 2 more');
+
+    roomSnapshot(g, { currentRound: 3, replays: 1 }); // tie replay: same displayed round, currentRound moves on
+    assert.equal(hintAndWait(g), 3); assert.equal(hintAndWait(g), 3);
+    g.tapMP();
+    assert.equal(g.mp().coins, 550, 'tie replay: a fresh 2');
+
+    // friends rematch: back to the lobby (currentRound 0), then round 1 again in the same room
+    roomSnapshot(g, { status: 'waiting', currentRound: 0, board: null });
+    roomSnapshot(g, { currentRound: 1 });
+    assert.equal(hintAndWait(g), 3); assert.equal(hintAndWait(g), 3);
+    g.tapMP();
+    assert.equal(g.mp().coins, 400, 'rematch round 1: a fresh 2');
+});
+
+test('multiplayer limit: a repeat snapshot of the same round (reconnect) does not reset it', () => {
+    const g = startMultiplayer(DGL_ROW());
+    hintAndWait(g); hintAndWait(g);
+    // network blip: presence flips connected false -> true, the listener re-sends the same round
+    roomSnapshot(g, { currentRound: 1, players: { me: { score: 0, connected: false }, other: { score: 0, connected: true } } });
+    roomSnapshot(g, { currentRound: 1 });
+    g.tapMP();
+    assert.equal(g.run('MP.hintsUsed'), 2);
+    assert.equal(g.mp().coins, 850, 'still blocked after reconnecting');
+    assert.equal(limitMsgs(g), 1);
+});
+
+test('multiplayer limit: after a refresh the round can not be joined again', async () => {
+    const g = startMultiplayer(DGL_ROW());
+    // a refreshed page has a fresh MP (no room) - it can only try to join by code
+    g.run(`MP.roomCode = null; MP.room = null; MP.lastRound = 0; MP.hintsUsed = 0; __writes = [];
+           waitForAuth = () => Promise.resolve(); mpAvailable = () => true; getMyPlayerId = () => 'me'; __shown = [];
+           showMessage = (m) => __shown.push(m);
+           db.ref = path => ({ once: () => Promise.resolve({ exists: () => true,
+               val: () => ({ status: 'playing', matchType: 'friends', currentRound: 1, players: {} }) }),
+               set: v => { __writes.push([path, 'set']); return Promise.resolve(); } });`);
+    const joined = await g.run("joinRoom('ROOM1')");
+    assert.equal(joined, false);
+    assert.deepEqual(g.writes, [], 'no join write');
+    assert.equal(g.run('MP.roomCode'), null);
+    assert.ok(JSON.parse(g.run('JSON.stringify(__shown)')).includes('המשחק כבר התחיל'));
+});
+
+test('multiplayer limit: single player and bots hints are not limited', () => {
+    const g = startFullGame(); // multiplayer.js loaded too
+    g.onlyWords(['דגל']);
+    g.setBoard(DGL_ROW());
+    g.run('gameState.coins = 1000; gameState.inventory.hint = 0;');
+    for (let i = 0; i < 4; i++) { g.run('useHint()'); g.advance(DEFAULT_SHOW_MS); }
+    assert.equal(g.run('gameState.coins'), 700, 'single: 4 hints, 4 charges');
+    const b = startFullGame();
+    b.onlyWords(['דגל']);
+    b.setBattle(DGL_ROW());
+    b.run("currentGame.mode = 'battle'; gameState.coins = 1000; gameState.inventory.hint = 0;");
+    for (let i = 0; i < 4; i++) { b.run('useBattleHint()'); b.advance(DEFAULT_SHOW_MS); }
+    assert.equal(b.run('gameState.coins'), 700, 'bots: 4 hints, 4 charges');
+});
+
 test('multiplayer: other power-ups still work the same (freeze opponents)', () => {
     const g = startMultiplayer(DGL_ROW());
     g.run('handleBattleFreeze()');
