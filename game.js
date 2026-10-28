@@ -355,8 +355,8 @@ function botFindDelay(tier) {
 
 // ---- dictionary scan helpers ----------------------------------------------
 // The dictionary is big (44k+ words once the expansion packs are merged) and
-// both collectBoardWords() and findWordOnBoard() sweep all of it - and
-// findWordOnBoard() runs after every single word a player finds. Two cheap
+// collectBoardWords() sweeps all of it (the "any word left?" check after
+// every found word uses board-words.js and its prefix index). Two cheap
 // guards keep that sweep fast: the key list is cached (Object.keys() was
 // allocating a 44k array per call) and a word is skipped outright when the
 // board doesn't even contain one of its letters, which discards the vast
@@ -384,7 +384,7 @@ function wordUsesOnlyLetters(word, letters) {
 // All valid dictionary words currently placed on the board, with their point
 // value. This is the pool bots draw from when they "find" a word, so their
 // score reflects real board words (right length/value distribution) instead of
-// arbitrary increments. Scans both directions, like findWordOnBoard().
+// arbitrary increments. Scans straight rows and columns only (unchanged).
 function collectBoardWords() {
     const size = currentGame.gridSize;
     const board = currentGame.board;
@@ -1810,7 +1810,8 @@ function activeBoardId() {
 // Called after any word is found (drag or hint) - if no valid unfound
 // words remain on the board, reshuffle it automatically so play can continue
 function autoShuffleIfExhausted() {
-    if (findWordOnBoard().length === 0) {
+    const left = findWordOnBoard();
+    if (left && left.length === 0) {
         currentGame.board = currentGame.board.sort(() => Math.random() - 0.5);
         renderBoard(activeBoardId());
         showBoardMessage('נגמרו המילים — הלוח עורבב!', 'info', 1100);
@@ -2443,42 +2444,20 @@ function cancelBoardHint() {
     if (singleHint) singleHint.cancel();
 }
 
-// Find a dictionary word that actually exists on the board (horizontal or
-// vertical) and hasn't been found yet - same logic as the Flutter version
+// Is there still a word on the board that hasn't been found yet? Uses the
+// same finder and the same touching-tile rules as the hint and the drag
+// (board-words.js: 8 directions, zigzag, no wrap-around, no tile twice), so a
+// word left only on a diagonal or a zigzag counts. (Until 1.2 this scanned
+// straight rows and columns only, and the board was shuffled while such words
+// were still on it.) Stops at the first word.
+// -> its path; [] when the board surely has none; null when the search ran
+//    out of its step budget without an answer (never happens on a 5x5 board
+//    with the real dictionary - then we don't shuffle on a guess)
 function findWordOnBoard() {
-    const size = currentGame.gridSize;
-    const letters = new Set(currentGame.board);
-    for (const word of dictionaryWordList()) {
-        if (currentGame.foundWords.has(word) || word.length > size || word.length < 3) continue;
-        if (!wordUsesOnlyLetters(word, letters)) continue;
-
-        for (let r = 0; r < size; r++) {
-            for (let c = 0; c <= size - word.length; c++) {
-                let ok = true;
-                const idxs = [];
-                for (let i = 0; i < word.length; i++) {
-                    const idx = r * size + c + i;
-                    if (currentGame.board[idx] !== word[i]) { ok = false; break; }
-                    idxs.push(idx);
-                }
-                if (ok) return idxs;
-            }
-        }
-
-        for (let c = 0; c < size; c++) {
-            for (let r = 0; r <= size - word.length; r++) {
-                let ok = true;
-                const idxs = [];
-                for (let i = 0; i < word.length; i++) {
-                    const idx = (r + i) * size + c;
-                    if (currentGame.board[idx] !== word[i]) { ok = false; break; }
-                    idxs.push(idx);
-                }
-                if (ok) return idxs;
-            }
-        }
-    }
-    return [];
+    const result = ZbangBoardWords.findBoardWords(currentGame.board, currentGame.gridSize,
+        hintWordIndexForDictionary(), { exclude: currentGame.foundWords, firstOnly: true });
+    if (result.found.length) return result.found[0].path;
+    return result.complete ? [] : null;
 }
 
 function useShuffle() {

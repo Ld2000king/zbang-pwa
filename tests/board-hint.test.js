@@ -1019,3 +1019,208 @@ test('prices: the shop sells the shared hint at 75 and charges what it shows', (
     g.run(`gameState.coins = 1000; gameState.inventory.shuffle = 0; buyItem('shuffle');`);
     assert.equal(g.run('gameState.coins'), 980);
 });
+
+// ---------------------------------------------------------------------------
+// 6. automatic shuffle (1.2): the "any word left?" check uses board-words.js
+//    (8 directions, zigzag, no wrap, no tile twice) instead of straight
+//    rows/columns only. Only the detection changed - when it shuffles, how it
+//    shuffles and the manual shuffle are the same as before.
+// ---------------------------------------------------------------------------
+const SHUFFLED_MSG = 'נגמרו המילים — הלוח עורבב!';
+const shuffledMsgs = g => g.messages().filter(m => m === SHUFFLED_MSG).length;
+const sorted = a => a.slice().sort().join('');
+const boardNow = g => JSON.parse(g.run('JSON.stringify(currentGame.board)'));
+const leftPath = g => JSON.parse(g.run('JSON.stringify(findWordOnBoard())'));
+// the board a word path spells, read back from the live board
+const spell = (g, p) => p.map(i => boardNow(g)[i]).join('');
+
+// a board with one word to drag (דגל, top row) plus the "other" word placed as given
+const DGL_TOP = { [at(0, 0)]: 'ד', [at(0, 1)]: 'ג', [at(0, 2)]: 'ל' };
+const OTHER = {
+    horizontal: { [at(3, 1)]: 'ס', [at(3, 2)]: 'פ', [at(3, 3)]: 'ר' },
+    vertical:   { [at(1, 4)]: 'ס', [at(2, 4)]: 'פ', [at(3, 4)]: 'ר' },
+    diagonal:   { [at(2, 1)]: 'ס', [at(3, 2)]: 'פ', [at(4, 3)]: 'ר' },
+    'anti-diagonal': { [at(2, 3)]: 'ס', [at(3, 2)]: 'פ', [at(4, 1)]: 'ר' },
+    zigzag:     { [at(2, 1)]: 'ס', [at(3, 2)]: 'פ', [at(3, 3)]: 'ר' }
+};
+
+for (const [kind, placed] of Object.entries(OTHER)) {
+    test(`auto-shuffle: a ${kind} word still on the board - no shuffle after a find`, () => {
+        const g = startGame();
+        g.onlyWords(['דגל', 'ספר']);
+        g.setBoard(boardWith({ ...DGL_TOP, ...placed }));
+        const before = boardNow(g);
+        g.drag([at(0, 0), at(0, 1), at(0, 2)]);
+        assert.deepEqual(g.state().found, ['דגל']);
+        assert.deepEqual(boardNow(g), before, 'board not shuffled');
+        assert.equal(shuffledMsgs(g), 0);
+        const p = leftPath(g);
+        assert.equal(spell(g, p), 'ספר', 'the remaining word is the one detected');
+        assert.ok(g.run(`isValidBoardPath(${JSON.stringify(p)}, 5)`), 'a path the player can really drag');
+    });
+}
+
+test('auto-shuffle: once every word is found the board is shuffled once (same letters)', () => {
+    const g = startGame();
+    g.onlyWords(['דגל', 'ספר']);
+    g.setBoard(boardWith({ ...DGL_TOP, ...OTHER.zigzag }));
+    const before = boardNow(g);
+    g.drag([at(0, 0), at(0, 1), at(0, 2)]);
+    assert.equal(shuffledMsgs(g), 0);
+    g.drag([at(2, 1), at(3, 2), at(3, 3)]);
+    assert.deepEqual(g.state().found.sort(), ['דגל', 'ספר'].sort());
+    assert.equal(shuffledMsgs(g), 1, 'one shuffle, one message');
+    assert.equal(sorted(boardNow(g)), sorted(before), 'same letters, only moved');
+    assert.equal(g.state().score, 20, 'score untouched by the shuffle');
+});
+
+test('auto-shuffle: found words do not count as "left" (same foundWords as the mode)', () => {
+    const g = startGame();
+    g.onlyWords(['ספר']);
+    g.setBoard(boardWith(OTHER.diagonal));
+    assert.equal(leftPath(g).length, 3);
+    g.run("currentGame.foundWords.add('ספר');");
+    assert.deepEqual(leftPath(g), []);
+});
+
+test('auto-shuffle: no wrap between board edges, no tile used twice', () => {
+    const g = startGame();
+    g.onlyWords(['ספר', 'אבא', 'דגל']);
+    // ס at the end of row 0, פ ר at the start of row 1: only "connected" by wrapping
+    g.setBoard(boardWith({ [at(0, 4)]: 'ס', [at(1, 0)]: 'פ', [at(1, 1)]: 'ר' }));
+    assert.deepEqual(leftPath(g), [], 'wrap-around is not a word');
+    // a single א next to ב: אבא would need the same tile twice
+    g.setBoard(boardWith({ [at(2, 2)]: 'א', [at(2, 3)]: 'ב' }));
+    assert.deepEqual(leftPath(g), [], 'no tile twice');
+    // the same in the real flow: drag the last real word -> shuffled
+    g.setBoard(boardWith({ ...DGL_TOP, [at(2, 4)]: 'ס', [at(3, 0)]: 'פ', [at(3, 1)]: 'ר' }));
+    g.drag([at(0, 0), at(0, 1), at(0, 2)]);
+    assert.equal(shuffledMsgs(g), 1, 'a wrap "word" does not stop the shuffle');
+});
+
+test('auto-shuffle: a board with no word - the hint tries one shuffle, no loop, no charge', () => {
+    const g = startGame();
+    g.onlyWords(['דגל']);
+    g.wallet(1000, 0);
+    g.setBoard(new Array(25).fill(FILL));
+    let calls = 0;
+    g.ctx.__count = () => calls++;
+    g.run('const __shuffle = autoShuffleIfExhausted; autoShuffleIfExhausted = () => { __count(); __shuffle(); };');
+    g.run('singleHint = null;'); // rebuild the controller so it picks up the counting wrapper
+    g.tap();
+    assert.equal(calls, 1, 'exactly one shuffle attempt');
+    assert.equal(shuffledMsgs(g), 1);
+    assert.equal(g.state().coins, 1000, 'nothing charged');
+    assert.ok(g.messages().includes('אין מילה להצגה כרגע'));
+});
+
+test('auto-shuffle: a step-budget miss never shuffles on a guess', () => {
+    const g = startGame();
+    g.onlyWords(['דגל']);
+    g.setBoard(new Array(25).fill('ד')); // every tile starts a word, so the search needs many steps
+    g.run('const __fbw = ZbangBoardWords.findBoardWords; ZbangBoardWords.findBoardWords = (b, s, i, o) => __fbw(b, s, i, { ...o, maxSteps: 1 });');
+    assert.equal(g.run('findWordOnBoard()'), null);
+    const before = boardNow(g);
+    g.run('autoShuffleIfExhausted()');
+    assert.deepEqual(boardNow(g), before);
+    assert.equal(shuffledMsgs(g), 0);
+});
+
+test('auto-shuffle: bots board - diagonal word left keeps the board, all found shuffles it', () => {
+    const g = startGame();
+    g.onlyWords(['דגל', 'ספר']);
+    g.setBattle(boardWith({ ...DGL_TOP, ...OTHER['anti-diagonal'] }));
+    const before = boardNow(g);
+    g.drag([at(0, 0), at(0, 1), at(0, 2)]);
+    assert.deepEqual(boardNow(g), before, 'bots: not shuffled');
+    g.drag([at(2, 3), at(3, 2), at(4, 1)]);
+    assert.equal(shuffledMsgs(g), 1, 'bots: shuffled once all are found');
+    assert.equal(g.battle().playerScore, 20);
+    assert.ok(g.ctx.document.querySelectorAll('#battleBoard .letter-tile').length === 25, 'battle board redrawn');
+});
+
+test('auto-shuffle: multiplayer - zigzag word left keeps the board; the shuffle stays local', () => {
+    const board = boardWith({ ...DGL_TOP, ...OTHER.zigzag });
+    const g = startMultiplayer(board, { words: ['דגל', 'ספר'] });
+    const before = boardNow(g);
+    g.drag([at(0, 0), at(0, 1), at(0, 2)]);
+    assert.deepEqual(boardNow(g), before, 'not shuffled');
+    g.drag([at(2, 1), at(3, 2), at(3, 3)]);
+    assert.equal(shuffledMsgs(g), 1);
+    assert.deepEqual(g.writes.map(w => w[0]), [
+        'rooms/ROOM1/players/me/score', 'rooms/ROOM1/players/me/foundWords/דגל',
+        'rooms/ROOM1/players/me/score', 'rooms/ROOM1/players/me/foundWords/ספר'
+    ], 'only the normal word syncs - the shuffle writes nothing to the room');
+});
+
+test('auto-shuffle: the hint still finds and shows a real path after a shuffle', () => {
+    const g = startGame();
+    g.wallet(100000, 0);
+    // a repeatable shuffle, so the run is the same every time
+    g.run('let __seed = 7; Math.random = () => ((__seed = (__seed * 16807) % 2147483647) / 2147483647);');
+    for (let i = 0; i < 30; i++) {
+        g.run("currentGame.mode = 'single'; currentGame.gridSize = 5; currentGame.foundWords.clear(); currentGame.gameActive = true; currentGame.paused = false;");
+        g.run("currentGame.board = generateBoard(); renderBoard('board'); useShuffle();");
+        const left = leftPath(g);
+        g.tap();
+        const tiles = g.hintTiles();
+        assert.equal(tiles.length > 0, left.length > 0, 'hint shows a path exactly when the check sees a word');
+        if (tiles.length) {
+            const p = tiles.map(t => t.idx);
+            assert.ok(g.run(`isValidBoardPath(${JSON.stringify(p)}, 5)`));
+            assert.ok(g.run(`HEBREW_DICTIONARY[normalizeFinals(${JSON.stringify(p)}.map(i => currentGame.board[i]).join(''))] !== undefined`));
+        }
+        g.advance(DEFAULT_SHOW_MS);
+    }
+});
+
+test('manual shuffle: unchanged - 20 coins (inventory first), same letters, works with words left', () => {
+    const g = startGame();
+    g.onlyWords(['דגל', 'ספר']);
+    g.setBoard(boardWith({ ...DGL_TOP, ...OTHER.diagonal }));
+    g.run('gameState.coins = 1000; gameState.inventory.shuffle = 1;');
+    const before = boardNow(g);
+    g.run('useShuffle()');
+    assert.deepEqual(JSON.parse(g.run('JSON.stringify([gameState.coins, gameState.inventory.shuffle])')), [1000, 0], 'inventory first');
+    g.run('useShuffle()');
+    assert.deepEqual(JSON.parse(g.run('JSON.stringify([gameState.coins, gameState.inventory.shuffle])')), [980, 0], 'then 20 coins');
+    assert.equal(sorted(boardNow(g)), sorted(before));
+    assert.equal(shuffledMsgs(g), 0, 'the manual shuffle has its own message');
+    g.run('gameState.coins = 19;');
+    const b2 = boardNow(g);
+    g.run('useShuffle()');
+    assert.deepEqual(boardNow(g), b2, '19 coins: no shuffle');
+});
+
+test('auto-shuffle: speed with the real dictionary (generated boards, phone-safe)', () => {
+    const g = startGame();
+    assert.ok(g.run('Object.keys(HEBREW_DICTIONARY).length') > 40000);
+    g.run("currentGame.mode = 'single'; currentGame.gridSize = 5; currentGame.foundWords.clear();");
+    const t0 = process.hrtime.bigint();
+    g.run('hintWordIndexForDictionary()');
+    const buildMs = Number(process.hrtime.bigint() - t0) / 1e6;
+    const r = JSON.parse(g.run(`JSON.stringify((() => {
+        let worst = 0, total = 0, incomplete = 0, worstSteps = 0, empty = 0;
+        for (let i = 0; i < 500; i++) {
+            currentGame.board = generateBoard();
+            const t = Date.now();
+            const res = ZbangBoardWords.findBoardWords(currentGame.board, 5, hintWordIndexForDictionary(), { exclude: currentGame.foundWords, firstOnly: true });
+            const ms = Date.now() - t; total += ms; worst = Math.max(worst, ms);
+            if (!res.complete) incomplete++;
+            if (!res.found.length) empty++;
+            worstSteps = Math.max(worstSteps, res.steps);
+            // the worst case for "any word left": every word on the board already found
+            const all = ZbangBoardWords.findBoardWords(currentGame.board, 5, hintWordIndexForDictionary());
+            const ex = new Set(all.found.map(f => f.word));
+            const t2 = Date.now();
+            const res2 = ZbangBoardWords.findBoardWords(currentGame.board, 5, hintWordIndexForDictionary(), { exclude: ex, firstOnly: true });
+            worst = Math.max(worst, Date.now() - t2);
+            if (!res2.complete) incomplete++;
+            worstSteps = Math.max(worstSteps, res2.steps);
+        }
+        return { worst, avg: total / 500, incomplete, worstSteps, empty };
+    })())`));
+    console.log(`  index build ${buildMs.toFixed(1)}ms; check avg ${r.avg.toFixed(2)}ms, worst ${r.worst}ms, worst steps ${r.worstSteps}, budget misses ${r.incomplete}, boards with no word ${r.empty}/500`);
+    assert.equal(r.incomplete, 0, 'never runs out of budget on a real board');
+    assert.ok(r.worst < 50, 'worst check well under a frame budget on this machine');
+});

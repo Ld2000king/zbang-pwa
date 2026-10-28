@@ -159,3 +159,23 @@ test('real dictionary: fast on hundreds of game-like boards, every path valid', 
     assert.ok(worst < 250, 'worst board ' + worst + ' ms');
     assert.ok(buildMs < 3000, 'index build ' + buildMs + ' ms');
 });
+
+test('firstOnly: stops at the first word (the automatic shuffle check); without it nothing changes', () => {
+    const idx = buildWordIndex(['דגל', 'ספר', 'גלד']);
+    const board = boardWith({ [at(0, 0)]: 'ד', [at(0, 1)]: 'ג', [at(0, 2)]: 'ל', [at(2, 1)]: 'ס', [at(3, 2)]: 'פ', [at(3, 3)]: 'ר' });
+    const all = findBoardWords(board, N, idx);
+    assert.deepEqual(wordsOf(all), ['דגל', 'ספר']);
+    const one = findBoardWords(board, N, idx, { firstOnly: true });
+    assert.equal(one.found.length, 1);
+    assert.equal(one.complete, true);
+    assert.ok(one.steps <= all.steps);
+    assert.ok(isValidBoardPath(one.found[0].path, N));
+    assert.equal(spells(board, one.found[0].path), one.found[0].word);
+    // excluded words are skipped, so it finds the other one
+    const other = findBoardWords(board, N, idx, { firstOnly: true, exclude: new Set([one.found[0].word]) });
+    assert.equal(other.found.length, 1);
+    assert.notEqual(other.found[0].word, one.found[0].word);
+    // nothing left: empty and complete (a real "no word")
+    const none = findBoardWords(board, N, idx, { firstOnly: true, exclude: new Set(['דגל', 'ספר']) });
+    assert.deepEqual([none.found.length, none.complete], [0, true]);
+});

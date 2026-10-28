@@ -5,10 +5,10 @@
 // skipping, no tile twice, no wrap-around between board edges. Returns each
 // word with the exact tile path.
 //
-// Used by the single-player hint (board-hint.js / useHint in game.js). The
-// bots and multiplayer hints and the automatic shuffle still use
-// findWordOnBoard in game.js. Pure functions, no DOM - the tests run it in
-// Node. מגדל זבאנג (tower.js) is not touched.
+// Used by the hint in single player, bots and multiplayer (board-hint.js /
+// requestBoardHint in game.js) and by the automatic shuffle's "any word
+// left?" check (findWordOnBoard in game.js). Pure functions, no DOM - the
+// tests run it in Node. מגדל זבאנג (tower.js) is not touched.
 //
 // Speed: a depth-first search that only follows letter sequences which are
 // the start of some dictionary word (a prefix index), with a hard step
@@ -45,17 +45,19 @@
     //   opts.exclude   - Set of words to skip (already found)
     //   opts.minLen    - shortest word (default 3)
     //   opts.maxSteps  - search budget (default 200000)
+    //   opts.firstOnly - stop at the first word found ("is there any word?")
     // -> { found: [{ word, path }], complete, steps }
     function findBoardWords(board, size, index, opts = {}) {
         const exclude = opts.exclude || new Set();
         const minLen = opts.minLen || DEFAULT_MIN_LEN;
         const maxSteps = opts.maxSteps || DEFAULT_MAX_STEPS;
+        const firstOnly = !!opts.firstOnly;
         const maxLen = Math.min(index.maxLen, size * size);
         const found = new Map();
         const n = size * size;
         const used = new Array(n).fill(false);
         const path = [];
-        let steps = 0, complete = true;
+        let steps = 0, complete = true, stopped = false;
         if (!Array.isArray(board) || board.length !== n) return { found: [], complete: true, steps: 0 };
 
         // neighbours of every tile, worked out once from row/column
@@ -71,10 +73,11 @@
             path.push(idx);
             if (word.length >= minLen && index.words.has(word) && !exclude.has(word) && !found.has(word)) {
                 found.set(word, path.slice());
+                if (firstOnly) stopped = true;
             }
-            if (word.length < maxLen && index.prefixes.has(word)) {
+            if (!stopped && word.length < maxLen && index.prefixes.has(word)) {
                 for (const next of neighbours[idx]) {
-                    if (!complete) break;
+                    if (!complete || stopped) break;
                     if (!used[next] && typeof board[next] === 'string' && board[next]) visit(next, word + board[next]);
                 }
             }
@@ -82,7 +85,7 @@
             used[idx] = false;
         }
 
-        for (let start = 0; start < n && complete; start++) {
+        for (let start = 0; start < n && complete && !stopped; start++) {
             const ch = board[start];
             if (typeof ch === 'string' && ch && (index.prefixes.has(ch) || index.words.has(ch))) visit(start, ch);
         }
