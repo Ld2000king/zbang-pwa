@@ -817,8 +817,12 @@ function renderDailyReward() {
 // session, so reopening/resuming the app (or dismissing without claiming)
 // doesn't nag repeatedly. A genuinely new day re-arms it. The gift FAB always
 // lets the player reopen it manually.
+// Only on the main menu: anywhere else (a round, results, shop...) it waits -
+// without using up today's prompt - until the player is back on the menu
+// (showScreen calls this again).
 let dailyPromptedFor = null;
 function maybeShowDailyReward() {
+    if (currentScreenId !== 'homeScreen') return;
     if (!dailyRewardAvailable()) return;
     if (dailyPromptedFor === dateKey()) return;
     dailyPromptedFor = dateKey();
@@ -1392,12 +1396,19 @@ function showScreen(screenId) {
     // every screen should open from its top
     window.scrollTo(0, 0);
     updateBottomNav(screenId);
+    // The daily bonus lives on the main menu only: leaving it closes the
+    // bonus window, coming back shows it if it's still waiting
+    if (screenId === 'homeScreen') maybeShowDailyReward();
+    else closeDailyReward();
 }
 
 // Shows/hides the fixed bottom tab bar and syncs its active tab - only the
-// 4 main hub screens get it, every drill-down/modal/in-game screen doesn't
+// 4 main hub screens get it, every drill-down/modal/in-game screen doesn't.
+// Also marks the main menu (body.on-home), the only screen that shows the
+// daily-bonus gift button.
 function updateBottomNav(screenId) {
     document.body.classList.toggle('has-bottom-nav', TAB_SCREENS.includes(screenId));
+    document.body.classList.toggle('on-home', screenId === 'homeScreen');
     document.querySelectorAll('.bottom-nav-item').forEach(btn => {
         const active = btn.dataset.screen === screenId;
         btn.classList.toggle('active', active);

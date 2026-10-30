@@ -2897,6 +2897,9 @@ html[data-city="island"] .subtitle {
     box-shadow: var(--bevel-sm);
     animation: dailyPulse 2.2s ease-in-out infinite;
 }
+/* Main menu only (body.on-home is set by updateBottomNav in game.js) - never
+   over a round, results, shop or any other screen */
+body:not(.on-home) .daily-fab { display: none; }
 .daily-fab svg { width: 24px; height: 24px; }
 .daily-fab:active { transform: translateY(2px); box-shadow: var(--sink); }
 
