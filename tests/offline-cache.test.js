@@ -30,3 +30,17 @@ test('every file in PRECACHE exists (one missing file fails the whole install)',
     const missing = files.filter(f => !fs.existsSync(path.join(ROOT, f)));
     assert.deepEqual(missing, []);
 });
+
+test('release versions line up: every ?v= tag = sw.js VERSION, and both iOS configurations agree', () => {
+    const html = read('index.html');
+    const swVersion = read('sw.js').match(/^const VERSION = '(v\d+)';/m)[1];
+    const tags = [...html.matchAll(/\?v=(\d+)"/g)].map(m => 'v' + m[1]);
+    assert.ok(tags.length > 20, tags.length + ' tags');
+    assert.deepEqual([...new Set(tags)], [swVersion], 'all ?v= tags match sw.js VERSION');
+    const pbx = read('ios/App/App.xcodeproj/project.pbxproj');
+    const mv = [...pbx.matchAll(/MARKETING_VERSION = ([\d.]+);/g)].map(m => m[1]);
+    const cv = [...pbx.matchAll(/CURRENT_PROJECT_VERSION = (\d+);/g)].map(m => m[1]);
+    assert.equal(mv.length, 2); assert.equal(cv.length, 2);
+    assert.equal(new Set(mv).size, 1, 'Debug and Release share MARKETING_VERSION');
+    assert.equal(new Set(cv).size, 1, 'Debug and Release share CURRENT_PROJECT_VERSION');
+});

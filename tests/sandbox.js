@@ -63,7 +63,7 @@ function startSandbox() {
     vm.createContext(ctx);
     for (const [f, src] of FILES) vm.runInContext(src, ctx, { filename: f });
     const run = code => vm.runInContext(code, ctx);
-    run('mergeExtraWords(); applyRemovedWords();');
+    run('normalizeDictionary(); mergeExtraWords(); applyRemovedWords();'); // same order as the window load handler in game.js
     // UI / sound / saving parts not under test
     run(`updateHomeUI = () => {}; syncMusicToScreen = () => {}; applyBoardTheme = () => {}; showMessage = () => {};
          gameState.playerName = 'בודק'; gameState.modeHelpSeen = { single: true, battle: true, friends: true, random: true };`);

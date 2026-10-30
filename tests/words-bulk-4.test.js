@@ -87,7 +87,8 @@ test('the merged dictionary grows by exactly the pack size', () => {
     g2.run(`EXTRA_WORDS_BULK_4.forEach(w => { delete HEBREW_DICTIONARY[w]; }); invalidateDictionaryCache();`);
     const without = g2.run('Object.keys(HEBREW_DICTIONARY).length');
     assert.equal(withPack - without, PACK.length);
-    assert.ok(withPack > 85000, 'total ' + withPack);
+    assert.equal(withPack, 85766, 'total words in the game');
+    assert.equal(g.run("Object.keys(HEBREW_DICTIONARY).filter(w => /[ךםןףץ]/.test(w)).length"), 0, 'no final letters left');
 });
 
 for (const len of [3, 5, 8]) {
