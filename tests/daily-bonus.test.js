@@ -118,3 +118,17 @@ test('bonus amounts and the 7-day cycle are unchanged', () => {
     // day 8 starts the cycle again
     assert.equal(g.run('JSON.stringify(dailyRewardFor(8))'), JSON.stringify({ coins: 50 }));
 });
+
+test('the gift button is a "🎁 בונוס יומי" pill inside the home player card, not a fixed floating button', () => {
+    const html = read('index.html');
+    const card = html.match(/<div class="player-card">[\s\S]*?<button class="arena-banner"/)[0];
+    assert.match(card, /<button id="dailyRewardBtn" class="daily-fab" onclick="showDailyReward\(\)" aria-label="בונוס יומי"/);
+    assert.match(card, /<span class="daily-fab-label">בונוס יומי<\/span>\s*<\/button>\s*<\/div>/, 'last thing in the card, with its label');
+    assert.equal((html.match(/id="dailyRewardBtn"/g) || []).length, 1, 'only one gift button');
+    const fab = GAME_CSS.match(/\n\.daily-fab \{[\s\S]*?\n\}/)[0];
+    assert.match(fab, /position: absolute;/);
+    assert.doesNotMatch(fab, /position: fixed/);
+    assert.match(fab, /left: 0;\s*right: 0;\s*margin: 0 auto;/, 'centered on the card');
+    assert.match(GAME_CSS, /#homeScreen \.player-card \{ position: relative; \}/, 'anchored to the card');
+    assert.doesNotMatch(GAME_CSS, /body\.has-bottom-nav \.daily-fab/, 'no longer lifted above the tab bar like a floating button');
+});

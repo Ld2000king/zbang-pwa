@@ -2876,13 +2876,20 @@ html[data-city="island"] .subtitle {
     box-shadow: 0 0 0 var(--gold-base);
 }
 
-/* Daily-reward floating button - bottom-LEFT, mirror of the music FAB */
+/* Daily-bonus button "🎁 בונוס יומי" - hangs centered from the bottom edge of
+   the home player card (it lives inside .player-card in index.html), so it
+   moves with the card and never floats over the menu buttons */
+#homeScreen .player-card { position: relative; } /* anchor only - no visual change */
 .daily-fab {
-    position: fixed;
-    bottom: calc(16px + env(safe-area-inset-bottom));
-    left: calc(16px + env(safe-area-inset-left) + max(0px, (100vw - var(--app-max-width)) / 2));
-    width: 46px;
-    height: 46px;
+    position: absolute;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    bottom: -23px;       /* half out of the card: clear of the XP line above and the city banner below */
+    width: max-content;
+    height: 38px;
+    padding: 0 14px;
+    gap: 6px;
     border-radius: var(--radius-pill);
     --btn-face: var(--gold);
     --btn-base: var(--gold-base);
@@ -2890,17 +2897,23 @@ html[data-city="island"] .subtitle {
     border: 3px solid var(--wood-dark);
     color: var(--ink);
     cursor: pointer;
-    z-index: 60;
+    z-index: 5;
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: var(--bevel-sm);
     animation: dailyPulse 2.2s ease-in-out infinite;
 }
+.daily-fab-label {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 15px;
+    white-space: nowrap;
+}
 /* Main menu only (body.on-home is set by updateBottomNav in game.js) - never
    over a round, results, shop or any other screen */
 body:not(.on-home) .daily-fab { display: none; }
-.daily-fab svg { width: 24px; height: 24px; }
+.daily-fab svg { width: 20px; height: 20px; }
 .daily-fab:active { transform: translateY(2px); box-shadow: var(--sink); }
 
 @keyframes dailyPulse {
@@ -3467,7 +3480,7 @@ body:not(.on-home) .daily-fab { display: none; }
 /* Fixed bottom tab bar - shown only on the 4 main hub screens (home/shop/
    profile/leaderboard), toggled via body.has-bottom-nav in showScreen()/
    updateBottomNav() (game.js). Left/right reuse the same "match the app
-   card's centered width" formula as .daily-fab/.music-toggle-btn above,
+   card's centered width" formula as .music-toggle-btn above,
    symmetrized so the bar spans the full card edge-to-edge. */
 .bottom-nav {
     position: fixed;
@@ -3520,7 +3533,6 @@ body.has-bottom-nav .bottom-nav { display: flex; }
 
 /* The always-visible FABs would otherwise sit underneath/overlap the bottom
    nav once it's shown - lift them above it, only while it's showing */
-body.has-bottom-nav .daily-fab,
 body.has-bottom-nav .music-toggle-btn {
     bottom: calc(var(--bottom-nav-height) + 16px + env(safe-area-inset-bottom));
 }
