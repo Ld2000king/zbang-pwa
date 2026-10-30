@@ -344,6 +344,8 @@ function onRoomUpdate(room) {
             if (shuffleBtn) shuffleBtn.style.display = 'none';
             const battlePauseBtn = document.getElementById('battlePauseBtn');
             if (battlePauseBtn) battlePauseBtn.style.display = 'none';
+            const battleHelpBtn = document.getElementById('battleHelpBtn'); // the how-to-play ? stops the round - bots only
+            if (battleHelpBtn) battleHelpBtn.style.display = 'none';
             const battleExitBtn = document.getElementById('battleExitBtn');
             if (battleExitBtn) battleExitBtn.style.display = '';
             showScreen('battleScreen');

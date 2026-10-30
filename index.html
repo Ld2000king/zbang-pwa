@@ -108,7 +108,7 @@
                     <li>גרור אצבע על אותיות סמוכות בלוח כדי לחבר מילה בעברית.</li>
                     <li>מילה תקפה מזכה בניקוד לפי אורכה - ככל שהמילה ארוכה יותר, כך הניקוד גבוה יותר.</li>
                     <li><strong>משחק יחיד:</strong> 60 שניות למצוא כמה שיותר מילים בלוח.</li>
-                    <li><strong>באטל רויאל:</strong> 5 סיבובים נגד 4 בוטים - בכל סיבוב מודח מי שצבר הכי מעט ניקוד.</li>
+                    <li><strong>באטל רויאל:</strong> 5 סיבובים נגד 5 בוטים - בכל סיבוב מודח מי שצבר הכי מעט ניקוד.</li>
                     <li><strong>מגדל זבאנג:</strong> מחברים אותיות צמודות (גם באלכסון) למילה. האותיות נעלמות, ואחרי כל מילה עולה שורה חדשה. מילה של 5 אותיות מפוצצת גם את השכנות, ואות עם כוכב מנקה את כל השורה שלה. אם המגדל מגיע לתקרה - המשחק נגמר.</li>
                     <li>עזרים (רמז, ערבוב לוח, הקפאה) נקנים במטבעות תוך כדי משחק.</li>
                     <li>אם נגמרות המילים האפשריות בלוח, הוא מתערבב אוטומטית כדי שתוכלו להמשיך לשחק.</li>
@@ -145,7 +145,7 @@
                     <div class="mode-icon icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18 L18 6"/><path d="M7.8 11.8 L12.2 16.2"/><circle cx="6" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg></div>
                     <div class="mode-details">
                         <h3>באטל רויאל</h3>
-                        <p>5 סיבובים נגד 4 בוטים - הודח בכל סיבוב</p>
+                        <p>5 סיבובים נגד 5 בוטים - הודח בכל סיבוב</p>
                     </div>
                     <div class="mode-arrow">›</div>
                 </div>
@@ -325,7 +325,10 @@
         <!-- Single Player Game -->
         <div id="gameScreen" class="screen">
             <div class="game-header">
-                <button class="pause-btn icon" onclick="pauseGame()" title="השהה" aria-label="השהה"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="4.5" width="4.5" height="15" rx="2" fill="currentColor"/><rect x="13.5" y="4.5" width="4.5" height="15" rx="2" fill="currentColor"/></svg></button>
+                <div class="header-btns">
+                    <button class="pause-btn icon" onclick="pauseGame()" title="השהה" aria-label="השהה"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="4.5" width="4.5" height="15" rx="2" fill="currentColor"/><rect x="13.5" y="4.5" width="4.5" height="15" rx="2" fill="currentColor"/></svg></button>
+                    <button class="exit-btn game-help-btn icon" id="singleHelpBtn" onclick="openGameHelp()" title="איך משחקים?" aria-label="איך משחקים?"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8.8 9 a3.2 3.2 0 1 1 4.9 2.7 c-1 0.6 -1.7 1.3 -1.7 2.5"/><circle cx="12" cy="18.6" r="1.4" fill="currentColor" stroke="none"/></svg></button>
+                </div>
                 <div class="timer-display" id="timerDisplay">60</div>
                 <div class="score-display" id="scoreDisplay">0</div>
             </div>
@@ -352,6 +355,7 @@
                 <div class="header-btns">
                     <button class="exit-btn icon" id="battleExitBtn" onclick="goHome()"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></button>
                     <button class="pause-btn icon" id="battlePauseBtn" onclick="pauseGame()" title="השהה" aria-label="השהה"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="4.5" width="4.5" height="15" rx="2" fill="currentColor"/><rect x="13.5" y="4.5" width="4.5" height="15" rx="2" fill="currentColor"/></svg></button>
+                    <button class="exit-btn game-help-btn icon" id="battleHelpBtn" onclick="openGameHelp()" title="איך משחקים?" aria-label="איך משחקים?"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8.8 9 a3.2 3.2 0 1 1 4.9 2.7 c-1 0.6 -1.7 1.3 -1.7 2.5"/><circle cx="12" cy="18.6" r="1.4" fill="currentColor" stroke="none"/></svg></button>
                 </div>
                 <div class="round-badge" id="roundBadge">סיבוב 1/5</div>
                 <div class="timer-display" id="battleTimerDisplay">60</div>
@@ -653,14 +657,16 @@
         </div>
     </div>
 
-    <!-- How-to-play for the other modes, shown the first time each one is opened.
-         Filled from MODE_HELP by showModeHelp() in game.js; same look as the tower's -->
-    <div id="modeHelpOverlay" class="confirm-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="modeHelpTitle">
+    <!-- How-to-play for the other modes, shown the first time each one is opened
+         and, in single player / bots, from the ? button next to pause (the round
+         stops while it is open). Filled from MODE_HELP by showModeHelp() in game.js;
+         same look as the tower's. Closes from its button or a tap on the dark backdrop -->
+    <div id="modeHelpOverlay" class="confirm-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="modeHelpTitle" onclick="if(event.target===this)closeModeHelp()">
         <div class="confirm-box tower-help-box">
             <h2 id="modeHelpTitle"></h2>
             <ol class="tower-help-list" id="modeHelpList"></ol>
             <p class="tower-help-tip" id="modeHelpTip"></p>
-            <button class="btn-large green-btn" onclick="closeModeHelp()">בוא נתחיל!</button>
+            <button class="btn-large green-btn" id="modeHelpCloseBtn" onclick="closeModeHelp()">בוא נתחיל!</button>
         </div>
     </div>
 

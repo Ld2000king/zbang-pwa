@@ -1412,6 +1412,10 @@ function goHome() {
     currentGame.paused = false;      // clear any pause state / overlay when leaving
     const pauseOverlay = document.getElementById('pauseOverlay');
     if (pauseOverlay) pauseOverlay.style.display = 'none';
+    if (modeHelpThen && modeHelpThen.inGame) { // a mid-game how-to-play has no round to return to
+        modeHelpThen = null;
+        document.getElementById('modeHelpOverlay').style.display = 'none';
+    }
     stopBotAI();                     // kill the bots interval so it can't leak into a later game
     // Multiplayer: detach Firebase listeners / leave the room before going home
     if (currentGame.mode === 'multiplayer' && typeof leaveMultiplayerRoom === 'function') {
@@ -1430,29 +1434,45 @@ function showGameModeSelection() {
 // Opens by itself the first time a player enters each mode, before the mode
 // starts (a timed round must not tick while they read), the way the tower's
 // does (showTowerHelp in tower.js). Closing it carries on into the mode.
+// Single player and bots can also open it mid-game from the ? button next to
+// pause (openGameHelp) - the same text in both places.
+// title / items / tip may be functions of a context: { singleMode } for
+// single player, { difficulty } for bots.
+const DRAG_HELP_ITEM = 'גוררים את האצבע על <strong>אותיות צמודות</strong> - גם <strong>באלכסון ובזיגזג</strong> - ויוצרים מילה של <strong>3 אותיות לפחות</strong>. כל אות פעם אחת בכל מילה.';
+const POINTS_HELP_ITEM = 'מילה ארוכה שווה יותר: בדרך כלל <strong>100</strong> נקודות על 3 אותיות, <strong>250</strong> על 4, ו-<strong>500</strong> על 5 אותיות ומעלה.';
+const BATTLE_DIFFICULTY_HELP = {
+    easy: '<strong>זבאנג התחלתי:</strong> הבוטים איטיים ורגועים - מושלם להתחלה.',
+    medium: '<strong>זבאנג קלאסי:</strong> הבוטים מוצאים מילים בקצב ממוצע.',
+    hard: '<strong>זבאנג מלכותי:</strong> הבוטים מהירים מאוד - כל מילה חשובה.'
+};
 const MODE_HELP = {
     single: {
-        title: 'איך משחקים במשחק יחיד?',
-        items: [
-            'גוררים את האצבע על <strong>אותיות סמוכות</strong> בלוח ויוצרים מילה של 3 אותיות לפחות.',
-            '<strong>משחק מהיר</strong> נמשך דקה, ו<strong>משחק מדויק</strong> נמשך 2 דקות - מצאו כמה שיותר מילים עד שהזמן נגמר.',
-            'מילה ארוכה שווה יותר: 100 נקודות על 3 אותיות, 250 על 4, ו<strong>500 על 5 אותיות</strong>.',
-            'מילה שלא במאגר? אפשר ללחוץ <strong>"מילה אמיתית?"</strong> ולשלוח אותה לבדיקה.',
-            'עזרים: <strong>רמז</strong> מסמן מילה, <strong>ערבוב</strong> מחליף את הלוח, <strong>הקפאה</strong> עוצרת את השעון ל-5 שניות.',
-            'נגמרו המילים בלוח? הוא מתערבב לבד.'
+        title: c => c.singleMode === 'precise' ? 'איך משחקים? · משחק מדוייק'
+            : c.singleMode === 'quick' ? 'איך משחקים? · משחק מהיר' : 'איך משחקים במשחק יחיד?',
+        items: c => [
+            DRAG_HELP_ITEM,
+            c.singleMode === 'precise' ? 'יש לכם <strong>2 דקות</strong> - מצאו כמה שיותר מילים עד שהזמן נגמר.'
+                : c.singleMode === 'quick' ? 'יש לכם <strong>דקה אחת</strong> - מצאו כמה שיותר מילים עד שהזמן נגמר.'
+                : '<strong>משחק מהיר</strong> נמשך דקה, ו<strong>משחק מדוייק</strong> נמשך 2 דקות - מצאו כמה שיותר מילים עד שהזמן נגמר.',
+            POINTS_HELP_ITEM,
+            '<strong>רמז</strong> מראה על הלוח את המסלול של מילה - גוררים לפי המספרים. <strong>ערבוב</strong> מחליף את סדר האותיות, ו<strong>הקפאה</strong> עוצרת את השעון ל-5 שניות.',
+            'נגמרו המילים בלוח? הוא מתערבב לבד.',
+            'מילה שלא במאגר? אפשר ללחוץ <strong>"מילה אמיתית?"</strong> ולשלוח אותה לבדיקה.'
         ],
-        tip: `כל ${SINGLE_POINTS_PER_COIN} נקודות = מטבע, ושיא חדש אפשר להוסיף לטבלת הזבאנג רויאל.`
+        tip: `כל ${SINGLE_POINTS_PER_COIN} נקודות = מטבע. השעון עומד כל עוד ההוראות פתוחות.`
     },
     battle: {
-        title: 'איך משחקים בבאטל רויאל?',
-        items: [
-            'אתם מול <strong>4 בוטים</strong>, ב-<strong>5 סיבובים</strong> של דקה.',
-            'כולם מחפשים מילים באותו לוח, ובסוף כל סיבוב <strong>מי שצבר הכי מעט ניקוד מודח</strong>.',
+        title: 'איך משחקים מול בוטים?',
+        items: c => [
+            `אתם מול <strong>${BOT_NAMES.length} בוטים</strong>, ב-<strong>${battleState.totalRounds} סיבובים</strong> של דקה, כולם על אותו לוח.`,
+            'בסוף כל סיבוב <strong>מי שצבר הכי מעט ניקוד מודח</strong>.',
+            DRAG_HELP_ITEM,
+            POINTS_HELP_ITEM,
+            '<strong>רמז</strong> מראה את המסלול של מילה, <strong>הקפא יריבים</strong> עוצר את הבוטים ל-8 שניות, ו<strong>ערבב ליריבים</strong> חותך להם את הניקוד בחצי.',
             `שורדים את כל 5 הסיבובים? <strong>ניצחתם!</strong> +${BOT_VICTORY_COINS} מטבעות ו-5 יהלומים, ועוד ${BOT_ROUND_COINS} מטבעות על כל סיבוב ששרדתם.`,
-            '<strong>הקפא יריבים</strong> עוצר את הבוטים ל-8 שניות, ו<strong>ערבב ליריבים</strong> חותך את הניקוד שלהם בחצי.',
-            'צריכים הפסקה? כפתור ההשהיה עוצר את המשחק.'
+            BATTLE_DIFFICULTY_HELP[c.difficulty] || 'שלוש רמות קושי - התחילו מזבאנג התחלתי.'
         ],
-        tip: 'שלוש רמות קושי - התחילו מזבאנג התחלתי.'
+        tip: 'השעון והבוטים עומדים כל עוד ההוראות פתוחות.'
     },
     friends: {
         title: 'איך משחקים עם חברים?',
@@ -1484,19 +1504,24 @@ let modeHelpThen = null;
 // Runs `then` right away once the player has seen this mode's how-to-play;
 // otherwise shows it first and runs `then` when it's closed. Returns true
 // when the help was opened (the caller should stop there).
-function needsModeHelp(mode, then) {
+function needsModeHelp(mode, then, context) {
     if (!MODE_HELP[mode] || (gameState.modeHelpSeen || {})[mode]) return false;
-    showModeHelp(mode, then);
+    showModeHelp(mode, then, context);
     return true;
 }
 
-function showModeHelp(mode, then) {
+// inGame: opened from the ? button during a round (the round is already
+// halted by openGameHelp and carries on when this closes)
+function showModeHelp(mode, then, context, inGame) {
     const help = MODE_HELP[mode];
     if (!help) return;
-    modeHelpThen = { mode: mode, then: then || null };
-    document.getElementById('modeHelpTitle').textContent = help.title;
-    document.getElementById('modeHelpList').innerHTML = help.items.map(item => `<li>${item}</li>`).join('');
-    document.getElementById('modeHelpTip').textContent = help.tip;
+    const ctx = context || {};
+    const pick = v => (typeof v === 'function' ? v(ctx) : v);
+    modeHelpThen = { mode: mode, then: then || null, inGame: !!inGame };
+    document.getElementById('modeHelpTitle').textContent = pick(help.title);
+    document.getElementById('modeHelpList').innerHTML = pick(help.items).map(item => `<li>${item}</li>`).join('');
+    document.getElementById('modeHelpTip').textContent = pick(help.tip);
+    document.getElementById('modeHelpCloseBtn').textContent = inGame ? 'חזרה למשחק' : 'בוא נתחיל!';
     document.getElementById('modeHelpOverlay').style.display = 'flex';
 }
 
@@ -1505,6 +1530,7 @@ function closeModeHelp() {
     const pending = modeHelpThen;
     modeHelpThen = null;
     if (!pending) return;
+    if (pending.inGame) { continueGame(); return; }
     if (!gameState.modeHelpSeen) gameState.modeHelpSeen = {};
     gameState.modeHelpSeen[pending.mode] = true;
     saveGameState();
@@ -2003,7 +2029,7 @@ function showSingleModeChoice() {
 }
 
 function startSinglePlayer(singleMode = 'quick') {
-    if (needsModeHelp('single', () => startSinglePlayer(singleMode))) return;
+    if (needsModeHelp('single', () => startSinglePlayer(singleMode), { singleMode: singleMode })) return;
     const duration = SINGLE_DURATIONS[singleMode] || SINGLE_DURATIONS.quick;
     currentGame.mode = 'single';
     currentGame.singleMode = singleMode; // remembered so "play again" replays the same length
@@ -2032,10 +2058,14 @@ function updateFoundWords() {
     });
 }
 
-function startTimer(mode) {
+// firstTickMs: when the round carries on after a pause / the how-to-play, the
+// part of the second that was left when it stopped - so stopping never adds
+// or removes time. Omitted = a full second, as at the start of a round.
+function startTimer(mode, firstTickMs) {
     if (currentGame.timer) clearInterval(currentGame.timer);
 
-    currentGame.timer = setInterval(() => {
+    const tick = () => {
+        currentGame.lastTickAt = Date.now();
         const timerEl = document.getElementById(mode === 'single' ? 'timerDisplay' : 'battleTimerDisplay');
 
         // While frozen the clock does not move - it just shows the ice state
@@ -2054,29 +2084,74 @@ function startTimer(mode) {
             clearInterval(currentGame.timer);
             endRound(mode);
         }
-    }, 1000);
+    };
+
+    const delay = firstTickMs > 0 && firstTickMs < 1000 ? firstTickMs : 1000;
+    currentGame.lastTickAt = Date.now() - (1000 - delay); // as if the last tick was that long ago
+    if (delay === 1000) {
+        currentGame.timer = setInterval(tick, 1000);
+        return;
+    }
+    const first = setTimeout(() => {
+        if (currentGame.timer !== first) return; // stopped or replaced meanwhile
+        tick();
+        // the round may have ended (or the next one started) inside tick()
+        if (currentGame.timer === first && currentGame.gameActive) currentGame.timer = setInterval(tick, 1000);
+    }, delay);
+    currentGame.timer = first;
 }
 
 // ===== Pause (single-player & bots battle only) =====
 // Multiplayer can't be paused - you can't freeze real opponents' clocks.
+// The pause menu and the ? button (openGameHelp) stop and restart the round
+// the same way: haltGame() / continueGame().
+
+// Stops the clock, the bots and board input, remembering the part of the
+// current second that was left, and drops a drag that was in progress (it
+// would otherwise score once the finger lifts).
+function haltGame() {
+    currentGame.paused = true;
+    currentGame.gameActive = false;      // blocks board input while stopped
+    if (currentGame.timer) clearInterval(currentGame.timer);
+    currentGame.timer = null;
+    const since = Date.now() - (currentGame.lastTickAt || Date.now());
+    currentGame.tickLeftMs = Math.min(1000, Math.max(1, 1000 - since));
+    stopBotAI();                          // freeze the bots too (no-op in single mode)
+    if (isDragging) cancelDrag();
+}
+
+// Carries on from exactly where haltGame() stopped: same timeLeft, same
+// freeze seconds, the rest of the second, and each bot's own countdown.
+function continueGame() {
+    if (!currentGame.paused) return;
+    currentGame.paused = false;
+    currentGame.gameActive = true;
+    startTimer(currentGame.mode === 'single' ? 'single' : 'battle', currentGame.tickLeftMs);
+    if (currentGame.mode === 'battle') startBotAI(true);
+}
+
 function pauseGame() {
     if (currentGame.mode === 'multiplayer') return;
     if (!currentGame.gameActive || currentGame.paused) return;
-    currentGame.paused = true;
-    currentGame.gameActive = false;      // blocks board input while paused
-    if (currentGame.timer) clearInterval(currentGame.timer);
-    stopBotAI();                          // freeze the bots too (no-op in single mode)
+    haltGame();
     document.getElementById('pauseOverlay').style.display = 'flex';
 }
 
 function resumeGame() {
     if (!currentGame.paused) return;
-    currentGame.paused = false;
-    currentGame.gameActive = true;
     document.getElementById('pauseOverlay').style.display = 'none';
-    // resume from the preserved timeLeft; restart the bots only in battle mode
-    startTimer(currentGame.mode === 'single' ? 'single' : 'battle');
-    if (currentGame.mode === 'battle') startBotAI();
+    continueGame();
+}
+
+// The ? button next to pause (single player and bots): the mode's how-to-play,
+// with the round stopped exactly like the pause menu stops it until it closes.
+function openGameHelp() {
+    const mode = currentGame.mode;
+    if (mode !== 'single' && mode !== 'battle') return;
+    if (!currentGame.gameActive || currentGame.paused) return;
+    haltGame();
+    const context = mode === 'single' ? { singleMode: currentGame.singleMode } : { difficulty: battleState.difficulty };
+    showModeHelp(mode, null, context, true);
 }
 
 function quitFromPause() {
@@ -2518,7 +2593,7 @@ function showBattleDifficulty() {
 }
 
 function startBattleRoyale(difficulty = 'medium') {
-    if (needsModeHelp('battle', () => startBattleRoyale(difficulty))) return;
+    if (needsModeHelp('battle', () => startBattleRoyale(difficulty), { difficulty: BOT_DIFFICULTY[difficulty] ? difficulty : 'medium' })) return;
     battleState.difficulty = BOT_DIFFICULTY[difficulty] ? difficulty : 'medium';
     currentGame.mode = 'battle';
     battleState.currentRound = 1;
@@ -2550,7 +2625,8 @@ function startBattleRound() {
     showScreen('battleScreen');
     const diffName = (BOT_DIFFICULTY[battleState.difficulty] || BOT_DIFFICULTY.medium).name;
     const roundBadge = document.getElementById('roundBadge');
-    roundBadge.textContent = `סיבוב ${battleState.currentRound}/5 · ${diffName}`;
+    // two lines, so it still fits next to pause + ? on a small phone
+    roundBadge.innerHTML = `<span class="round-num">סיבוב ${battleState.currentRound}/5</span><span class="round-diff">${escapeHtml(diffName)}</span>`;
     roundBadge.style.display = ''; // a random online match hides it - bring it back
     // ensure the "shuffle opponents" power-up + pause button are visible in
     // bots mode (multiplayer mode hides both since they don't apply to real players)
@@ -2560,6 +2636,8 @@ function startBattleRound() {
     // menu, so hide the header home button (multiplayer re-shows it below)
     const battlePauseBtn = document.getElementById('battlePauseBtn');
     if (battlePauseBtn) battlePauseBtn.style.display = '';
+    const battleHelpBtn = document.getElementById('battleHelpBtn'); // multiplayer hides it
+    if (battleHelpBtn) battleHelpBtn.style.display = '';
     const battleExitBtn = document.getElementById('battleExitBtn');
     if (battleExitBtn) battleExitBtn.style.display = 'none';
     renderBoard('battleBoard');
@@ -2589,14 +2667,18 @@ function updateBattleUI() {
     }
 }
 
-function startBotAI() {
+// resume: carrying on after a pause / the how-to-play - each bot keeps the
+// countdown it had, so stopping neither speeds the bots up nor slows them down.
+function startBotAI(resume) {
     stopBotAI(); // never stack intervals across rounds
     const tier = BOT_DIFFICULTY[battleState.difficulty] || BOT_DIFFICULTY.medium;
 
     // Give each bot its own initial "thinking" countdown, staggered so they
     // don't all find a word on the same tick (feels like independent players).
     battleState.players.forEach(bot => {
-        if (!bot.eliminated) bot.nextFindIn = botFindDelay(tier) * (0.4 + Math.random() * 0.6);
+        if (bot.eliminated) return;
+        if (resume && bot.nextFindIn > 0) return;
+        bot.nextFindIn = botFindDelay(tier) * (0.4 + Math.random() * 0.6);
     });
 
     const TICK = 1000; // 1s resolution keeps the pacing smooth and freeze exact

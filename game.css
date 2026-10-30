@@ -589,6 +589,19 @@ html[data-city="island"] .subtitle {
     font-size: 1.9em;
 }
 
+/* The ? next to pause (single player + bots): opens the mode's how-to-play.
+   Smaller than pause so pause stays the main control, but still 44px - the
+   smallest comfortable touch target on iPhone. */
+.game-help-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.3em;
+}
+
+.header-btns > button {
+    flex-shrink: 0;
+}
+
 .help-btn {
     position: fixed;
     top: calc(16px + env(safe-area-inset-top));
@@ -948,6 +961,46 @@ html[data-city="island"] .subtitle {
     font-weight: 800;
     text-shadow: 0 2px 0 rgba(78, 49, 22, 0.45);
     box-shadow: var(--bevel-sm);
+    /* bots mode: "סיבוב 1/5" above the difficulty, each on one line, so the
+       badge keeps its shape next to pause + ? even on a 320pt phone */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    line-height: 1.15;
+    min-width: 0;
+}
+
+.round-badge .round-num,
+.round-badge .round-diff {
+    white-space: nowrap;
+}
+
+.round-badge .round-diff {
+    font-size: 0.72em;
+}
+
+/* Small phones (iPhone SE / mini width and below): tighten the bots header so
+   pause + ? + round badge + timer stay on one row without touching */
+@media (max-width: 380px) {
+    .battle-header {
+        gap: 6px;
+    }
+
+    .battle-header .header-btns {
+        gap: 6px;
+    }
+
+    .battle-header .timer-display {
+        font-size: 1.4em;
+        padding: 6px 10px;
+        min-width: 0;
+    }
+
+    .round-badge {
+        padding: 6px 12px;
+        font-size: 0.92em;
+    }
 }
 
 .players-status {
