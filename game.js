@@ -354,11 +354,11 @@ function botFindDelay(tier) {
 }
 
 // ---- dictionary scan helpers ----------------------------------------------
-// The dictionary is big (44k+ words once the expansion packs are merged) and
+// The dictionary is big (85k+ words once the expansion packs are merged) and
 // collectBoardWords() sweeps all of it (the "any word left?" check after
 // every found word uses board-words.js and its prefix index). Two cheap
 // guards keep that sweep fast: the key list is cached (Object.keys() was
-// allocating a 44k array per call) and a word is skipped outright when the
+// allocating an 85k array per call) and a word is skipped outright when the
 // board doesn't even contain one of its letters, which discards the vast
 // majority before the position scan. The letter test ignores repeats, so it
 // can only ever reject words that truly aren't on the board.
@@ -449,8 +449,8 @@ function backfillCustomAvatarSync() {
 }
 
 // Merge the expansion packs into the dictionary: words.js (EXTRA_WORDS, written
-// with natural final letters), words-bulk.js, words-bulk-2.js and
-// words-bulk-3.js (EXTRA_WORDS_BULK / _2 / _3, already normalized). Every word is
+// with natural final letters), words-bulk.js ... words-bulk-4.js
+// (EXTRA_WORDS_BULK / _2 / _3 / _4, already normalized). Every word is
 // normalized again here - a no-op for the bulk packs - so it's findable on the
 // board, and duplicates against the base dictionary (and against each other)
 // are skipped.
@@ -460,6 +460,7 @@ function mergeExtraWords() {
     if (typeof EXTRA_WORDS_BULK !== 'undefined') packs.push(EXTRA_WORDS_BULK);
     if (typeof EXTRA_WORDS_BULK_2 !== 'undefined') packs.push(EXTRA_WORDS_BULK_2);
     if (typeof EXTRA_WORDS_BULK_3 !== 'undefined') packs.push(EXTRA_WORDS_BULK_3);
+    if (typeof EXTRA_WORDS_BULK_4 !== 'undefined') packs.push(EXTRA_WORDS_BULK_4);
 
     packs.forEach(pack => pack.forEach(w => {
         const word = normalizeFinals(w);
@@ -493,7 +494,7 @@ function applyRemovedWords() {
 // add/remove controls only render for a signed-in admin; those actions live in
 // admin.js and the Security Rules are what actually enforce them.
 
-const WORD_BANK_PAGE = 120; // 44k+ rows can't all live in the DOM at once
+const WORD_BANK_PAGE = 120; // 85k+ rows can't all live in the DOM at once
 
 let wordBankQuery = '';
 let wordBankShown = WORD_BANK_PAGE;
@@ -505,7 +506,7 @@ let wordBankSortedFrom = null;
 // Alphabetical dictionary keys, memoized against the key cache above so the
 // sort only runs when the dictionary actually changed. Hebrew letters are
 // contiguous and in alphabetical order in Unicode, so a plain compare sorts
-// correctly and far faster than localeCompare over 44k words.
+// correctly and far faster than localeCompare over 85k words.
 function sortedDictionaryWords() {
     const src = dictionaryWordList();
     if (wordBankSortedFrom !== src) {

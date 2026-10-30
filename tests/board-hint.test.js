@@ -129,7 +129,7 @@ test('controller: dragging the hinted word ends the hint; another word does not'
 // ---------------------------------------------------------------------------
 const ROOT = path.join(__dirname, '..');
 const GAME_FILES = ['board-path.js', 'board-words.js', 'board-hint.js', 'game.js',
-    'words.js', 'words-bulk.js', 'words-bulk-2.js', 'words-bulk-3.js']
+    'words.js', 'words-bulk.js', 'words-bulk-2.js', 'words-bulk-3.js', 'words-bulk-4.js']
     .map(f => [f, fs.readFileSync(path.join(ROOT, f), 'utf8')]);
 
 // --- a very small DOM: enough for renderBoard, the hint drawing, messages ---

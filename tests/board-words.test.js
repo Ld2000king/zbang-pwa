@@ -116,7 +116,8 @@ function loadGameWords() {
     const norm = w => w.replace(/[ךםןףץ]/g, c => FINALS[c]);
     const ctx = vm.createContext({});
     const lists = [['words.js', 'EXTRA_WORDS'], ['words-bulk.js', 'EXTRA_WORDS_BULK'],
-        ['words-bulk-2.js', 'EXTRA_WORDS_BULK_2'], ['words-bulk-3.js', 'EXTRA_WORDS_BULK_3']];
+        ['words-bulk-2.js', 'EXTRA_WORDS_BULK_2'], ['words-bulk-3.js', 'EXTRA_WORDS_BULK_3'],
+        ['words-bulk-4.js', 'EXTRA_WORDS_BULK_4']];
     const all = new Set();
     for (const [file, name] of lists) {
         vm.runInContext(fs.readFileSync(path.join(ROOT, file), 'utf8') + `;globalThis.__w = ${name};`, ctx);

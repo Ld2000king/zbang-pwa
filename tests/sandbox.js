@@ -10,7 +10,7 @@ const vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const FILES = ['avatars.js', 'icons.js', 'board-path.js', 'board-words.js', 'board-hint.js', 'game.js',
-    'words.js', 'words-bulk.js', 'words-bulk-2.js', 'words-bulk-3.js', 'tower.js', 'multiplayer.js']
+    'words.js', 'words-bulk.js', 'words-bulk-2.js', 'words-bulk-3.js', 'words-bulk-4.js', 'tower.js', 'multiplayer.js']
     .map(f => [f, read(f)]);
 const INDEX_HTML = read('index.html');
 
