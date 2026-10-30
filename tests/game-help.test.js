@@ -317,3 +317,19 @@ test('markup: a ? next to pause in single player and bots; help closes from its 
     assert.match(INDEX_HTML, /id="modeHelpCloseBtn" onclick="closeModeHelp\(\)"/);
     assert.match(INDEX_HTML, /<html[^>]*dir="rtl"/);
 });
+
+test('general instructions screen matches 1.2 (two single-player modes, diagonal + zigzag, hint path)', () => {
+    const screen = INDEX_HTML.match(/<div id="instructionsScreen"[\s\S]*?<\/ul>/)[0];
+    assert.doesNotMatch(screen, /60 שניות/, 'the old "single = 60 seconds only" line is gone');
+    assert.doesNotMatch(screen, /אותיות סמוכות/);
+    assert.match(screen, /<strong>משחק מהיר<\/strong> של דקה אחת/);
+    assert.match(screen, /<strong>משחק מדוייק<\/strong> של 2 דקות/);
+    assert.match(screen, /באלכסון ובזיגזג/);
+    assert.match(screen, /3 אותיות לפחות/);
+    assert.match(screen, /<strong>רמז<\/strong> מראה על הלוח את המסלול של מילה/);
+    assert.match(screen, /5 סיבובים נגד 5 בוטים/);
+    // the mode names match the buttons on the single-player picker
+    const picker = INDEX_HTML.match(/<div id="singleModeScreen"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/)[0];
+    assert.match(picker, /<h3>משחק מהיר<\/h3>/);
+    assert.match(picker, /<h3>משחק מדוייק<\/h3>/);
+});
