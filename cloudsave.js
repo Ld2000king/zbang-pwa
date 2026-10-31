@@ -24,7 +24,9 @@ const CLOUD_SAVE_FIELDS = [
     'playerName', 'coins', 'diamonds', 'inventory', 'totalScore', 'gamesPlayed',
     'level', 'xp', 'xpToNextLevel', 'avatarId', 'trophies', 'preferredTheme', 'themeAuto',
     'ownedAvatars', 'coinAvatarsGranted', 'bestSingleScore', 'bestSingleScorePrecise', 'bestTowerScore', 'towerTutorialSeen', 'modeHelpSeen', 'playerId', 'lastDailyClaim',
-    'dailyStreak', 'grantedIapTransactions', 'soundKit', 'ownedSoundKits', 'blockedPlayers'
+    'dailyStreak', 'grantedIapTransactions', 'soundKit', 'ownedSoundKits', 'blockedPlayers',
+    // 1.2: XP counters (see xp-state.js). Older versions ignore this field.
+    'xpProgress'
 ];
 
 // Progress changes in bursts (a word found bumps score, coins and xp in the
@@ -65,13 +67,21 @@ function collectCloudState() {
     CLOUD_SAVE_FIELDS.forEach(key => {
         if (gameState[key] !== undefined) out[key] = gameState[key];
     });
+    // the XP counters only - the reward-event list stays on this device
+    if (typeof xpProgressForCloud === 'function') {
+        const xp = xpProgressForCloud();
+        if (xp) out.xpProgress = xp; else delete out.xpProgress;
+    }
     return out;
 }
 
 function applyCloudState(state) {
+    const xpBefore = gameState.xpProgress; // this device's XP, merged back in below
     CLOUD_SAVE_FIELDS.forEach(key => {
         if (state[key] !== undefined) gameState[key] = state[key];
     });
+    // a restore never lowers XP or levels, and never pays a level twice
+    if (typeof xpAfterCloudRestore === 'function') xpAfterCloudRestore(xpBefore, state);
     // a cloud save from before the coin shop keeps the avatars that were free then
     if (state.coinAvatarsGranted === undefined && typeof grantLegacyCoinAvatars === 'function') grantLegacyCoinAvatars();
     localStorage.setItem('zabangState', JSON.stringify(gameState)); // not saveGameState(): that would re-trigger a sync
@@ -105,12 +115,88 @@ function pushCloudSave() {
     const photo = localStorage.getItem('zabangCustomAvatarSync');
     if (photo) payload.photo = photo;
 
-    return cloudSaveRef().set(payload)
-        .then(() => { CloudSave.lastSyncedAt = Date.now(); renderCloudSaveSection(); })
-        .catch(err => {
-            console.error('Cloud save failed:', err);
-            renderCloudSaveSection();
+    return confirmAccountStillExists().then(alive => {
+        if (!alive) return;
+        return writeCloudSave(payload)
+            .then(() => { CloudSave.lastSyncedAt = Date.now(); renderCloudSaveSection(); });
+    }).catch(err => {
+        console.error('Cloud save failed:', err);
+        renderCloudSaveSection();
+    });
+}
+
+// ---- 1.2: XP-safe writing ---------------------------------------------------
+// With the XP files loaded, the save is written in a transaction that merges
+// this device's XP counters with the ones already in the cloud
+// (player_saves/<uid>/progress, see xp-cloud.js) - so no device or older copy
+// can lower anyone's XP. Until the rules allow `progress`, that write is
+// refused and the save falls back to exactly the old backup (state only);
+// after the first refusal this session stops trying.
+function writeCloudSave(payload) {
+    const canMerge = typeof ZbangXPCloud !== 'undefined' && gameState.xpProgress && !CloudSave.progressNodeRefused;
+    if (!canMerge) return cloudSaveRef().set(payload);
+    return ZbangXPCloud.pushSave(cloudSaveRef(), {
+        stateJson: payload.state, progress: gameState.xpProgress,
+        timestamp: payload.updatedAt, photo: payload.photo
+    }).then(res => {
+        if (res.mode === 'state-only') CloudSave.progressNodeRefused = true;
+        if (typeof xpAdoptCloudProgress === 'function') xpAdoptCloudProgress(res.progress);
+    });
+}
+
+// A token refresh before writing: once the account was deleted (on another
+// device, or from version 1.1) the refresh fails and nothing is written -
+// otherwise a still-signed-in device could bring the deleted save back.
+// Offline the refresh fails too; then the write goes ahead and the database
+// queues it as before.
+// (the codes Firebase uses when the account no longer exists or was disabled;
+// the emulator answers a deleted account with invalid-refresh-token)
+const ACCOUNT_GONE_CODES = ['auth/user-token-expired', 'auth/user-not-found', 'auth/user-disabled',
+    'auth/invalid-user-token', 'auth/invalid-refresh-token'];
+function confirmAccountStillExists() {
+    const user = auth.currentUser;
+    if (!user || user.isAnonymous) return Promise.resolve(false);
+    return user.getIdToken(true).then(() => true).catch(err => {
+        if (ACCOUNT_GONE_CODES.includes(err && err.code)) {
+            accountGoneElsewhere();
+            return false;
+        }
+        return true;
+    });
+}
+
+function accountGoneElsewhere() {
+    clearTimeout(CloudSave.timer);
+    CloudSave.lastSyncedAt = 0;
+    auth.signOut().then(() => auth.signInAnonymously()).catch(() => {}).then(() => {
+        refreshAfterCloudAuthChange();
+        showMessage('החשבון הזה נמחק. ההתקדמות נשארה במכשיר הזה', 'warning');
+    });
+}
+
+// The XP counters the cloud holds (protected node + the copy in the state).
+function cloudXpProgress(save, cloudState) {
+    return typeof ZbangXPCloud !== 'undefined' ? ZbangXPCloud.progressFromNode(save, cloudState) : null;
+}
+
+// On opening the app with an account attached: take in the XP other devices
+// saved (counters only - the wallet is never touched). Reads, never writes.
+function pullCloudProgress() {
+    if (!cloudSaveActive() || CloudSave.awaitingRestoreChoice) return Promise.resolve();
+    if (typeof xpAdoptCloudProgress !== 'function') return Promise.resolve();
+    const uid = auth.currentUser.uid;
+    if (CloudSave.pulledFor === uid) return Promise.resolve(); // once per account per launch
+    CloudSave.pulledFor = uid;
+    return confirmAccountStillExists().then(alive => {
+        if (!alive) return;
+        return fetchCloudSave().then(save => {
+            if (!save || !save.state) return;
+            let cloudState = null;
+            try { cloudState = JSON.parse(save.state); } catch (e) { /* unreadable: keep local */ }
+            const progress = cloudXpProgress(save, cloudState);
+            if (progress) xpAdoptCloudProgress(progress);
         });
+    }).catch(err => { CloudSave.pulledFor = null; console.warn('Reading cloud XP failed:', err); });
 }
 
 function fetchCloudSave() {
@@ -139,6 +225,9 @@ function resolveCloudSaveAfterSignIn() {
             showMessage('הגיבוי בענן פגום - נשמרת ההתקדמות המקומית', 'warning');
             return pushCloudSave();
         }
+        // 1.2: the XP counters of the protected node count as part of the backup
+        const cloudXp = cloudXpProgress(save, cloudState);
+        if (cloudXp) cloudState.xpProgress = cloudXp;
 
         const when = save.updatedAt ? new Date(save.updatedAt).toLocaleDateString('he-IL') : 'לא ידוע';
         const coins = (cloudState.coins || 0).toLocaleString('he-IL');
@@ -153,6 +242,11 @@ function resolveCloudSaveAfterSignIn() {
             },
             () => { // keep this device's progress, and overwrite the cloud copy with it
                 CloudSave.awaitingRestoreChoice = false;
+                // ...but keep the XP other devices saved there (counters only go up)
+                if (typeof xpMergeCloudCopy === 'function') {
+                    xpMergeCloudCopy(cloudState);
+                    localStorage.setItem('zabangState', JSON.stringify(gameState));
+                }
                 pushCloudSave();
                 showMessage('ההתקדמות המקומית נשמרה והחליפה את הגיבוי', 'info');
             }
@@ -386,5 +480,8 @@ function renderCloudSaveSection() {
 // Keep the section honest when the session changes from anywhere (admin
 // sign-in/out, a token expiring, the anonymous session being created).
 if (typeof auth !== 'undefined' && auth) {
-    auth.onAuthStateChanged(() => renderCloudSaveSection());
+    auth.onAuthStateChanged(() => {
+        renderCloudSaveSection();
+        pullCloudProgress(); // 1.2: XP from the account's other devices
+    });
 }

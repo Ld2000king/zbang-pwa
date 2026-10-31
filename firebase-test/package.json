@@ -1,0 +1,13 @@
+{
+  "name": "zbang-firebase-test",
+  "private": true,
+  "description": "Local-only Firebase Emulator tests for ZBANG 1.2 (never touches the real project)",
+  "scripts": {
+    "test": "PATH=/opt/homebrew/opt/openjdk@21/bin:$PATH firebase emulators:exec --project demo-zbang --only database,auth \"node --test --test-force-exit --test-concurrency=1 --test-timeout=120000 tests/\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase": "^13.1.0",
+    "firebase-tools": "^15.34.1"
+  }
+}

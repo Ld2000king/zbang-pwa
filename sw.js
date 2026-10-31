@@ -17,7 +17,7 @@
 // index.html to match); activate() purges all older caches.
 // ============================================================================
 
-const VERSION = 'v41';
+const VERSION = 'v42';
 const APP_CACHE = 'zabang-app-' + VERSION;       // same-origin shell + code
 const RUNTIME_CACHE = 'zabang-runtime-' + VERSION; // fonts + CDN statics
 
@@ -29,12 +29,21 @@ const PRECACHE = [
     './index.html',
     './style.css',
     './game.css',
+    './board-path.js',
+    './board-words.js',
+    './board-hint.js',
     './game.js',
     './words.js',
     './words-bulk.js',
     './words-bulk-2.js',
     './words-bulk-3.js',
+    './words-bulk-4.js',
     './tower.js',
+    './xp-engine.js',
+    './xp-state.js',
+    './xp-cloud.js',
+    './xp-game.js',
+    './xp-ui.js',
     './avatars.js',
     './assets/avatars/dan.webp',
     './assets/avatars/maya.webp',
@@ -62,8 +71,10 @@ const PRECACHE = [
     './themes.js',
     './firebase-config.js',
     './multiplayer.js',
+    './cloudsave.js',
     './admin.js',
     './moderation.js',
+    './iap.js',
     './manifest.json',
     './privacy.html',
     './terms.html',

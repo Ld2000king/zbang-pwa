@@ -14,8 +14,8 @@
     <link rel="icon" type="image/png" href="icon-192.png">
     <!-- ?v= must match VERSION in sw.js - bump both on every release, so a
          fresh index.html can never be paired with an older cached script -->
-    <link rel="stylesheet" href="style.css?v=41">
-    <link rel="stylesheet" href="game.css?v=41">
+    <link rel="stylesheet" href="style.css?v=42">
+    <link rel="stylesheet" href="game.css?v=42">
 </head>
 <body>
     <div id="app">
@@ -51,6 +51,11 @@
                             <span class="trophy-amount" id="homeTrophies">0</span>
                         </div>
                     </div>
+                    <!-- Daily bonus: hangs centered from the card's bottom edge; main menu only (body.on-home, game.js) -->
+                    <button id="dailyRewardBtn" class="daily-fab" onclick="showDailyReward()" aria-label="בונוס יומי" title="בונוס יומי">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="1.5"/><path d="M3 12 H21"/><path d="M12 8 V21"/><path d="M12 8 C12 8 9 3 6.5 4.2 C4.5 5.2 6 8 12 8 Z"/><path d="M12 8 C12 8 15 3 17.5 4.2 C19.5 5.2 18 8 12 8 Z"/></svg>
+                        <span class="daily-fab-label">בונוס יומי</span>
+                    </button>
                 </div>
 
                 <button class="arena-banner" onclick="openArenaScreen('homeScreen')" aria-label="בחירת ערכת נושא">
@@ -105,12 +110,12 @@
             <div class="modal-content">
                 <h2>הוראות משחק</h2>
                 <ul class="instructions-list">
-                    <li>גרור אצבע על אותיות סמוכות בלוח כדי לחבר מילה בעברית.</li>
+                    <li>גרור אצבע על אותיות צמודות - גם <strong>באלכסון ובזיגזג</strong> - כדי לחבר מילה בעברית של 3 אותיות לפחות. כל אות פעם אחת בכל מילה.</li>
                     <li>מילה תקפה מזכה בניקוד לפי אורכה - ככל שהמילה ארוכה יותר, כך הניקוד גבוה יותר.</li>
-                    <li><strong>משחק יחיד:</strong> 60 שניות למצוא כמה שיותר מילים בלוח.</li>
-                    <li><strong>באטל רויאל:</strong> 5 סיבובים נגד 4 בוטים - בכל סיבוב מודח מי שצבר הכי מעט ניקוד.</li>
+                    <li><strong>משחק יחיד:</strong> שני מצבים - <strong>משחק מהיר</strong> של דקה אחת, ו<strong>משחק מדוייק</strong> של 2 דקות. מוצאים כמה שיותר מילים עד שהזמן נגמר.</li>
+                    <li><strong>באטל רויאל:</strong> 5 סיבובים נגד 5 בוטים - בכל סיבוב מודח מי שצבר הכי מעט ניקוד.</li>
                     <li><strong>מגדל זבאנג:</strong> מחברים אותיות צמודות (גם באלכסון) למילה. האותיות נעלמות, ואחרי כל מילה עולה שורה חדשה. מילה של 5 אותיות מפוצצת גם את השכנות, ואות עם כוכב מנקה את כל השורה שלה. אם המגדל מגיע לתקרה - המשחק נגמר.</li>
-                    <li>עזרים (רמז, ערבוב לוח, הקפאה) נקנים במטבעות תוך כדי משחק.</li>
+                    <li>עזרים: <strong>רמז</strong> מראה על הלוח את המסלול של מילה (גוררים לפי המספרים), <strong>ערבוב</strong> מחליף את סדר האותיות ו<strong>הקפאה</strong> עוצרת את השעון. אפשר לקנות אותם במטבעות גם תוך כדי משחק.</li>
                     <li>אם נגמרות המילים האפשריות בלוח, הוא מתערבב אוטומטית כדי שתוכלו להמשיך לשחק.</li>
                     <li>מטבעות מרוויחים דרך משחק וניתן להשתמש בהם בחנות ולקנות עזרים.</li>
                 </ul>
@@ -145,7 +150,7 @@
                     <div class="mode-icon icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18 L18 6"/><path d="M7.8 11.8 L12.2 16.2"/><circle cx="6" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg></div>
                     <div class="mode-details">
                         <h3>באטל רויאל</h3>
-                        <p>5 סיבובים נגד 4 בוטים - הודח בכל סיבוב</p>
+                        <p>5 סיבובים נגד 5 בוטים - הודח בכל סיבוב</p>
                     </div>
                     <div class="mode-arrow">›</div>
                 </div>
@@ -325,7 +330,10 @@
         <!-- Single Player Game -->
         <div id="gameScreen" class="screen">
             <div class="game-header">
-                <button class="pause-btn icon" onclick="pauseGame()" title="השהה" aria-label="השהה"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="4.5" width="4.5" height="15" rx="2" fill="currentColor"/><rect x="13.5" y="4.5" width="4.5" height="15" rx="2" fill="currentColor"/></svg></button>
+                <div class="header-btns">
+                    <button class="pause-btn icon" onclick="pauseGame()" title="השהה" aria-label="השהה"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="4.5" width="4.5" height="15" rx="2" fill="currentColor"/><rect x="13.5" y="4.5" width="4.5" height="15" rx="2" fill="currentColor"/></svg></button>
+                    <button class="exit-btn game-help-btn icon" id="singleHelpBtn" onclick="openGameHelp()" title="איך משחקים?" aria-label="איך משחקים?"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8.8 9 a3.2 3.2 0 1 1 4.9 2.7 c-1 0.6 -1.7 1.3 -1.7 2.5"/><circle cx="12" cy="18.6" r="1.4" fill="currentColor" stroke="none"/></svg></button>
+                </div>
                 <div class="timer-display" id="timerDisplay">60</div>
                 <div class="score-display" id="scoreDisplay">0</div>
             </div>
@@ -335,7 +343,7 @@
             <div class="current-word-display" id="currentWordDisplay"></div>
 
             <div class="power-ups-row">
-                <button class="power-up-btn" id="hintBtn" onclick="useHint()" title="רמז"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18 H15"/><path d="M12 3 a6 6 0 0 1 3.5 10.9 c-0.8 0.6 -1.2 1.4 -1.2 2.1 H9.7 c0 -0.7 -0.4 -1.5 -1.2 -2.1 A6 6 0 0 1 12 3 Z"/></svg></span><span class="pu-cost">50</span></button>
+                <button class="power-up-btn" id="hintBtn" onclick="useHint()" title="רמז"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18 H15"/><path d="M12 3 a6 6 0 0 1 3.5 10.9 c-0.8 0.6 -1.2 1.4 -1.2 2.1 H9.7 c0 -0.7 -0.4 -1.5 -1.2 -2.1 A6 6 0 0 1 12 3 Z"/></svg></span><span class="pu-cost">75</span></button>
                 <button class="power-up-btn" id="shuffleBtn" onclick="useShuffle()" title="ערבב"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6 H7 L17 18 H21"/><path d="M17 6 H21 V10"/><path d="M3 18 H7 L10.5 13.8"/><path d="M17 18 H21 V14"/></svg></span><span class="pu-cost">20</span></button>
                 <button class="power-up-btn" id="freezeBtn" onclick="useFreeze()" title="הקפא"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2 V22 M4.5 6 L19.5 18 M19.5 6 L4.5 18"/></svg></span><span class="pu-cost">20</span></button>
             </div>
@@ -352,6 +360,7 @@
                 <div class="header-btns">
                     <button class="exit-btn icon" id="battleExitBtn" onclick="goHome()"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11 L12 4 L20 11"/><path d="M6 10 V20 H18 V10"/></svg></button>
                     <button class="pause-btn icon" id="battlePauseBtn" onclick="pauseGame()" title="השהה" aria-label="השהה"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="4.5" width="4.5" height="15" rx="2" fill="currentColor"/><rect x="13.5" y="4.5" width="4.5" height="15" rx="2" fill="currentColor"/></svg></button>
+                    <button class="exit-btn game-help-btn icon" id="battleHelpBtn" onclick="openGameHelp()" title="איך משחקים?" aria-label="איך משחקים?"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8.8 9 a3.2 3.2 0 1 1 4.9 2.7 c-1 0.6 -1.7 1.3 -1.7 2.5"/><circle cx="12" cy="18.6" r="1.4" fill="currentColor" stroke="none"/></svg></button>
                 </div>
                 <div class="round-badge" id="roundBadge">סיבוב 1/5</div>
                 <div class="timer-display" id="battleTimerDisplay">60</div>
@@ -364,7 +373,7 @@
             <div class="current-word-display" id="battleWordDisplay"></div>
 
             <div class="power-ups-row" id="battlePowerUpsRow">
-                <button class="power-up-btn" onclick="handleBattleHint()" title="רמז"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18 H15"/><path d="M12 3 a6 6 0 0 1 3.5 10.9 c-0.8 0.6 -1.2 1.4 -1.2 2.1 H9.7 c0 -0.7 -0.4 -1.5 -1.2 -2.1 A6 6 0 0 1 12 3 Z"/></svg></span><span class="pu-cost">50</span></button>
+                <button class="power-up-btn" onclick="handleBattleHint()" title="רמז"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18 H15"/><path d="M12 3 a6 6 0 0 1 3.5 10.9 c-0.8 0.6 -1.2 1.4 -1.2 2.1 H9.7 c0 -0.7 -0.4 -1.5 -1.2 -2.1 A6 6 0 0 1 12 3 Z"/></svg></span><span class="pu-cost">75</span></button>
                 <button class="power-up-btn" onclick="useShuffle()" title="ערבב לוח"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6 H7 L17 18 H21"/><path d="M17 6 H21 V10"/><path d="M3 18 H7 L10.5 13.8"/><path d="M17 18 H21 V14"/></svg></span><span class="pu-cost">20</span></button>
                 <button class="power-up-btn" onclick="handleBattleFreeze()" title="הקפא יריבים"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2 V22 M4.5 6 L19.5 18 M19.5 6 L4.5 18"/><circle cx="12" cy="12" r="10" stroke-dasharray="2 3"/></svg></span><span class="pu-cost">20</span></button>
                 <button class="power-up-btn" id="battleShuffleBtn" onclick="useBattleShuffle()" title="ערבב ליריבים"><span class="icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 5 H21"/><path d="M5 10 H19"/><path d="M8 15 H16"/><path d="M10 20 H14"/></svg></span><span class="pu-cost">20</span></button>
@@ -446,7 +455,7 @@
                 <div class="standings" id="standingsDisplay"></div>
                 <div class="reward-box">
                     <span class="coin-icon icon"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" fill="#ffd60a" stroke="#ffb700" stroke-width="2"/><circle cx="12" cy="12" r="5.5" fill="none" stroke="#ffb700" stroke-width="1.5"/></svg></span>
-                    <span>+25 מטבעות</span>
+                    <span id="roundEndCoins">+15 מטבעות</span>
                 </div>
                 <button class="btn-large" id="nextRoundBtn" onclick="handleNextRoundClick()">סיבוב הבא ›</button>
                 <p class="mp-waiting" id="roundEndWaiting" style="display:none;">ממתין למארח שימשיך לסיבוב הבא...</p>
@@ -653,14 +662,16 @@
         </div>
     </div>
 
-    <!-- How-to-play for the other modes, shown the first time each one is opened.
-         Filled from MODE_HELP by showModeHelp() in game.js; same look as the tower's -->
-    <div id="modeHelpOverlay" class="confirm-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="modeHelpTitle">
+    <!-- How-to-play for the other modes, shown the first time each one is opened
+         and, in single player / bots, from the ? button next to pause (the round
+         stops while it is open). Filled from MODE_HELP by showModeHelp() in game.js;
+         same look as the tower's. Closes from its button or a tap on the dark backdrop -->
+    <div id="modeHelpOverlay" class="confirm-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="modeHelpTitle" onclick="if(event.target===this)closeModeHelp()">
         <div class="confirm-box tower-help-box">
             <h2 id="modeHelpTitle"></h2>
             <ol class="tower-help-list" id="modeHelpList"></ol>
             <p class="tower-help-tip" id="modeHelpTip"></p>
-            <button class="btn-large green-btn" onclick="closeModeHelp()">בוא נתחיל!</button>
+            <button class="btn-large green-btn" id="modeHelpCloseBtn" onclick="closeModeHelp()">בוא נתחיל!</button>
         </div>
     </div>
 
@@ -717,10 +728,6 @@
 
     <!-- כפתור צף להשתקה/הפעלת מוזיקה, מוצג בכל מסך -->
 
-    <!-- כפתור צף לבונוס ההתחברות היומי (פינה שמאלית-תחתונה) -->
-    <button id="dailyRewardBtn" class="daily-fab" onclick="showDailyReward()" aria-label="בונוס יומי" title="בונוס יומי">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="1.5"/><path d="M3 12 H21"/><path d="M12 8 V21"/><path d="M12 8 C12 8 9 3 6.5 4.2 C4.5 5.2 6 8 12 8 Z"/><path d="M12 8 C12 8 15 3 17.5 4.2 C19.5 5.2 18 8 12 8 Z"/></svg>
-    </button>
 
     <!-- סרגל ניווט תחתון - מוצג רק ב-4 המסכים הראשיים, נשלט ע"י updateBottomNav() ב-game.js -->
     <nav id="bottomNav" class="bottom-nav" aria-label="ניווט ראשי">
@@ -787,21 +794,31 @@
     <script src="vendor/firebase-app-compat.js"></script>
     <script src="vendor/firebase-database-compat.js"></script>
     <script src="vendor/firebase-auth-compat.js"></script>
-    <script src="firebase-config.js?v=41"></script>
-    <script src="avatars.js?v=41"></script>
-    <script src="icons.js?v=41"></script>
-    <script src="themes.js?v=41"></script>
-    <script src="game.js?v=41"></script>
-    <script src="words.js?v=41"></script>
-    <script src="words-bulk.js?v=41"></script>
-    <script src="words-bulk-2.js?v=41"></script>
-    <script src="words-bulk-3.js?v=41"></script>
-    <script src="tower.js?v=41"></script>
-    <script src="multiplayer.js?v=41"></script>
-    <script src="cloudsave.js?v=41"></script>
-    <script src="admin.js?v=41"></script>
-    <script src="moderation.js?v=41"></script>
-    <script src="iap.js?v=41"></script>
+    <script src="firebase-config.js?v=42"></script>
+    <script src="avatars.js?v=42"></script>
+    <script src="icons.js?v=42"></script>
+    <script src="themes.js?v=42"></script>
+    <script src="board-path.js?v=42"></script>
+    <script src="board-words.js?v=42"></script>
+    <script src="board-hint.js?v=42"></script>
+    <script src="game.js?v=42"></script>
+    <script src="words.js?v=42"></script>
+    <script src="words-bulk.js?v=42"></script>
+    <script src="words-bulk-2.js?v=42"></script>
+    <script src="words-bulk-3.js?v=42"></script>
+    <script src="words-bulk-4.js?v=42"></script>
+    <script src="tower.js?v=42"></script>
+    <script src="multiplayer.js?v=42"></script>
+    <script src="cloudsave.js?v=42"></script>
+    <script src="admin.js?v=42"></script>
+    <script src="moderation.js?v=42"></script>
+    <script src="iap.js?v=42"></script>
+    <!-- XP for 1.2: engine, save handling, and the round-end hooks (flag XP_REWARDS_ENABLED in xp-game.js) -->
+    <script src="xp-engine.js?v=42"></script>
+    <script src="xp-state.js?v=42"></script>
+    <script src="xp-cloud.js?v=42"></script>
+    <script src="xp-game.js?v=42"></script>
+    <script src="xp-ui.js?v=42"></script>
     <script>
         // Register service worker for offline play & installability, but NOT
         // inside the Capacitor native shell: there the webview already bundles

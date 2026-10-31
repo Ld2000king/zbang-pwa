@@ -17,6 +17,8 @@ const MP = {
     roomRef: null,
     serverOffset: 0,   // ms difference between server clock and this device
     lastRound: 0,      // detect round changes to (re)render the board once
+    hintsUsed: 0,      // hints shown to me this round (max MP_HINTS_PER_ROUND) - reset with each new round's board
+    hintLimitMsgAt: 0, // when the "2 hints used" message was last shown (no stacking on fast taps)
     timer: null,       // local countdown interval
     room: null,        // latest room snapshot
     matchType: null,   // 'random' while this room came from random matchmaking
@@ -317,6 +319,7 @@ function onRoomUpdate(room) {
         // (re)render the board once per new round
         if (room.currentRound !== MP.lastRound) {
             MP.lastRound = room.currentRound;
+            MP.hintsUsed = 0; // a new round (tie replays included) - a fresh hint quota
             currentGame.board = room.board.slice();
             currentGame.foundWords = new Set();
             currentGame.playerScore = (room.players[MP.playerId] || {}).score || 0;
@@ -341,6 +344,8 @@ function onRoomUpdate(room) {
             if (shuffleBtn) shuffleBtn.style.display = 'none';
             const battlePauseBtn = document.getElementById('battlePauseBtn');
             if (battlePauseBtn) battlePauseBtn.style.display = 'none';
+            const battleHelpBtn = document.getElementById('battleHelpBtn'); // the how-to-play ? stops the round - bots only
+            if (battleHelpBtn) battleHelpBtn.style.display = 'none';
             const battleExitBtn = document.getElementById('battleExitBtn');
             if (battleExitBtn) battleExitBtn.style.display = '';
             showScreen('battleScreen');
@@ -976,6 +981,7 @@ function startMultiplayerTimer(room) {
 
 function stopMultiplayerTimer() {
     if (MP.timer) { clearInterval(MP.timer); MP.timer = null; }
+    if (typeof cancelBoardHint === 'function') cancelBoardHint(); // round over / left: no hint path left behind
     renderFreezeOverlay(0); // never leave the lockout on a screen we left
 }
 
@@ -1066,6 +1072,10 @@ function showMultiplayerRoundEnd(room) {
     const loserName = !loser ? '' : room.loserId === MP.playerId ? loser.name : safePlayerName(loser.name, loser.uid);
     // reuse the existing round-end UI renderer
     showRoundEnd(standings, loserName);
+    // multiplayer rounds pay no coins (only the match winner does), so don't
+    // show the bots-battle "+coins" box here
+    const roundCoins = document.getElementById('roundEndCoins');
+    if (roundCoins) roundCoins.parentElement.style.display = 'none';
 
     // a tie for last place: nobody is out, the same round is played again
     const isTieReplay = !room.loserId;
@@ -1119,10 +1129,10 @@ function showMultiplayerResult(room) {
     } else if (room.winnerId === MP.playerId) {
         title.innerHTML = `${icon('trophy')} ניצחת! ${icon('trophy')}`;
         subtitle.textContent = isRandom1v1 ? 'ניצחת את היריב!' : 'ניצחת את כל החברים!';
-        rewards.innerHTML = `<div class="reward-box"><span class="coin-icon icon">${ICONS.coin}</span><span>+100 מטבעות!</span></div>`;
+        rewards.innerHTML = `<div class="reward-box"><span class="coin-icon icon">${ICONS.coin}</span><span>+${MP_WIN_COINS} מטבעות!</span></div>`;
         launchConfetti();
         if (!alreadyApplied) {
-            gameState.coins += 100;
+            gameState.coins += MP_WIN_COINS;
             saveGameState();
             updateHomeUI();
             if (isRandom1v1) awardTrophies(20, 'ניצחון');
@@ -1247,31 +1257,41 @@ function updateMultiplayerUI(room) {
 
 // ---- power-ups (multiplayer variants) --------------------------------------
 
+// The round on my board is being played right now: the room is 'playing' this
+// same round, and I'm neither frozen nor eliminated. (gameActive alone is not
+// enough - a guest's stays true on the round-end screen.)
+function isMultiplayerRoundLive() {
+    return !!(MP.room && MP.roomCode && MP.room.status === 'playing' && MP.room.currentRound === MP.lastRound)
+        && !isBoardInputBlocked();
+}
+
+// 1.2: the same show-the-path hint as single player and bots (game.js
+// requestBoardHint). It only draws on this device - no room write, no score;
+// the player drags the word and endDrag scores + syncs it as usual.
+//
+// At most MP_HINTS_PER_ROUND hints per player per round (friends + random).
+// Only a hint that was really shown counts; a blocked one costs nothing.
+// The count lives in memory and is reset only where a new round's board is
+// drawn (onRoomUpdate). A network drop keeps the page, so the count stays;
+// a refresh drops the player out of the room, and a room that is already
+// playing can't be joined again (joinRoom) - so neither gives more hints.
+const MP_HINTS_PER_ROUND = 2;
+const HINT_LIMIT_MSG_MS = 1600;
+
 function useMultiplayerHint() {
     if (blockedByFreeze()) return;
-    if (!canPayForItem('hint')) return;
-
-    let indices = findWordOnBoard();
-    if (indices.length === 0) { autoShuffleIfExhausted(); indices = findWordOnBoard(); if (indices.length === 0) return; }
-
-    const word = indices.map(i => currentGame.board[i]).join('');
-    const points = HEBREW_DICTIONARY[word];
-
-    consumeItemPayment('hint');
-    currentGame.foundWords.add(word);
-    currentGame.playerScore += points;
-    document.getElementById('playerBattleScore').textContent = currentGame.playerScore;
-    submitMultiplayerWord(word, currentGame.playerScore);
-    saveGameState();
-    updateHomeUI();
-
-    const tiles = document.querySelectorAll('#battleBoard .letter-tile');
-    indices.forEach(i => tiles[i]?.classList.add('selected'));
-    setTimeout(() => tiles.forEach(t => t.classList.remove('selected')), 1500);
-
-    showMessage(`${word} - כל הכבוד! +${points}`, 'success');
-    playWordSound(points);
-    launchSparkles();
+    // a tap while the path is still on the board, or outside a live round,
+    // goes on to requestBoardHint, which ignores it without a charge
+    if (MP.hintsUsed >= MP_HINTS_PER_ROUND && isMultiplayerRoundLive() && !boardHintShowing()) {
+        // fast taps: one message at a time, not a stack of them
+        const now = Date.now();
+        if (!(now - MP.hintLimitMsgAt < HINT_LIMIT_MSG_MS)) {
+            MP.hintLimitMsgAt = now;
+            showBoardMessage('ניצלת את 2 הרמזים של הסיבוב הזה', 'warning', HINT_LIMIT_MSG_MS);
+        }
+        return;
+    }
+    if (requestBoardHint('multiplayer') === 'shown') MP.hintsUsed++;
 }
 
 // ---- elimination gate --------------------------------------------------------

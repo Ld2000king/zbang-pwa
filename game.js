@@ -109,8 +109,15 @@ function normalizeDictionary() {
     invalidateDictionaryCache();
 }
 
+// Hint prices (1.2). The hint is ONE shared inventory item for every mode;
+// the shop sells it at HINT_COST. Paid with coins (no hint in inventory) it
+// costs HINT_COST in single, bots and multiplayer, and TOWER_HINT_COST in the
+// tower. All other power-ups cost 20. itemUseCost() picks the price.
+const HINT_COST = 75;
+const TOWER_HINT_COST = 50;
+
 const SHOP_ITEMS = [
-    { key: 'hint', icon: 'hint', name: 'רמז', desc: 'מסמן בלוח מילה שעוד לא מצאת', cost: 50 },
+    { key: 'hint', icon: 'hint', name: 'רמז', desc: 'מסמן בלוח מילה שעוד לא מצאת', cost: HINT_COST },
     { key: 'shuffle', icon: 'shuffle', name: 'ערבב לוח', desc: 'מחליף את אותיות הלוח', cost: 20 },
     { key: 'freeze', icon: 'freeze', name: 'הקפא זמן', desc: 'מקפיא את השעון ל-5 שניות', cost: 20 },
     { key: 'freezeOpponents', icon: 'freezeOpponents', name: 'הקפא יריבים', desc: 'באטל רויאל: מקפיא את הבוטים ל-8 שניות', cost: 20 },
@@ -267,6 +274,19 @@ const DAILY_REWARDS = [
 // Coins granted by watching a (mock) rewarded video ad.
 const AD_REWARD_COINS = 50;
 
+// End-of-game coin rewards (balanced down in 1.2). Every place that grants
+// or shows these reads them from here, so the screen always matches what is
+// saved. מגדל זבאנג keeps its own rate in tower.js; daily rewards and the 5
+// diamonds for a bots victory are unchanged.
+const SINGLE_POINTS_PER_COIN = 20; // was 10
+const BOT_ROUND_COINS = 15;        // per round survived in a bots battle, was 25
+const BOT_VICTORY_COINS = 60;      // winning a bots battle, was 100
+const MP_WIN_COINS = 60;           // winning a multiplayer match, was 100
+
+function singleGameCoins(score) {
+    return Math.floor(score / SINGLE_POINTS_PER_COIN);
+}
+
 // Real-money coin packages, purchased through Apple StoreKit / Google Play
 // Billing (see iap.js). `sku` must exactly match the consumable product id
 // created in App Store Connect / Google Play Console. `price` is only the
@@ -334,11 +354,11 @@ function botFindDelay(tier) {
 }
 
 // ---- dictionary scan helpers ----------------------------------------------
-// The dictionary is big (44k+ words once the expansion packs are merged) and
-// both collectBoardWords() and findWordOnBoard() sweep all of it - and
-// findWordOnBoard() runs after every single word a player finds. Two cheap
+// The dictionary is big (85k+ words once the expansion packs are merged) and
+// collectBoardWords() sweeps all of it (the "any word left?" check after
+// every found word uses board-words.js and its prefix index). Two cheap
 // guards keep that sweep fast: the key list is cached (Object.keys() was
-// allocating a 44k array per call) and a word is skipped outright when the
+// allocating an 85k array per call) and a word is skipped outright when the
 // board doesn't even contain one of its letters, which discards the vast
 // majority before the position scan. The letter test ignores repeats, so it
 // can only ever reject words that truly aren't on the board.
@@ -364,7 +384,7 @@ function wordUsesOnlyLetters(word, letters) {
 // All valid dictionary words currently placed on the board, with their point
 // value. This is the pool bots draw from when they "find" a word, so their
 // score reflects real board words (right length/value distribution) instead of
-// arbitrary increments. Scans both directions, like findWordOnBoard().
+// arbitrary increments. Scans straight rows and columns only (unchanged).
 function collectBoardWords() {
     const size = currentGame.gridSize;
     const board = currentGame.board;
@@ -429,8 +449,8 @@ function backfillCustomAvatarSync() {
 }
 
 // Merge the expansion packs into the dictionary: words.js (EXTRA_WORDS, written
-// with natural final letters), words-bulk.js, words-bulk-2.js and
-// words-bulk-3.js (EXTRA_WORDS_BULK / _2 / _3, already normalized). Every word is
+// with natural final letters), words-bulk.js ... words-bulk-4.js
+// (EXTRA_WORDS_BULK / _2 / _3 / _4, already normalized). Every word is
 // normalized again here - a no-op for the bulk packs - so it's findable on the
 // board, and duplicates against the base dictionary (and against each other)
 // are skipped.
@@ -440,6 +460,7 @@ function mergeExtraWords() {
     if (typeof EXTRA_WORDS_BULK !== 'undefined') packs.push(EXTRA_WORDS_BULK);
     if (typeof EXTRA_WORDS_BULK_2 !== 'undefined') packs.push(EXTRA_WORDS_BULK_2);
     if (typeof EXTRA_WORDS_BULK_3 !== 'undefined') packs.push(EXTRA_WORDS_BULK_3);
+    if (typeof EXTRA_WORDS_BULK_4 !== 'undefined') packs.push(EXTRA_WORDS_BULK_4);
 
     packs.forEach(pack => pack.forEach(w => {
         const word = normalizeFinals(w);
@@ -473,7 +494,7 @@ function applyRemovedWords() {
 // add/remove controls only render for a signed-in admin; those actions live in
 // admin.js and the Security Rules are what actually enforce them.
 
-const WORD_BANK_PAGE = 120; // 44k+ rows can't all live in the DOM at once
+const WORD_BANK_PAGE = 120; // 85k+ rows can't all live in the DOM at once
 
 let wordBankQuery = '';
 let wordBankShown = WORD_BANK_PAGE;
@@ -485,7 +506,7 @@ let wordBankSortedFrom = null;
 // Alphabetical dictionary keys, memoized against the key cache above so the
 // sort only runs when the dictionary actually changed. Hebrew letters are
 // contiguous and in alphabetical order in Unicode, so a plain compare sorts
-// correctly and far faster than localeCompare over 44k words.
+// correctly and far faster than localeCompare over 85k words.
 function sortedDictionaryWords() {
     const src = dictionaryWordList();
     if (wordBankSortedFrom !== src) {
@@ -797,8 +818,12 @@ function renderDailyReward() {
 // session, so reopening/resuming the app (or dismissing without claiming)
 // doesn't nag repeatedly. A genuinely new day re-arms it. The gift FAB always
 // lets the player reopen it manually.
+// Only on the main menu: anywhere else (a round, results, shop...) it waits -
+// without using up today's prompt - until the player is back on the menu
+// (showScreen calls this again).
 let dailyPromptedFor = null;
 function maybeShowDailyReward() {
+    if (currentScreenId !== 'homeScreen') return;
     if (!dailyRewardAvailable()) return;
     if (dailyPromptedFor === dateKey()) return;
     dailyPromptedFor = dateKey();
@@ -1372,12 +1397,19 @@ function showScreen(screenId) {
     // every screen should open from its top
     window.scrollTo(0, 0);
     updateBottomNav(screenId);
+    // The daily bonus lives on the main menu only: leaving it closes the
+    // bonus window, coming back shows it if it's still waiting
+    if (screenId === 'homeScreen') maybeShowDailyReward();
+    else closeDailyReward();
 }
 
 // Shows/hides the fixed bottom tab bar and syncs its active tab - only the
-// 4 main hub screens get it, every drill-down/modal/in-game screen doesn't
+// 4 main hub screens get it, every drill-down/modal/in-game screen doesn't.
+// Also marks the main menu (body.on-home), the only screen that shows the
+// daily-bonus gift button.
 function updateBottomNav(screenId) {
     document.body.classList.toggle('has-bottom-nav', TAB_SCREENS.includes(screenId));
+    document.body.classList.toggle('on-home', screenId === 'homeScreen');
     document.querySelectorAll('.bottom-nav-item').forEach(btn => {
         const active = btn.dataset.screen === screenId;
         btn.classList.toggle('active', active);
@@ -1392,6 +1424,10 @@ function goHome() {
     currentGame.paused = false;      // clear any pause state / overlay when leaving
     const pauseOverlay = document.getElementById('pauseOverlay');
     if (pauseOverlay) pauseOverlay.style.display = 'none';
+    if (modeHelpThen && modeHelpThen.inGame) { // a mid-game how-to-play has no round to return to
+        modeHelpThen = null;
+        document.getElementById('modeHelpOverlay').style.display = 'none';
+    }
     stopBotAI();                     // kill the bots interval so it can't leak into a later game
     // Multiplayer: detach Firebase listeners / leave the room before going home
     if (currentGame.mode === 'multiplayer' && typeof leaveMultiplayerRoom === 'function') {
@@ -1410,29 +1446,45 @@ function showGameModeSelection() {
 // Opens by itself the first time a player enters each mode, before the mode
 // starts (a timed round must not tick while they read), the way the tower's
 // does (showTowerHelp in tower.js). Closing it carries on into the mode.
+// Single player and bots can also open it mid-game from the ? button next to
+// pause (openGameHelp) - the same text in both places.
+// title / items / tip may be functions of a context: { singleMode } for
+// single player, { difficulty } for bots.
+const DRAG_HELP_ITEM = 'גוררים את האצבע על <strong>אותיות צמודות</strong> - גם <strong>באלכסון ובזיגזג</strong> - ויוצרים מילה של <strong>3 אותיות לפחות</strong>. כל אות פעם אחת בכל מילה.';
+const POINTS_HELP_ITEM = 'מילה ארוכה שווה יותר: בדרך כלל <strong>100</strong> נקודות על 3 אותיות, <strong>250</strong> על 4, ו-<strong>500</strong> על 5 אותיות ומעלה.';
+const BATTLE_DIFFICULTY_HELP = {
+    easy: '<strong>זבאנג התחלתי:</strong> הבוטים איטיים ורגועים - מושלם להתחלה.',
+    medium: '<strong>זבאנג קלאסי:</strong> הבוטים מוצאים מילים בקצב ממוצע.',
+    hard: '<strong>זבאנג מלכותי:</strong> הבוטים מהירים מאוד - כל מילה חשובה.'
+};
 const MODE_HELP = {
     single: {
-        title: 'איך משחקים במשחק יחיד?',
-        items: [
-            'גוררים את האצבע על <strong>אותיות סמוכות</strong> בלוח ויוצרים מילה של 3 אותיות לפחות.',
-            '<strong>משחק מהיר</strong> נמשך דקה, ו<strong>משחק מדויק</strong> נמשך 2 דקות - מצאו כמה שיותר מילים עד שהזמן נגמר.',
-            'מילה ארוכה שווה יותר: 100 נקודות על 3 אותיות, 250 על 4, ו<strong>500 על 5 אותיות</strong>.',
-            'מילה שלא במאגר? אפשר ללחוץ <strong>"מילה אמיתית?"</strong> ולשלוח אותה לבדיקה.',
-            'עזרים: <strong>רמז</strong> מסמן מילה, <strong>ערבוב</strong> מחליף את הלוח, <strong>הקפאה</strong> עוצרת את השעון ל-5 שניות.',
-            'נגמרו המילים בלוח? הוא מתערבב לבד.'
+        title: c => c.singleMode === 'precise' ? 'איך משחקים? · משחק מדוייק'
+            : c.singleMode === 'quick' ? 'איך משחקים? · משחק מהיר' : 'איך משחקים במשחק יחיד?',
+        items: c => [
+            DRAG_HELP_ITEM,
+            c.singleMode === 'precise' ? 'יש לכם <strong>2 דקות</strong> - מצאו כמה שיותר מילים עד שהזמן נגמר.'
+                : c.singleMode === 'quick' ? 'יש לכם <strong>דקה אחת</strong> - מצאו כמה שיותר מילים עד שהזמן נגמר.'
+                : '<strong>משחק מהיר</strong> נמשך דקה, ו<strong>משחק מדוייק</strong> נמשך 2 דקות - מצאו כמה שיותר מילים עד שהזמן נגמר.',
+            POINTS_HELP_ITEM,
+            '<strong>רמז</strong> מראה על הלוח את המסלול של מילה - גוררים לפי המספרים. <strong>ערבוב</strong> מחליף את סדר האותיות, ו<strong>הקפאה</strong> עוצרת את השעון ל-5 שניות.',
+            'נגמרו המילים בלוח? הוא מתערבב לבד.',
+            'מילה שלא במאגר? אפשר ללחוץ <strong>"מילה אמיתית?"</strong> ולשלוח אותה לבדיקה.'
         ],
-        tip: 'כל 10 נקודות = מטבע, ושיא חדש אפשר להוסיף לטבלת הזבאנג רויאל.'
+        tip: `כל ${SINGLE_POINTS_PER_COIN} נקודות = מטבע. השעון עומד כל עוד ההוראות פתוחות.`
     },
     battle: {
-        title: 'איך משחקים בבאטל רויאל?',
-        items: [
-            'אתם מול <strong>4 בוטים</strong>, ב-<strong>5 סיבובים</strong> של דקה.',
-            'כולם מחפשים מילים באותו לוח, ובסוף כל סיבוב <strong>מי שצבר הכי מעט ניקוד מודח</strong>.',
-            'שורדים את כל 5 הסיבובים? <strong>ניצחתם!</strong> +100 מטבעות ו-5 יהלומים, ועוד 25 מטבעות על כל סיבוב ששרדתם.',
-            '<strong>הקפא יריבים</strong> עוצר את הבוטים ל-8 שניות, ו<strong>ערבב ליריבים</strong> חותך את הניקוד שלהם בחצי.',
-            'צריכים הפסקה? כפתור ההשהיה עוצר את המשחק.'
+        title: 'איך משחקים מול בוטים?',
+        items: c => [
+            `אתם מול <strong>${BOT_NAMES.length} בוטים</strong>, ב-<strong>${battleState.totalRounds} סיבובים</strong> של דקה, כולם על אותו לוח.`,
+            'בסוף כל סיבוב <strong>מי שצבר הכי מעט ניקוד מודח</strong>.',
+            DRAG_HELP_ITEM,
+            POINTS_HELP_ITEM,
+            '<strong>רמז</strong> מראה את המסלול של מילה, <strong>הקפא יריבים</strong> עוצר את הבוטים ל-8 שניות, ו<strong>ערבב ליריבים</strong> חותך להם את הניקוד בחצי.',
+            `שורדים את כל 5 הסיבובים? <strong>ניצחתם!</strong> +${BOT_VICTORY_COINS} מטבעות ו-5 יהלומים, ועוד ${BOT_ROUND_COINS} מטבעות על כל סיבוב ששרדתם.`,
+            BATTLE_DIFFICULTY_HELP[c.difficulty] || 'שלוש רמות קושי - התחילו מזבאנג התחלתי.'
         ],
-        tip: 'שלוש רמות קושי - התחילו מזבאנג התחלתי.'
+        tip: 'השעון והבוטים עומדים כל עוד ההוראות פתוחות.'
     },
     friends: {
         title: 'איך משחקים עם חברים?',
@@ -1442,7 +1494,7 @@ const MODE_HELP = {
             'בסוף כל סיבוב <strong>מי שצבר הכי מעט ניקוד מודח</strong>, עד שנשאר מנצח אחד.',
             'שוויון במקום האחרון? אף אחד לא מודח, ו<strong>הסיבוב משוחק שוב</strong>.',
             '<strong>הקפא יריבים</strong> מקפיא את כל החברים ל-8 שניות - הם לא יכולים לגעת בלוח.',
-            'המנצח מקבל <strong>100 מטבעות</strong>, ו"שחק שוב" מחזיר את כולם לאותו חדר.'
+            `המנצח מקבל <strong>${MP_WIN_COINS} מטבעות</strong>, ו"שחק שוב" מחזיר את כולם לאותו חדר.`
         ],
         tip: 'במשחק עם שחקנים אמיתיים אין השהיה - השעון רץ לכולם.'
     },
@@ -1451,7 +1503,7 @@ const MODE_HELP = {
         items: [
             'המשחק מוצא לכם <strong>יריב אמיתי</strong> שמחפש משחק עכשיו.',
             'סיבוב אחד של דקה, על אותו לוח - <strong>מי שצובר יותר ניקוד מנצח</strong>.',
-            'ניצחון: <strong>+20 גביעים</strong> ו-100 מטבעות. הפסד: 10- גביעים. תיקו: בלי שינוי.',
+            `ניצחון: <strong>+20 גביעים</strong> ו-${MP_WIN_COINS} מטבעות. הפסד: 10- גביעים. תיקו: בלי שינוי.`,
             'כל <strong>200 גביעים</strong> פותחים עיר חדשה, וכל עיר מלבישה את כל המשחק.',
             '<strong>הקפא יריבים</strong> מקפיא את היריב ל-8 שניות.'
         ],
@@ -1464,19 +1516,24 @@ let modeHelpThen = null;
 // Runs `then` right away once the player has seen this mode's how-to-play;
 // otherwise shows it first and runs `then` when it's closed. Returns true
 // when the help was opened (the caller should stop there).
-function needsModeHelp(mode, then) {
+function needsModeHelp(mode, then, context) {
     if (!MODE_HELP[mode] || (gameState.modeHelpSeen || {})[mode]) return false;
-    showModeHelp(mode, then);
+    showModeHelp(mode, then, context);
     return true;
 }
 
-function showModeHelp(mode, then) {
+// inGame: opened from the ? button during a round (the round is already
+// halted by openGameHelp and carries on when this closes)
+function showModeHelp(mode, then, context, inGame) {
     const help = MODE_HELP[mode];
     if (!help) return;
-    modeHelpThen = { mode: mode, then: then || null };
-    document.getElementById('modeHelpTitle').textContent = help.title;
-    document.getElementById('modeHelpList').innerHTML = help.items.map(item => `<li>${item}</li>`).join('');
-    document.getElementById('modeHelpTip').textContent = help.tip;
+    const ctx = context || {};
+    const pick = v => (typeof v === 'function' ? v(ctx) : v);
+    modeHelpThen = { mode: mode, then: then || null, inGame: !!inGame };
+    document.getElementById('modeHelpTitle').textContent = pick(help.title);
+    document.getElementById('modeHelpList').innerHTML = pick(help.items).map(item => `<li>${item}</li>`).join('');
+    document.getElementById('modeHelpTip').textContent = pick(help.tip);
+    document.getElementById('modeHelpCloseBtn').textContent = inGame ? 'חזרה למשחק' : 'בוא נתחיל!';
     document.getElementById('modeHelpOverlay').style.display = 'flex';
 }
 
@@ -1485,6 +1542,7 @@ function closeModeHelp() {
     const pending = modeHelpThen;
     modeHelpThen = null;
     if (!pending) return;
+    if (pending.inGame) { continueGame(); return; }
     if (!gameState.modeHelpSeen) gameState.modeHelpSeen = {};
     gameState.modeHelpSeen[pending.mode] = true;
     saveGameState();
@@ -1612,6 +1670,7 @@ function generateBoard() {
 // Render board
 function renderBoard(boardId = 'board') {
     const boardEl = document.getElementById(boardId);
+    if (singleHint) singleHint.cancel(); // new tiles: an old hint path means nothing
     boardEl.innerHTML = '';
 
     currentGame.board.forEach((letter, idx) => {
@@ -1627,6 +1686,8 @@ function renderBoard(boardId = 'board') {
         e.preventDefault();
         isDragging = true;
         dragPath = [];
+        lastDragPoint = { x: e.clientX, y: e.clientY };
+        dragSampleStep = measureDragSampleStep(boardEl);
         detectTileAt(e.clientX, e.clientY);
     };
 }
@@ -1634,13 +1695,30 @@ function renderBoard(boardId = 'board') {
 // Drag logic - works on both mouse and touch.
 // Detection runs at document level with elementFromPoint, because on
 // touch devices the pointer gets captured by the first tile touched.
+// The path rules (adjacent tiles only, no repeats) live in board-path.js.
 let isDragging = false;
 let dragPath = [];
+let lastDragPoint = null; // where the previous pointer event was
+let dragSampleStep = 12;  // px between checked points on a fast swipe
+
+// A quarter of a tile: small enough that a straight swipe always lands inside
+// the centre zone of every tile it crosses (see detectTileAt).
+function measureDragSampleStep(boardEl) {
+    const tile = boardEl && boardEl.querySelector('.letter-tile');
+    const r = tile && tile.getBoundingClientRect();
+    return r && r.width > 0 ? Math.min(r.width, r.height) * 0.25 : 12;
+}
 
 document.addEventListener('pointermove', (e) => {
     if (!isDragging) return;
     e.preventDefault();
-    detectTileAt(e.clientX, e.clientY);
+    // A fast swipe can jump over a whole tile between two events - check the
+    // points in between too, so the tiles the finger crossed join the path in
+    // order instead of the path getting stuck on a "far" tile.
+    const from = lastDragPoint || { x: e.clientX, y: e.clientY };
+    lastDragPoint = { x: e.clientX, y: e.clientY };
+    pointerSamples(from.x, from.y, e.clientX, e.clientY, dragSampleStep)
+        .forEach(p => detectTileAt(p.x, p.y));
 }, { passive: false });
 
 document.addEventListener('pointerup', () => {
@@ -1704,8 +1782,10 @@ function detectTileAt(x, y) {
     const radius = Math.min(rect.width, rect.height) * 0.42;
     if (Math.abs(x - cx) > radius || Math.abs(y - cy) > radius) return;
 
+    // only a tile that touches the previous one and isn't already used joins
+    // the path - passing over any other tile does nothing
     const idx = parseInt(el.dataset.index, 10);
-    if (!dragPath.includes(idx)) {
+    if (canExtendBoardPath(dragPath, idx, currentGame.gridSize)) {
         dragPath.push(idx);
         updateSelection();
         playLetterTick(dragPath.length);
@@ -1716,6 +1796,9 @@ function endDrag() {
     isDragging = false;
     // a freeze (or elimination) that landed mid-drag voids the word instead of scoring it
     if (isBoardInputBlocked()) { cancelDrag(); return; }
+    // check the whole path again before any scoring - a path that didn't come
+    // from a normal drag (non-adjacent or repeated tiles) is never scored
+    if (dragPath.length && !isValidBoardPath(dragPath, currentGame.gridSize)) { cancelDrag(); return; }
     // board is all-regular forms, but normalize defensively so lookups match
     const word = normalizeFinals(dragPath.map(i => currentGame.board[i]).join(''));
 
@@ -1732,6 +1815,7 @@ function endDrag() {
         const points = HEBREW_DICTIONARY[word];
         currentGame.foundWords.add(word);
         currentGame.score += points;
+        if (singleHint) singleHint.wordFound(word); // the hinted word was dragged
 
         if (currentGame.mode === 'single') {
             document.getElementById('scoreDisplay').textContent = currentGame.score;
@@ -1764,7 +1848,8 @@ function activeBoardId() {
 // Called after any word is found (drag or hint) - if no valid unfound
 // words remain on the board, reshuffle it automatically so play can continue
 function autoShuffleIfExhausted() {
-    if (findWordOnBoard().length === 0) {
+    const left = findWordOnBoard();
+    if (left && left.length === 0) {
         currentGame.board = currentGame.board.sort(() => Math.random() - 0.5);
         renderBoard(activeBoardId());
         showBoardMessage('נגמרו המילים — הלוח עורבב!', 'info', 1100);
@@ -1956,7 +2041,7 @@ function showSingleModeChoice() {
 }
 
 function startSinglePlayer(singleMode = 'quick') {
-    if (needsModeHelp('single', () => startSinglePlayer(singleMode))) return;
+    if (needsModeHelp('single', () => startSinglePlayer(singleMode), { singleMode: singleMode })) return;
     const duration = SINGLE_DURATIONS[singleMode] || SINGLE_DURATIONS.quick;
     currentGame.mode = 'single';
     currentGame.singleMode = singleMode; // remembered so "play again" replays the same length
@@ -1985,10 +2070,14 @@ function updateFoundWords() {
     });
 }
 
-function startTimer(mode) {
+// firstTickMs: when the round carries on after a pause / the how-to-play, the
+// part of the second that was left when it stopped - so stopping never adds
+// or removes time. Omitted = a full second, as at the start of a round.
+function startTimer(mode, firstTickMs) {
     if (currentGame.timer) clearInterval(currentGame.timer);
 
-    currentGame.timer = setInterval(() => {
+    const tick = () => {
+        currentGame.lastTickAt = Date.now();
         const timerEl = document.getElementById(mode === 'single' ? 'timerDisplay' : 'battleTimerDisplay');
 
         // While frozen the clock does not move - it just shows the ice state
@@ -2007,29 +2096,74 @@ function startTimer(mode) {
             clearInterval(currentGame.timer);
             endRound(mode);
         }
-    }, 1000);
+    };
+
+    const delay = firstTickMs > 0 && firstTickMs < 1000 ? firstTickMs : 1000;
+    currentGame.lastTickAt = Date.now() - (1000 - delay); // as if the last tick was that long ago
+    if (delay === 1000) {
+        currentGame.timer = setInterval(tick, 1000);
+        return;
+    }
+    const first = setTimeout(() => {
+        if (currentGame.timer !== first) return; // stopped or replaced meanwhile
+        tick();
+        // the round may have ended (or the next one started) inside tick()
+        if (currentGame.timer === first && currentGame.gameActive) currentGame.timer = setInterval(tick, 1000);
+    }, delay);
+    currentGame.timer = first;
 }
 
 // ===== Pause (single-player & bots battle only) =====
 // Multiplayer can't be paused - you can't freeze real opponents' clocks.
+// The pause menu and the ? button (openGameHelp) stop and restart the round
+// the same way: haltGame() / continueGame().
+
+// Stops the clock, the bots and board input, remembering the part of the
+// current second that was left, and drops a drag that was in progress (it
+// would otherwise score once the finger lifts).
+function haltGame() {
+    currentGame.paused = true;
+    currentGame.gameActive = false;      // blocks board input while stopped
+    if (currentGame.timer) clearInterval(currentGame.timer);
+    currentGame.timer = null;
+    const since = Date.now() - (currentGame.lastTickAt || Date.now());
+    currentGame.tickLeftMs = Math.min(1000, Math.max(1, 1000 - since));
+    stopBotAI();                          // freeze the bots too (no-op in single mode)
+    if (isDragging) cancelDrag();
+}
+
+// Carries on from exactly where haltGame() stopped: same timeLeft, same
+// freeze seconds, the rest of the second, and each bot's own countdown.
+function continueGame() {
+    if (!currentGame.paused) return;
+    currentGame.paused = false;
+    currentGame.gameActive = true;
+    startTimer(currentGame.mode === 'single' ? 'single' : 'battle', currentGame.tickLeftMs);
+    if (currentGame.mode === 'battle') startBotAI(true);
+}
+
 function pauseGame() {
     if (currentGame.mode === 'multiplayer') return;
     if (!currentGame.gameActive || currentGame.paused) return;
-    currentGame.paused = true;
-    currentGame.gameActive = false;      // blocks board input while paused
-    if (currentGame.timer) clearInterval(currentGame.timer);
-    stopBotAI();                          // freeze the bots too (no-op in single mode)
+    haltGame();
     document.getElementById('pauseOverlay').style.display = 'flex';
 }
 
 function resumeGame() {
     if (!currentGame.paused) return;
-    currentGame.paused = false;
-    currentGame.gameActive = true;
     document.getElementById('pauseOverlay').style.display = 'none';
-    // resume from the preserved timeLeft; restart the bots only in battle mode
-    startTimer(currentGame.mode === 'single' ? 'single' : 'battle');
-    if (currentGame.mode === 'battle') startBotAI();
+    continueGame();
+}
+
+// The ? button next to pause (single player and bots): the mode's how-to-play,
+// with the round stopped exactly like the pause menu stops it until it closes.
+function openGameHelp() {
+    const mode = currentGame.mode;
+    if (mode !== 'single' && mode !== 'battle') return;
+    if (!currentGame.gameActive || currentGame.paused) return;
+    haltGame();
+    const context = mode === 'single' ? { singleMode: currentGame.singleMode } : { difficulty: battleState.difficulty };
+    showModeHelp(mode, null, context, true);
 }
 
 function quitFromPause() {
@@ -2042,7 +2176,7 @@ function endRound(mode) {
     currentGame.gameActive = false;
 
     if (mode === 'single') {
-        gameState.coins += Math.floor(currentGame.score / 10);
+        gameState.coins += singleGameCoins(currentGame.score);
         gameState.totalScore += currentGame.score;
         gameState.gamesPlayed++;
         // A new personal best unlocks the OPT-IN "add to זבאנג רויאל" button on
@@ -2064,7 +2198,7 @@ function endRound(mode) {
 function showGameOverDialog() {
     document.getElementById('srScore').textContent = currentGame.score;
     document.getElementById('srWords').textContent = currentGame.foundWords.size;
-    document.getElementById('srCoins').textContent = `+${Math.floor(currentGame.score / 10)} מטבעות`;
+    document.getElementById('srCoins').textContent = `+${singleGameCoins(currentGame.score)} מטבעות`;
 
     // Opt-in leaderboard button: only offered on a new personal best (only the
     // best score is submittable) and only when Firebase is available.
@@ -2269,10 +2403,18 @@ function getShopItem(key) {
 // Every power-up is paid from its own shop-bought inventory slot first, then
 // coins. Split into "can pay" / "consume" so the charge only happens after
 // the power-up's effect was actually applied (e.g. a hint word was found).
+// Coin price of using a power-up in the game being played now (the shop price
+// is always item.cost). Only the hint differs: the tower pays TOWER_HINT_COST.
+function itemUseCost(key) {
+    if (key === 'hint' && currentGame.mode === 'tower') return TOWER_HINT_COST;
+    return getShopItem(key).cost;
+}
+
 function canPayForItem(key) {
     const item = getShopItem(key);
-    if (gameState.inventory[key] > 0 || hasInfiniteCoins() || gameState.coins >= item.cost) return true;
-    showMessage(`אין מספיק מטבעות! (${item.name} עולה ${item.cost})`, 'error');
+    const cost = itemUseCost(key);
+    if (gameState.inventory[key] > 0 || hasInfiniteCoins() || gameState.coins >= cost) return true;
+    showMessage(`אין מספיק מטבעות! (${item.name} עולה ${cost})`, 'error');
     return false;
 }
 
@@ -2283,76 +2425,126 @@ function consumeItemPayment(key) {
         showMessage(`${item.name} נוצל מהמלאי (נשארו ${gameState.inventory[key]})`, 'info');
         return;
     }
-    if (!hasInfiniteCoins()) gameState.coins -= item.cost;
+    if (!hasInfiniteCoins()) gameState.coins -= itemUseCost(key);
+}
+
+// ---- single-player and bots hint (1.2) --------------------------------------
+// The hint SHOWS the path of one word not found yet (board-words.js: 8
+// directions, zigzag, shortest words first, random pick) and the player drags
+// it. It never scores, gives XP or marks the word found - only endDrag does.
+// Payment is taken only when a word was really shown, and a second tap while
+// the path is on the board does nothing (board-hint.js). Used by useHint
+// (single, #board), useBattleHint (bots, #battleBoard) and useMultiplayerHint
+// (friends + random, #battleBoard); the bots never see it. In multiplayer it
+// is local to this device: nothing is written to the room, so opponents never
+// see the path - only a real drag scores and syncs (submitMultiplayerWord).
+// The tower hint is unchanged.
+let hintWordIndex = null;
+let hintWordIndexWords = null; // the dictionaryWordList() array it was built from
+let singleHint = null;
+
+function hintWordIndexForDictionary() {
+    const words = dictionaryWordList(); // a new array after invalidateDictionaryCache()
+    if (hintWordIndexWords !== words) {
+        hintWordIndex = ZbangBoardWords.buildWordIndex(words);
+        hintWordIndexWords = words;
+    }
+    return hintWordIndex;
+}
+
+const HINT_MODES = ['single', 'battle', 'multiplayer']; // the boards this hint works on
+
+function hintTileEl(idx) {
+    return document.querySelector(`#${activeBoardId()} .letter-tile[data-index="${idx}"]`);
+}
+
+function showHintPath(path) {
+    path.forEach((idx, i) => {
+        const el = hintTileEl(idx);
+        if (!el) return;
+        el.style.setProperty('--hint-step', i);
+        el.dataset.hintStep = String(i + 1); // the number drawn on the tile
+        el.classList.add('hint-path');
+    });
+}
+
+function clearHintPath() {
+    document.querySelectorAll('#board .letter-tile.hint-path, #battleBoard .letter-tile.hint-path').forEach(el => {
+        el.classList.remove('hint-path');
+        el.style.removeProperty('--hint-step');
+        delete el.dataset.hintStep;
+    });
+}
+
+function singleHintController() {
+    if (singleHint || typeof ZbangBoardHint === 'undefined' || typeof ZbangBoardWords === 'undefined') return singleHint;
+    singleHint = ZbangBoardHint.createHintController({
+        isPlayable: () => HINT_MODES.includes(currentGame.mode) && currentGame.gameActive && !currentGame.paused
+            // multiplayer: only while this round is live for me (not on the round-end
+            // screen, not frozen, not eliminated) - see multiplayer.js
+            && (currentGame.mode !== 'multiplayer' || (typeof isMultiplayerRoundLive === 'function' && isMultiplayerRoundLive())),
+        canPay: () => canPayForItem('hint'),
+        pay: () => consumeItemPayment('hint'),
+        findHint: () => ZbangBoardWords.findHintWord(currentGame.board, currentGame.gridSize,
+            hintWordIndexForDictionary(), { exclude: currentGame.foundWords }),
+        isShowable: hint => ZbangBoardHint.isShowableHint(hint, currentGame.board, currentGame.gridSize,
+            HEBREW_DICTIONARY, currentGame.foundWords, normalizeFinals),
+        onExhausted: autoShuffleIfExhausted, // same automatic shuffle as before
+        show: showHintPath,
+        clear: clearHintPath,
+        setTimer: (fn, ms) => setTimeout(fn, ms),
+        clearTimer: id => clearTimeout(id)
+    });
+    return singleHint;
+}
+
+// mode: the game mode the pressed button belongs to - a button never works
+// in another mode's game
+// Returns the controller's result ('shown' | 'busy' | 'inactive' | 'no-funds' |
+// 'none'), or undefined when nothing ran - multiplayer counts its 'shown' ones.
+function requestBoardHint(mode) {
+    if (currentGame.mode !== mode) return;
+    const hint = singleHintController();
+    if (!hint) return;
+    const result = hint.request();
+    if (result === 'shown') {
+        saveGameState();
+        updateHomeUI();
+        showBoardMessage('רמז: גרור לפי המספרים', 'info', 1600);
+    } else if (result === 'none') { // 'busy': the path is already pulsing on the board - no message on top of it
+        showBoardMessage('אין מילה להצגה כרגע', 'warning', 1000);
+    }
+    return result;
+}
+
+// a hint path is pulsing on the board right now
+function boardHintShowing() {
+    return !!(singleHint && singleHint.current());
 }
 
 function useHint() {
-    if (!canPayForItem('hint')) return;
-
-    let indices = findWordOnBoard();
-    if (indices.length === 0) {
-        autoShuffleIfExhausted();
-        indices = findWordOnBoard();
-        if (indices.length === 0) return;
-    }
-
-    const word = indices.map(i => currentGame.board[i]).join('');
-    const points = HEBREW_DICTIONARY[word];
-
-    consumeItemPayment('hint');
-    currentGame.foundWords.add(word);
-    currentGame.score += points;
-    document.getElementById('scoreDisplay').textContent = currentGame.score;
-    updateFoundWords();
-    saveGameState();
-    updateHomeUI();
-
-    // Flash the word's tiles for 1.5 seconds
-    const tiles = document.querySelectorAll(`#${activeBoardId()} .letter-tile`);
-    indices.forEach(i => tiles[i]?.classList.add('selected'));
-    setTimeout(() => tiles.forEach(t => t.classList.remove('selected')), 1500);
-
-    showMessage(`${word} - כל הכבוד! +${points}`, 'success');
-    playWordSound(points);
-    launchSparkles();
+    requestBoardHint('single');
 }
 
-// Find a dictionary word that actually exists on the board (horizontal or
-// vertical) and hasn't been found yet - same logic as the Flutter version
+// removes a hint path that is on the board (multiplayer: round over, left the room)
+function cancelBoardHint() {
+    if (singleHint) singleHint.cancel();
+}
+
+// Is there still a word on the board that hasn't been found yet? Uses the
+// same finder and the same touching-tile rules as the hint and the drag
+// (board-words.js: 8 directions, zigzag, no wrap-around, no tile twice), so a
+// word left only on a diagonal or a zigzag counts. (Until 1.2 this scanned
+// straight rows and columns only, and the board was shuffled while such words
+// were still on it.) Stops at the first word.
+// -> its path; [] when the board surely has none; null when the search ran
+//    out of its step budget without an answer (never happens on a 5x5 board
+//    with the real dictionary - then we don't shuffle on a guess)
 function findWordOnBoard() {
-    const size = currentGame.gridSize;
-    const letters = new Set(currentGame.board);
-    for (const word of dictionaryWordList()) {
-        if (currentGame.foundWords.has(word) || word.length > size || word.length < 3) continue;
-        if (!wordUsesOnlyLetters(word, letters)) continue;
-
-        for (let r = 0; r < size; r++) {
-            for (let c = 0; c <= size - word.length; c++) {
-                let ok = true;
-                const idxs = [];
-                for (let i = 0; i < word.length; i++) {
-                    const idx = r * size + c + i;
-                    if (currentGame.board[idx] !== word[i]) { ok = false; break; }
-                    idxs.push(idx);
-                }
-                if (ok) return idxs;
-            }
-        }
-
-        for (let c = 0; c < size; c++) {
-            for (let r = 0; r <= size - word.length; r++) {
-                let ok = true;
-                const idxs = [];
-                for (let i = 0; i < word.length; i++) {
-                    const idx = (r + i) * size + c;
-                    if (currentGame.board[idx] !== word[i]) { ok = false; break; }
-                    idxs.push(idx);
-                }
-                if (ok) return idxs;
-            }
-        }
-    }
-    return [];
+    const result = ZbangBoardWords.findBoardWords(currentGame.board, currentGame.gridSize,
+        hintWordIndexForDictionary(), { exclude: currentGame.foundWords, firstOnly: true });
+    if (result.found.length) return result.found[0].path;
+    return result.complete ? [] : null;
 }
 
 function useShuffle() {
@@ -2400,34 +2592,10 @@ function useBattleShuffle() {
     showMessage('הבוטים מבולבלים!', 'success');
 }
 
+// Bots battle: the same show-the-path hint on the battle board. The player's
+// score, found words and XP change only when the player drags the word.
 function useBattleHint() {
-    if (!canPayForItem('hint')) return;
-
-    let indices = findWordOnBoard();
-    if (indices.length === 0) {
-        autoShuffleIfExhausted();
-        indices = findWordOnBoard();
-        if (indices.length === 0) return;
-    }
-
-    const word = indices.map(i => currentGame.board[i]).join('');
-    const points = HEBREW_DICTIONARY[word];
-
-    consumeItemPayment('hint');
-    currentGame.foundWords.add(word);
-    currentGame.playerScore += points;
-    document.getElementById('playerBattleScore').textContent = currentGame.playerScore;
-    updateBattleUI();
-    saveGameState();
-    updateHomeUI();
-
-    const tiles = document.querySelectorAll(`#${activeBoardId()} .letter-tile`);
-    indices.forEach(i => tiles[i]?.classList.add('selected'));
-    setTimeout(() => tiles.forEach(t => t.classList.remove('selected')), 1500);
-
-    showMessage(`${word} - כל הכבוד! +${points}`, 'success');
-    playWordSound(points);
-    launchSparkles();
+    requestBoardHint('battle');
 }
 
 // Battle Royale
@@ -2437,7 +2605,7 @@ function showBattleDifficulty() {
 }
 
 function startBattleRoyale(difficulty = 'medium') {
-    if (needsModeHelp('battle', () => startBattleRoyale(difficulty))) return;
+    if (needsModeHelp('battle', () => startBattleRoyale(difficulty), { difficulty: BOT_DIFFICULTY[difficulty] ? difficulty : 'medium' })) return;
     battleState.difficulty = BOT_DIFFICULTY[difficulty] ? difficulty : 'medium';
     currentGame.mode = 'battle';
     battleState.currentRound = 1;
@@ -2469,7 +2637,8 @@ function startBattleRound() {
     showScreen('battleScreen');
     const diffName = (BOT_DIFFICULTY[battleState.difficulty] || BOT_DIFFICULTY.medium).name;
     const roundBadge = document.getElementById('roundBadge');
-    roundBadge.textContent = `סיבוב ${battleState.currentRound}/5 · ${diffName}`;
+    // two lines, so it still fits next to pause + ? on a small phone
+    roundBadge.innerHTML = `<span class="round-num">סיבוב ${battleState.currentRound}/5</span><span class="round-diff">${escapeHtml(diffName)}</span>`;
     roundBadge.style.display = ''; // a random online match hides it - bring it back
     // ensure the "shuffle opponents" power-up + pause button are visible in
     // bots mode (multiplayer mode hides both since they don't apply to real players)
@@ -2479,6 +2648,8 @@ function startBattleRound() {
     // menu, so hide the header home button (multiplayer re-shows it below)
     const battlePauseBtn = document.getElementById('battlePauseBtn');
     if (battlePauseBtn) battlePauseBtn.style.display = '';
+    const battleHelpBtn = document.getElementById('battleHelpBtn'); // multiplayer hides it
+    if (battleHelpBtn) battleHelpBtn.style.display = '';
     const battleExitBtn = document.getElementById('battleExitBtn');
     if (battleExitBtn) battleExitBtn.style.display = 'none';
     renderBoard('battleBoard');
@@ -2508,14 +2679,18 @@ function updateBattleUI() {
     }
 }
 
-function startBotAI() {
+// resume: carrying on after a pause / the how-to-play - each bot keeps the
+// countdown it had, so stopping neither speeds the bots up nor slows them down.
+function startBotAI(resume) {
     stopBotAI(); // never stack intervals across rounds
     const tier = BOT_DIFFICULTY[battleState.difficulty] || BOT_DIFFICULTY.medium;
 
     // Give each bot its own initial "thinking" countdown, staggered so they
     // don't all find a word on the same tick (feels like independent players).
     battleState.players.forEach(bot => {
-        if (!bot.eliminated) bot.nextFindIn = botFindDelay(tier) * (0.4 + Math.random() * 0.6);
+        if (bot.eliminated) return;
+        if (resume && bot.nextFindIn > 0) return;
+        bot.nextFindIn = botFindDelay(tier) * (0.4 + Math.random() * 0.6);
     });
 
     const TICK = 1000; // 1s resolution keeps the pacing smooth and freeze exact
@@ -2595,15 +2770,16 @@ function endBattleRound() {
             if (bot.name === loser) bot.eliminated = true;
         }
 
-        gameState.coins += 25;
-        battleState.totalCoinsEarned += 25;
+        gameState.coins += BOT_ROUND_COINS;
+        battleState.totalCoinsEarned += BOT_ROUND_COINS;
+        saveGameState(); // keep the round's coins even if the app closes before the battle ends
         updateHomeUI();
 
         if (battleState.currentRound >= battleState.totalRounds) {
             // Victory! coins + a few blue diamonds as a premium bonus
-            gameState.coins += 100;
+            gameState.coins += BOT_VICTORY_COINS;
             gameState.diamonds += 5;
-            battleState.totalCoinsEarned += 100;
+            battleState.totalCoinsEarned += BOT_VICTORY_COINS;
             saveGameState();
             document.getElementById('victoryTitle').innerHTML = `${icon('trophy')} ניצחת! ${icon('trophy')}`;
             document.getElementById('victorySubtitle').textContent = `שרדת את כל ${battleState.totalRounds} הסיבובים!`;
@@ -2635,6 +2811,13 @@ function showRoundEnd(standings, eliminatedName) {
     `).join('');
 
     document.getElementById('eliminationNotice').textContent = `${eliminatedName} הודח/ה מהסיבוב!`;
+    // the coins a surviving bots-battle round paid (multiplayer hides this box -
+    // its rounds pay nothing, see showMultiplayerRoundEnd)
+    const roundCoins = document.getElementById('roundEndCoins');
+    if (roundCoins) {
+        roundCoins.textContent = `+${BOT_ROUND_COINS} מטבעות`;
+        roundCoins.parentElement.style.display = '';
+    }
     // multiplayer relabels it for a tie replay (showMultiplayerRoundEnd)
     document.getElementById('nextRoundBtn').textContent = 'סיבוב הבא ›';
     document.getElementById('standingsDisplay').innerHTML = standingsHTML;

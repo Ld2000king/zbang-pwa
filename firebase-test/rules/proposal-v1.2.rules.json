@@ -1,0 +1,329 @@
+{
+  // ==========================================================================
+  // Firebase Realtime Database Security Rules - Zabang Royale
+  //
+  // Deploy: Firebase Console -> Realtime Database -> Rules -> paste -> Publish
+  //   (or `firebase deploy --only database` with firebase.json pointing here).
+  //
+  // ADMIN UID (now bound below):
+  //   auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2' is the real UID of the admin
+  //   Auth account (the email/password account used by adminSignIn() in
+  //   admin.js, liavdimri12@gmail.com). If that account is ever recreated,
+  //   swap its new UID into all seven spots below and redeploy. Find it in
+  //   Console -> Authentication -> Users -> User UID.
+  //
+  // IDENTITY BINDING (now active):
+  //   /approved_words, /rejected_words and /removed_words are the admin's
+  //   dictionary controls (add / reject / remove): world-readable, because
+  //   every client applies them to its local dictionary, but writable only by
+  //   the admin UID.
+  //
+  //   Each room player node carries "uid" = the writer's Firebase Auth UID
+  //   (set by myPlayerNode() in multiplayer.js). "photoData" (optional) is
+  //   how a player's custom gallery avatar reaches their opponents: a small
+  //   base64 JPEG data URL embedded directly in the node (no Firebase
+  //   Storage - that needs the paid Blaze plan, and this project stays on
+  //   the free Spark plan), tightly length-capped since the whole room
+  //   re-downloads on every update for every player in it. These rules use
+  //   uid so that:
+  //     * a player may only create/delete/edit the node whose uid is their own;
+  //     * only the room HOST may reset other players' scores, mark a player
+  //       eliminated, clear foundWords, or set status/winnerId/loserId/board;
+  //     * freezeUntil is the one cross-player field (the freeze power-up), and
+  //       it is capped to <= now + 15s so no one can freeze an opponent forever;
+  //     * while a player's freezeUntil is still in the future, that player's
+  //       score/foundWords writes are rejected and the freeze itself may only
+  //       be extended (never cleared, except by the host on a round reset), so
+  //       a frozen player really is out of the round.
+  //
+  //   /leaderboard (quick, 1-minute games) and /leaderboard_precise (precise,
+  //   2-minute games) key their rows by the game's own playerId (a push key,
+  //   not the auth UID), but each entry also carries "uid" = the writer's
+  //   Firebase Auth UID (set by writeLeaderboardEntry() in game.js). A
+  //   brand-new row may be created by anyone (self-submission is opt-in), but
+  //   once it exists, only the original writer (matching uid) or the admin
+  //   UID may modify it - so one player can no longer overwrite another
+  //   player's row. If a row's owning uid ever goes stale (e.g. the player
+  //   signed out of a cloud account back to a fresh anonymous session, or
+  //   restored a cloud save onto a new device/browser), writeLeaderboardEntry()
+  //   self-heals by minting a fresh playerId and retrying as a new row rather
+  //   than failing forever.
+  //
+  // REMAINING TRUST NOTES (inherent to host-authoritative P2P, not fixable
+  // with Rules alone):
+  //   * A player can still inflate their OWN score - Rules can't tell a real
+  //     word from a fake one. True score integrity needs a Cloud Function that
+  //     is the sole score writer.
+  //   * The HOST is a trusted role: it computes round results and the winner,
+  //     so a cheating host could rig its own match. Only server authority
+  //     (Cloud Functions) removes that trust.
+  // ==========================================================================
+
+  "rules": {
+    // deny everything by default; each subtree below re-opens only what it needs
+    ".read": false,
+    ".write": false,
+
+    "rooms": {
+      // the admin may list every room - only to clean up abandoned ones
+      // (admin.js, cleanupOldRooms)
+      ".read": "auth != null && auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2'",
+
+      "$code": {
+        ".read": "auth != null",
+
+        // $code-level writes are only: initial creation (room doesn't exist
+        // yet) or deletion. All in-match mutations happen on deeper leaves,
+        // governed by the field rules below, so the host never needs blanket
+        // write over the whole room object. A room may be deleted by:
+        //   * its host (cleanup / onDisconnect);
+        //   * any signed-in player once the room is abandoned - no players
+        //     left, or its host has disconnected - so the last guest out can
+        //     close it (shouldDeleteRoomOnLeave in multiplayer.js);
+        //   * the admin (cleaning up rooms nobody closed).
+        ".write": "auth != null && (!data.exists() || (!newData.exists() && (root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid || !data.child('players').exists() || data.child('players').child(data.child('hostId').val()).child('connected').val() === false || auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2')))",
+
+        // ---- room-scalar fields ----
+        // Host-only after creation (creation is granted by the $code rule's
+        // cascade, so these still populate on the initial .set()).
+        "status":         { ".validate": "newData.isString() && newData.val().matches(/^(waiting|playing|roundEnd|finished)$/)", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
+        "board":          { ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid", "$i": { ".validate": "newData.isString() && newData.val().length <= 4" } },
+        "currentRound":   { ".validate": "newData.isNumber() && newData.val() >= 0", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
+        "roundStartTime": { ".validate": "newData.isNumber()", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
+        "winnerId":       { ".validate": "newData.isString()", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
+        "loserId":        { ".validate": "newData.isString()", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
+        "isDraw":         { ".validate": "newData.isBoolean()", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
+        // tie replays in a friends match (multiplayer.js, endMultiplayerRound):
+        // how many rounds were played again after a tie for last place
+        "replays":        { ".validate": "newData.isNumber() && newData.val() >= 0", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
+
+        // set once at creation only (no post-create writer)
+        "hostId":           { ".validate": "newData.isString()" },
+        "matchType":        { ".validate": "newData.isString() && newData.val().matches(/^(friends|random)$/)" },
+        "boardTheme":       { ".validate": "newData.isNumber()" },
+        "totalRounds":      { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        // set at creation; afterwards only the host may change it (the lobby's
+        // 1-minute / 2-minute picker)
+        "roundDurationSec": { ".validate": "newData.isNumber() && newData.val() >= 0", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
+        "createdAt":        { ".validate": "newData.isNumber()" },
+
+        "players": {
+          "$pid": {
+            // Own node: create/edit/delete the node whose uid is mine. Field
+            // rules below GRANT extra writers (host, freeze) on top of this.
+            ".write": "auth != null && (newData.child('uid').val() === auth.uid || data.child('uid').val() === auth.uid)",
+
+            // uid can never be set to anyone other than the writer
+            "uid":         { ".validate": "newData.isString() && newData.val() === auth.uid" },
+            "name":        { ".validate": "newData.isString() && newData.val().length <= 40" },
+            "avatarId":    { ".validate": "newData.isString() || newData.isNumber()" },
+            // gallery photo, embedded directly as a small base64 JPEG data
+            // URL (no Storage - see the comment at the top of this file).
+            // Locked to the exact data-URL prefix a real photo produces, and
+            // capped well above what a 64px/low-quality JPEG needs but far
+            // below anything that could meaningfully bloat every player's
+            // room traffic.
+            "photoData":   { ".validate": "newData.isString() && newData.val().length <= 8000 && newData.val().matches(/^data:image\\/jpeg;base64,/)" },
+            "eliminated":  { ".validate": "newData.isBoolean()", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
+            "connected":   { ".validate": "newData.isBoolean()" },
+            // "play again" request from a guest at the end screen. The owner
+            // writes it (via parent); the host clears it when it resets the room.
+            "rematch":     { ".validate": "newData.isBoolean()", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
+
+            // owner (via parent) writes it; host also writes it to reset to 0
+            // each round - so grant host here too.
+            // A frozen player may not score: the freeze power-up is enforced
+            // here too, not only by the victim's client. The host's round reset
+            // writes score=0 and freezeUntil=0 in one atomic update, so it
+            // still passes (newData sees the cleared freeze).
+            "score":       { ".validate": "newData.isNumber() && newData.val() >= 0 && (!newData.parent().child('freezeUntil').exists() || newData.parent().child('freezeUntil').val() <= now)", ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid" },
+
+            // cross-player: any authed player may freeze this player, but only
+            // for a bounded window (<= 15s ahead of server time). An ACTIVE
+            // freeze can only ever be raised (extended), never cut short - so
+            // the victim can't thaw themselves by rewriting their own node -
+            // except by the host, which clears it to 0 on round reset.
+            "freezeUntil": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= now + 15000 && (!data.exists() || data.val() <= now || newData.val() >= data.val() || root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid)", ".write": "auth != null" },
+
+            // owner (via parent) adds words; host clears the whole map to null
+            // on round reset. Same freeze gate as score.
+            "foundWords": {
+              ".write": "root.child('rooms').child($code).child('players').child(root.child('rooms').child($code).child('hostId').val()).child('uid').val() === auth.uid",
+              "$word": { ".validate": "newData.isBoolean() && (!newData.parent().parent().child('freezeUntil').exists() || newData.parent().parent().child('freezeUntil').val() <= now)" }
+            },
+
+            // no unexpected fields on a player node
+            "$other": { ".validate": false }
+          }
+        },
+
+        // reject any room-level field the game doesn't use
+        "$other": { ".validate": false }
+      }
+    },
+
+    "matchmaking_queue": {
+      // findWaitingOpponent() lists the whole queue, so read is collection-wide.
+      // Writes stay open to any authed player because tryJoinOpponent() runs a
+      // transaction that nulls an OPPONENT's ticket to claim them.
+      ".read": "auth != null",
+      "$pid": {
+        ".write": "auth != null",
+        "roomCode":  { ".validate": "newData.isString() && newData.val().length <= 8" },
+        "createdAt": { ".validate": "newData.isNumber()" },
+        "$other":    { ".validate": false }
+      }
+    },
+
+    // Per-player cloud save (see cloudsave.js): the ONLY subtree that is
+    // strictly private - a player can read and write their own save and
+    // nobody else's, admin included. The progress itself is one JSON string
+    // rather than a field-per-value, so there's a single length cap to
+    // enforce instead of a rule per game field.
+    //
+    // Note this is a convenience backup, not an anti-cheat boundary: the
+    // save is written by the player's own client, so it can only ever be as
+    // trustworthy as the localStorage it mirrors (which the player could
+    // already edit). Nothing here is used to award anything to anyone else.
+    "player_saves": {
+      "$uid": {
+        ".read":  "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        // [1.2 PROPOSAL] Once a save holds XP progress, a write that would
+        // drop it is refused - this is what stops an older app version
+        // (1.0 / 1.1, which rewrites the whole save without knowing about
+        // `progress`) from wiping a player's levels. Deleting the WHOLE save
+        // is still allowed (validate rules don't run on a delete), so account
+        // deletion from any version removes the progress along with it.
+        ".validate": "!data.child('progress').exists() || newData.child('progress').exists()",
+        "state":     { ".validate": "newData.isString() && newData.val().length <= 20000" },
+        "photo":     { ".validate": "newData.isString() && newData.val().length <= 8000 && newData.val().matches(/^data:image\\/jpeg;base64,/)" },
+        "updatedAt": { ".validate": "newData.isNumber()" },
+        // [1.2 PROPOSAL] XP and level-up diamonds as counters per install
+        // (see xp-engine.js). A counter can only go up, so an old or buggy
+        // copy can never lower someone's progress.
+        "progress": {
+          // a counter map or baseLevel, once there, can't be removed as a
+          // whole (a rule on the parent also runs when a child is deleted)
+          ".validate": "newData.hasChildren(['baseLevel']) && (!data.child('xp').exists() || newData.child('xp').exists()) && (!data.child('gemsPaid').exists() || newData.child('gemsPaid').exists())",
+          "xp": {
+            "$install": { ".validate": "$install.matches(/^[A-Za-z0-9_-]{4,40}$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000 && (!data.exists() || newData.val() >= data.val())" }
+          },
+          "gemsPaid": {
+            "$install": { ".validate": "$install.matches(/^[A-Za-z0-9_-]{4,40}$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000 && (!data.exists() || newData.val() >= data.val())" }
+          },
+          "baseLevel": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 100000 && (!data.exists() || newData.val() >= data.val())" },
+          "$other":    { ".validate": false }
+        },
+        "$other":    { ".validate": false }
+      }
+    },
+
+    // Two separate boards - quick (1-minute) games at /leaderboard, precise
+    // (2-minute) games at /leaderboard_precise (see leaderboardPath() in
+    // game.js). Same shape and rules for both; scores from the two modes
+    // aren't comparable so they never share a tree.
+    "leaderboard": {
+      ".read": "auth != null",
+      "$pid": {
+        // A brand-new row may be created by anyone (self-submission is
+        // opt-in from the result screen). Once a row exists, only the
+        // player who created it (uid match) or the admin may modify it -
+        // this is what makes renameLeaderboardEntry() in game.js actually
+        // admin-only instead of anyone being able to edit any row.
+        ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && (data.child('uid').val() === auth.uid || auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2')))",
+        "uid":       { ".validate": "newData.isString() && newData.val() === auth.uid" },
+        "name":      { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "score":     { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "avatarId":  { ".validate": "newData.isString() || newData.isNumber()" },
+        "updatedAt": { ".validate": "newData.isNumber()" },
+        "$other":    { ".validate": false }
+      }
+    },
+
+    "leaderboard_precise": {
+      ".read": "auth != null",
+      "$pid": {
+        ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && (data.child('uid').val() === auth.uid || auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2')))",
+        "uid":       { ".validate": "newData.isString() && newData.val() === auth.uid" },
+        "name":      { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "score":     { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "avatarId":  { ".validate": "newData.isString() || newData.isNumber()" },
+        "updatedAt": { ".validate": "newData.isNumber()" },
+        "$other":    { ".validate": false }
+      }
+    },
+
+    // מגדל זבאנג (tower.js) - same shape and rules as the two boards above.
+    "leaderboard_tower": {
+      ".read": "auth != null",
+      "$pid": {
+        ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && (data.child('uid').val() === auth.uid || auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2')))",
+        "uid":       { ".validate": "newData.isString() && newData.val() === auth.uid" },
+        "name":      { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "score":     { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "avatarId":  { ".validate": "newData.isString() || newData.isNumber()" },
+        "updatedAt": { ".validate": "newData.isNumber()" },
+        "$other":    { ".validate": false }
+      }
+    },
+
+    "pending_requests": {
+      // only the admin may LIST/READ the queue or delete from it
+      ".read": "auth != null && auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2'",
+      "$req": {
+        // players may CREATE a new request (no overwrite of an existing one);
+        // the admin may modify/remove any request
+        ".write": "auth != null && (auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2' || (!data.exists() && newData.exists()))",
+        "word":        { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "points":      { ".validate": "newData.isNumber()" },
+        "submittedBy": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "timestamp":   { ".validate": "newData.isNumber()" },
+        "$other":      { ".validate": false }
+      }
+    },
+
+    "approved_words": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2'",
+      "$word": { ".validate": "newData.isNumber() && newData.val() >= 0" }
+    },
+
+    "rejected_words": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2'",
+      "$word": { ".validate": "newData.isBoolean()" }
+    },
+
+    // Words the admin pulled out of the dictionary from the word-bank screen.
+    // Every client reads this and drops these words after merging the static
+    // word packs (which can't be edited at runtime), so a removal takes effect
+    // for all players. Admin-UID-only for writes, like the other moderation
+    // nodes; readable by everyone because every client has to apply it.
+    "removed_words": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2'",
+      "$word": { ".validate": "newData.isBoolean()" }
+    },
+
+    // Player reports (moderation.js). Any signed-in player can file a NEW
+    // report in their own name; only the admin can read them and close
+    // (delete) them. A report can't be edited after it's filed.
+    "reports": {
+      ".read": "auth != null && auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2'",
+      "$id": {
+        ".write": "auth != null && (auth.uid === 'kvJkfcfrT5S8OZb73GfxAXOtEET2' || (!data.exists() && newData.child('reporterUid').val() === auth.uid))",
+        ".validate": "newData.hasChildren(['reporterUid', 'reportedUid', 'source', 'timestamp'])",
+        "reporterUid":  { ".validate": "newData.isString() && newData.val() === auth.uid" },
+        "reportedUid":  { ".validate": "newData.isString() && newData.val().length <= 128" },
+        "reportedName": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "source":       { ".validate": "newData.val() === 'leaderboard' || newData.val() === 'multiplayer'" },
+        "lbPath":       { ".validate": "newData.val() === 'leaderboard' || newData.val() === 'leaderboard_precise' || newData.val() === 'leaderboard_tower'" },
+        "lbId":         { ".validate": "newData.isString() && newData.val().length <= 64" },
+        "photo":        { ".validate": "newData.isString() && newData.val().length <= 8000 && newData.val().matches(/^data:image\\/jpeg;base64,/)" },
+        "timestamp":    { ".validate": "newData.isNumber()" },
+        "$other":       { ".validate": false }
+      }
+    }
+  }
+}
