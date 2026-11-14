@@ -2700,20 +2700,16 @@
 /* Each home block rises into place with a slight stagger, giving the screen
    a composed, game-menu feel instead of everything blinking in at once.
    Only runs when the screen (re)gains .active (display toggles re-trigger it). */
+/* The signpost planks are left out on purpose: they stand still. An
+   entrance animation replays every time the player comes back home, and the
+   planks visibly slid up and then snapped to their tilt each time. */
 #homeScreen.active .main-title,
 #homeScreen.active .player-card,
-#homeScreen.active .sign-plank,
 #homeScreen.active .theme-selector {
     animation: homeRise 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 #homeScreen.active .player-card    { animation-delay: 0.08s; }
-/* the planks go up one after another, top sign first */
-#homeScreen.active .sign-plank:nth-child(2) { animation-delay: 0.16s; }
-#homeScreen.active .sign-plank:nth-child(3) { animation-delay: 0.22s; }
-#homeScreen.active .sign-plank:nth-child(4) { animation-delay: 0.28s; }
-#homeScreen.active .sign-plank:nth-child(5) { animation-delay: 0.34s; }
-#homeScreen.active .sign-plank:nth-child(6) { animation-delay: 0.40s; }
 #homeScreen.active .theme-selector { animation-delay: 0.30s; }
 
 @keyframes homeRise {
@@ -2730,7 +2726,6 @@
     .player-avatar,
     #homeScreen.active .main-title,
     #homeScreen.active .player-card,
-    #homeScreen.active .sign-plank,
     #homeScreen.active .theme-selector {
         animation: none;
     }
