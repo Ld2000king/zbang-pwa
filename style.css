@@ -34,6 +34,10 @@
     --wood-dark: #4E3116;
     --wood: #8A5A2E;
     --wood-light: #A9743F;
+    /* The home city sign's wood. Unlike --wood, themes.js never retints it:
+       a city-colored sign vanished into purple skies (רמת גן, הרצליה) */
+    --sign-wood: #8A5A2E;
+    --sign-wood-dark: #5E3A1A;
 
     /* Cream - the panel material */
     --cream: #FDF4DC;
