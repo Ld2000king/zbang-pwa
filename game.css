@@ -6,19 +6,10 @@
     z-index: 1; /* above the ambient glow layer */
 }
 
-/* The active city's painted skyline, framed behind the title so the theme
-   reads at a glance - the copy along the bottom of #app is mostly covered
-   by the menu buttons on this screen. It bleeds through the screen's side
-   padding and its ground line lands just under the player card's top edge. */
-.home-skyline {
-    position: absolute;
-    top: -20px;
-    inset-inline: -20px;
-    height: 200px;
-    z-index: -1;
-    pointer-events: none;
-    background: var(--city-scene) center bottom / 100% auto no-repeat;
-}
+/* The menu starts at the top, title level with the ? and ☰ corner buttons,
+   so the signpost has room and the city's skyline (painted along the bottom
+   of #app) shows under it. Other screens stay vertically centered. */
+#homeScreen.active { align-items: flex-start; }
 
 /* Jungle foliage crowding in from the bottom corners of the home screen, so
    the menu reads as a clearing on the island. Pure decoration - pointer-events
@@ -186,19 +177,6 @@
     color: var(--gold-base);
 }
 
-.trophies-display {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 1.1em;
-    font-weight: 800;
-    color: var(--orange-base);
-}
-
-.trophies-display .icon svg {
-    width: 1.1em;
-    height: 1.1em;
-}
 
 /* ===== The signpost - the home screen's main menu =====
    A wooden pole with one arrow-shaped plank per destination, pointing
@@ -212,10 +190,11 @@
     padding: 4px 4px 30px;
 }
 
+/* runs down past the last plank into the ground; #homeScreen clips it */
 .sign-pole {
     position: absolute;
     top: -8px;
-    bottom: -40px;
+    bottom: -260px;
     left: 50%;
     width: 24px;
     margin-left: -12px;
@@ -421,12 +400,76 @@
     .sign-city .sign-sub { font-size: 10.5px; }
 }
 
-/* the player card sits tighter above the signpost; the extra bottom padding
-   keeps the XP line clear of the daily-bonus pill hanging off the card */
+/* Above the signpost the player card is a slim strip: avatar, then name
+   over [level badge + XP bar], then coins and diamonds as two small pills.
+   Trophies live on the signs (profile plank, city sign). The bottom padding
+   leaves room for the daily-bonus pill hanging off the card's edge. */
 #homeScreen .player-card {
-    padding: 12px 16px 24px;
-    margin-bottom: 32px;
+    gap: 10px;
+    padding: 10px 12px 16px;
+    margin: 6px 6px 32px;
+    border-width: 3px;
+    border-radius: 24px;
 }
+
+#homeScreen .player-header {
+    flex: 1;
+    min-width: 0;
+    gap: 12px;
+}
+
+#homeScreen .player-avatar {
+    flex: none;
+    width: 56px;
+    height: 56px;
+    margin-inline-start: 4px;
+}
+
+#homeScreen .player-info {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 6px 7px;
+}
+
+#homeScreen .player-name {
+    grid-column: 1 / -1;
+    font-size: 1.15em;
+    line-height: 1.1;
+}
+
+#homeScreen .level-badge {
+    padding: 2px 9px;
+    font-size: 0.72em;
+    white-space: nowrap;
+    box-shadow: 0 2px 0 var(--blue-base);
+}
+
+/* just the bar here; the numbers are on the profile screen */
+#homeScreen .xp-bar-wrap { width: auto; min-width: 0; }
+#homeScreen .xp-bar { height: 10px; }
+#homeScreen .xp-bar-text { display: none; }
+
+#homeScreen .player-stats { flex: none; gap: 4px; }
+
+#homeScreen .coins-display,
+#homeScreen .diamonds-display {
+    direction: ltr;
+    justify-content: space-between;
+    gap: 5px;
+    min-width: 72px;
+    padding: 1px 8px 1px 5px;
+    font-size: 13px;
+    color: var(--ink);
+    background: var(--cream-2);
+    border: 2px solid var(--cream-3);
+    border-radius: var(--radius-pill);
+}
+
+#homeScreen .coins-display .icon svg,
+#homeScreen .diamonds-display .icon svg { width: 15px; height: 15px; }
 
 .theme-selector {
     display: flex;
@@ -2877,7 +2920,7 @@
    Diamonds (premium currency) + Daily login reward
    ========================================================================= */
 
-/* Home stat: blue diamonds next to coins/trophies */
+/* Home stat: blue diamonds under the coins */
 .diamonds-display {
     display: flex;
     align-items: center;

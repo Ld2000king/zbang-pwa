@@ -1248,7 +1248,6 @@ function updateHomeUI() {
     applyActiveTheme();
     document.getElementById('playerName').textContent = gameState.playerName;
     document.getElementById('homeCoins').textContent = coinsText();
-    document.getElementById('homeTrophies').textContent = trophiesText();
     document.getElementById('levelBadge').textContent = `רמה ${gameState.level}`;
     document.getElementById('shopCoins').textContent = coinsText();
     const diamondsTxt = isAdminAccount() ? '∞' : gameState.diamonds;
