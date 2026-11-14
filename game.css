@@ -203,8 +203,9 @@
 /* ===== The signpost - the home screen's main menu =====
    A wooden pole with one arrow-shaped plank per destination, pointing
    alternately right and left. Each plank takes its color from the usual
-   .green-btn / .gold-btn / .blue-btn / .purple-btn class (--btn-face and
-   --btn-base); the city sign is carved from the active city's own wood. */
+   .green-btn / .gold-btn / .blue-btn / .red-btn class (--btn-face and
+   --btn-base) and the city sign is plain brown wood - no purple and nothing
+   city-tinted, so no plank disappears into a city's sky. */
 .home-sign {
     position: relative;
     width: 100%;
@@ -355,11 +356,12 @@
 .sign-big .sign-medal svg { width: 29px; height: 29px; }
 .sign-big .sign-text b { font-size: 29px; font-weight: 900; }
 
-/* The city sign: the active city's own wood, with a window onto its skyline
+/* The city sign: plain brown wood in every city (a city-tinted sign got lost
+   against purple skies), with a window onto the city's skyline
    (--sign-scene is set by updateHomeUI) */
 .sign-city {
-    --btn-face: var(--wood);
-    --btn-base: var(--wood-dark);
+    --btn-face: var(--sign-wood);
+    --btn-base: var(--sign-wood-dark);
     height: 84px;
     padding: 0 10px 0 14px;
     color: var(--cream-hi);
