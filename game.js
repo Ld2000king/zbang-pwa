@@ -169,6 +169,15 @@ function currentArena() {
     return ARENAS[getArenaIndex(gameState.trophies)];
 }
 
+// How far the player is from the next city, for the home screen's city sign.
+// null at the last city (or for the admin, who is treated as already there).
+function nextCityProgress(trophies) {
+    const index = getArenaIndex(trophies);
+    if (index >= ARENAS.length - 1) return null;
+    const t = Math.max(0, trophies || 0);
+    return { next: ARENAS[index + 1].name, left: (index + 1) * TROPHIES_PER_ARENA - t };
+}
+
 // The city the player is in right now. City themes are open up to this city
 // only: dropping to a lower arena locks the higher themes again until the
 // player climbs back.
@@ -1248,18 +1257,29 @@ function updateHomeUI() {
     const shopDiamondsEl = document.getElementById('shopDiamonds');
     if (shopDiamondsEl) shopDiamondsEl.textContent = diamondsTxt;
     document.getElementById('homeAvatar').innerHTML = getOwnAvatarMarkup();
-    // the banner shows the theme the player is dressed in, not the arena
-    // their trophies put them in - picking מזכרת בתיה at 3000 trophies
-    // shows מזכרת בתיה
-    const arena = themeInfo(preferredThemeIndex());
+    // The signpost menu. The city sign shows the theme the player is dressed
+    // in, not the arena their trophies put them in - picking מזכרת בתיה at
+    // 3000 trophies shows מזכרת בתיה - with a window onto that theme's
+    // skyline. Its second line is about trophies: how far the next city is.
+    const themeIndex = preferredThemeIndex();
     const arenaEl = document.getElementById('homeArena');
-    if (arenaEl) arenaEl.textContent = arena.name;
-    const taglineEl = document.getElementById('homeCityTagline');
-    if (taglineEl) taglineEl.textContent = arena.tagline;
-    const motifEl = document.getElementById('homeCityMotif');
-    if (motifEl) motifEl.textContent = arena.motif;
-    const bannerEl = document.querySelector('.arena-banner');
-    if (bannerEl) bannerEl.style.setProperty('--banner-accent', arena.accent);
+    if (arenaEl) arenaEl.textContent = themeInfo(themeIndex).name;
+    const windowEl = document.getElementById('homeCityWindow');
+    if (windowEl && typeof citySceneUrl === 'function') {
+        const scene = themeIndex === ISLAND_THEME_INDEX ? islandSceneUrl() : citySceneUrl(themeIndex);
+        windowEl.style.setProperty('--sign-scene', scene.replace(/"/g, "'"));
+    }
+    const nextEl = document.getElementById('homeCityNext');
+    if (nextEl) {
+        const progress = nextCityProgress(gameState.trophies);
+        nextEl.textContent = progress
+            ? `עוד ${progress.left.toLocaleString('he-IL')} גביעים ל${progress.next}`
+            : 'העיר האחרונה · אלופ/ת זבאנג';
+    }
+    const shopSubEl = document.getElementById('homeShopSub');
+    if (shopSubEl) shopSubEl.textContent = `יש לך ${coinsText()} מטבעות`;
+    const profileSubEl = document.getElementById('homeProfileSub');
+    if (profileSubEl) profileSubEl.textContent = `רמה ${gameState.level} · ${trophiesText()} גביעים`;
 }
 
 // Arena picker screen - swipeable card carousel over ARENAS, replacing the
