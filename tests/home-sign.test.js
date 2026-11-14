@@ -59,3 +59,10 @@ test('the city sign follows a hand-picked theme, and the island shows its own sc
     assert.equal(g.el('homeArena').textContent, 'האי');
     assert.equal(g.el('homeCityWindow').style['--sign-scene'], "url('island')");
 });
+
+test('the planks stand still when the home screen opens (no entrance animation on them)', () => {
+    const css = read('game.css');
+    const animated = [...css.matchAll(/([^{}]*)\{[^{}]*\banimation(?:-name)?\s*:\s*(?!none)[^;]+;/g)]
+        .map(m => m[1]).filter(sel => /sign-plank|sign-pole|home-sign/.test(sel));
+    assert.deepEqual(animated, [], 'signpost parts must not be animated');
+});
