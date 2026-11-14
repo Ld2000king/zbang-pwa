@@ -6,19 +6,10 @@
     z-index: 1; /* above the ambient glow layer */
 }
 
-/* The active city's painted skyline, framed behind the title so the theme
-   reads at a glance - the copy along the bottom of #app is mostly covered
-   by the menu buttons on this screen. It bleeds through the screen's side
-   padding and its ground line lands just under the player card's top edge. */
-.home-skyline {
-    position: absolute;
-    top: -20px;
-    inset-inline: -20px;
-    height: 200px;
-    z-index: -1;
-    pointer-events: none;
-    background: var(--city-scene) center bottom / 100% auto no-repeat;
-}
+/* The menu starts at the top, title level with the ? and ☰ corner buttons,
+   so the signpost has room and the city's skyline (painted along the bottom
+   of #app) shows under it. Other screens stay vertically centered. */
+#homeScreen.active { align-items: flex-start; }
 
 /* Jungle foliage crowding in from the bottom corners of the home screen, so
    the menu reads as a clearing on the island. Pure decoration - pointer-events
@@ -91,34 +82,6 @@
 @keyframes titleBob {
     0%, 100% { transform: translateY(0) rotate(-1deg); }
     50%      { transform: translateY(-6px) rotate(1deg); }
-}
-
-/* A small cream name plate, because it sits over the city skyline, which
-   can be light or dark depending on the city */
-.subtitle {
-    display: table;
-    margin: 0 auto 26px;
-    padding: 4px 16px;
-    text-align: center;
-    color: var(--ink);
-    font-weight: 700;
-    font-size: 1.05em;
-    background: var(--cream);
-    border: 3px solid var(--wood-dark);
-    border-radius: var(--radius-pill);
-    box-shadow: inset 0 2px 0 var(--cream-hi), var(--shadow-depth-sm);
-}
-
-/* The classic island has no skyline behind the title, so the subtitle goes
-   back to plain ink with a cream halo on the pale sky, as it always was */
-html[data-city="island"] .subtitle {
-    background: none;
-    border: none;
-    box-shadow: none;
-    padding: 0;
-    font-size: 1.2em;
-    margin-bottom: 30px;
-    text-shadow: 0 2px 0 var(--cream-hi);
 }
 
 /* The wood frame material: a cream panel inside a carved brown ring */
@@ -214,76 +177,299 @@ html[data-city="island"] .subtitle {
     color: var(--gold-base);
 }
 
-.trophies-display {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 1.1em;
-    font-weight: 800;
-    color: var(--orange-base);
+
+/* ===== The signpost - the home screen's main menu =====
+   A wooden pole with one arrow-shaped plank per destination, pointing
+   alternately right and left. Each plank takes its color from the usual
+   .green-btn / .gold-btn / .blue-btn / .red-btn class (--btn-face and
+   --btn-base) and the city sign is plain brown wood - no purple and nothing
+   city-tinted, so no plank disappears into a city's sky. */
+.home-sign {
+    position: relative;
+    width: 100%;
+    padding: 4px 4px 30px;
 }
 
-.trophies-display .icon svg {
-    width: 1.1em;
-    height: 1.1em;
-}
-
-/* Its background/border tint comes from the current city's --banner-accent
-   (set inline in updateHomeUI), so each arena expresses its identity through
-   a soft, static color hint rather than an animated glow */
-/* A wooden signboard. The arena's own --banner-accent (set inline in
-   updateHomeUI) tints the plank so each island expresses its identity. */
-.arena-banner {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    margin-bottom: 20px;
-    padding: 14px 18px;
-    border-radius: var(--radius-btn);
-    background: linear-gradient(var(--banner-accent, transparent), var(--banner-accent, transparent)), var(--wood);
+/* runs down past the last plank into the ground; #homeScreen clips it */
+.sign-pole {
+    position: absolute;
+    top: -8px;
+    bottom: -260px;
+    left: 50%;
+    width: 24px;
+    margin-left: -12px;
+    border-radius: 9px;
+    background: var(--wood);
+    background-image: repeating-linear-gradient(90deg, transparent 0 6px, rgba(78, 49, 22, 0.14) 6px 8px);
     border: 3px solid var(--wood-dark);
-    box-shadow: inset 0 3px 0 var(--wood-light), var(--bevel-sm);
-    --btn-base: var(--wood-dark);
+    box-shadow: inset 4px 0 0 rgba(255, 255, 255, 0.14);
 }
 
-.arena-banner-motif {
-    font-size: 2em;
-    line-height: 1;
-    /* soft bob so the city emblem feels alive */
-    animation: motifFloat 3s ease-in-out infinite;
+/* the cap on top of the pole */
+.sign-pole::before {
+    content: '';
+    position: absolute;
+    top: -12px;
+    left: -7px;
+    right: -7px;
+    height: 14px;
+    border-radius: 8px;
+    background: var(--wood-light);
+    border: 3px solid var(--wood-dark);
 }
 
-@keyframes motifFloat {
-    0%, 100% { transform: translateY(0); }
-    50%      { transform: translateY(-4px); }
-}
-
-.arena-banner-text {
+.sign-plank {
+    --tilt: 0deg;
+    position: relative;
     display: flex;
-    flex-direction: column;
-    line-height: 1.15;
-}
-
-.arena-banner-label {
-    font-size: 0.75em;
-    color: var(--cream-3);
-    font-weight: 700;
-}
-
-.arena-banner-name {
+    align-items: center;
+    gap: 12px;
+    width: calc(100% - 34px);
+    height: 62px;
+    margin-bottom: 15px;
+    padding: 0 14px;
     font-family: var(--font-display);
-    font-size: 1.3em;
-    font-weight: 800;
-    color: var(--title-fill);
-    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.6);
+    text-align: start;
+    background: var(--btn-face);
+    /* faint wood grain over the paint */
+    background-image: repeating-linear-gradient(0deg, rgba(78, 49, 22, 0.06) 0 2px, transparent 2px 15px);
+    border: 3px solid var(--wood-dark);
+    border-radius: 14px;
+    cursor: pointer;
+    /* drop-shadow (not box-shadow) so the bevel follows the arrow point too */
+    filter: drop-shadow(0 6px 0 var(--btn-base)) drop-shadow(0 9px 7px rgba(78, 49, 22, 0.3));
+    transform: rotate(var(--tilt));
+    transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.18s ease;
 }
 
-.arena-banner-tagline {
-    font-size: 0.8em;
-    color: var(--cream-2);
-    font-weight: 600;
+/* the arrow point: a rotated square painted like the plank, with its two
+   inner edges hidden so it joins the plank seamlessly */
+.sign-plank::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 40px;
+    height: 40px;
+    background: inherit;
+    border: 3px solid var(--wood-dark);
+    border-radius: 6px;
+    transform: translateY(-50%) rotate(45deg);
 }
+
+/* RTL: margin-right is the start side. Right-pointing planks sit further in
+   and put their medal and text the other way round. */
+.sign-left { --tilt: -1.6deg; margin-right: 6px; }
+.sign-left::after { left: -19px; border-top-color: transparent; border-right-color: transparent; }
+.sign-right { --tilt: 1.4deg; margin-right: 28px; flex-direction: row-reverse; }
+.sign-right::after { right: -19px; border-bottom-color: transparent; border-left-color: transparent; }
+.sign-right .sign-text { text-align: left; }
+
+.sign-plank:hover { transform: rotate(var(--tilt)) translateY(-2px); }
+
+/* the sink: the plank drops onto its base and swings a little on its nail */
+.sign-plank:active {
+    transform: rotate(calc(var(--tilt) * -0.6)) translateY(5px);
+    filter: drop-shadow(0 1px 0 var(--btn-base)) drop-shadow(0 3px 4px rgba(78, 49, 22, 0.25));
+}
+
+.sign-plank:focus-visible {
+    outline: 3px solid var(--blue);
+    outline-offset: 4px;
+}
+
+.sign-nail {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    width: 10px;
+    height: 10px;
+    margin: -5px;
+    border-radius: 50%;
+    background: var(--cream-3);
+    border: 2px solid var(--wood-dark);
+    z-index: 2;
+}
+
+.sign-medal {
+    width: 42px;
+    height: 42px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--cream);
+    border: 3px solid var(--wood-dark);
+    color: var(--btn-base);
+    text-shadow: none;
+    z-index: 1;
+}
+
+.sign-medal svg { width: 22px; height: 22px; }
+
+.sign-text {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.15;
+    z-index: 1;
+}
+
+.sign-text b {
+    display: block;
+    font-size: 21px;
+    font-weight: 800;
+}
+
+.sign-sub {
+    display: block;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight: 600;
+    opacity: 0.95;
+}
+
+/* "משחק" is the big plank */
+.sign-big { height: 80px; }
+.sign-big::after { width: 52px; height: 52px; }
+.sign-big.sign-left::after { left: -25px; }
+.sign-big .sign-medal { width: 54px; height: 54px; }
+.sign-big .sign-medal svg { width: 29px; height: 29px; }
+.sign-big .sign-text b { font-size: 29px; font-weight: 900; }
+
+/* The city sign: plain brown wood in every city (a city-tinted sign got lost
+   against purple skies), with a window onto the city's skyline
+   (--sign-scene is set by updateHomeUI) */
+.sign-city {
+    --btn-face: var(--sign-wood);
+    --btn-base: var(--sign-wood-dark);
+    height: 84px;
+    padding: 0 10px 0 14px;
+    color: var(--cream-hi);
+}
+
+.sign-city::after { width: 56px; height: 56px; right: -27px; }
+
+.sign-window {
+    width: 104px;
+    height: 62px;
+    flex: none;
+    border-radius: 11px;
+    border: 3px solid var(--wood-dark);
+    background: var(--sky) var(--sign-scene, none) center bottom / cover no-repeat;
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
+    z-index: 1;
+}
+
+.sign-city small {
+    display: block;
+    margin-bottom: 1px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--cream-3);
+}
+
+.sign-city .sign-text b {
+    font-size: 23px;
+    font-weight: 900;
+    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.45);
+}
+
+.sign-city .sign-sub { font-size: 11.5px; opacity: 0.9; }
+
+/* The color classes (.green-btn ...) come later in this file and reset the
+   background shorthand, so the grain and the text lift are restated here
+   with a stronger selector */
+.home-sign .sign-plank {
+    background-image: repeating-linear-gradient(0deg, rgba(78, 49, 22, 0.06) 0 2px, transparent 2px 15px);
+}
+.home-sign .sign-plank:not(.gold-btn) { text-shadow: 0 2px 0 rgba(78, 49, 22, 0.4); }
+
+/* Narrow phones (iPhone SE, 320pt): smaller medals, text and skyline window
+   so every plank keeps its line on one row */
+@media (max-width: 360px) {
+    .sign-plank { gap: 9px; padding: 0 10px; }
+    .sign-medal { width: 36px; height: 36px; }
+    .sign-medal svg { width: 19px; height: 19px; }
+    .sign-text b { font-size: 18px; }
+    .sign-sub { font-size: 11px; }
+    .sign-big .sign-medal { width: 46px; height: 46px; }
+    .sign-big .sign-medal svg { width: 25px; height: 25px; }
+    .sign-big .sign-text b { font-size: 25px; }
+    .sign-window { width: 76px; height: 50px; }
+    .sign-city { padding: 0 8px 0 10px; }
+    .sign-city .sign-text b { font-size: 19px; }
+    .sign-city .sign-sub { font-size: 10.5px; }
+}
+
+/* Above the signpost the player card is a slim strip: avatar, then name
+   over [level badge + XP bar], then coins and diamonds as two small pills.
+   Trophies live on the signs (profile plank, city sign). The bottom padding
+   leaves room for the daily-bonus pill hanging off the card's edge. */
+#homeScreen .player-card {
+    gap: 10px;
+    padding: 10px 12px 16px;
+    margin: 6px 6px 32px;
+    border-width: 3px;
+    border-radius: 24px;
+}
+
+#homeScreen .player-header {
+    flex: 1;
+    min-width: 0;
+    gap: 12px;
+}
+
+#homeScreen .player-avatar {
+    flex: none;
+    width: 56px;
+    height: 56px;
+    margin-inline-start: 4px;
+}
+
+#homeScreen .player-info {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 6px 7px;
+}
+
+#homeScreen .player-name {
+    grid-column: 1 / -1;
+    font-size: 1.15em;
+    line-height: 1.1;
+}
+
+#homeScreen .level-badge {
+    padding: 2px 9px;
+    font-size: 0.72em;
+    white-space: nowrap;
+    box-shadow: 0 2px 0 var(--blue-base);
+}
+
+/* just the bar here; the numbers are on the profile screen */
+#homeScreen .xp-bar-wrap { width: auto; min-width: 0; }
+#homeScreen .xp-bar { height: 10px; }
+#homeScreen .xp-bar-text { display: none; }
+
+#homeScreen .player-stats { flex: none; gap: 4px; }
+
+#homeScreen .coins-display,
+#homeScreen .diamonds-display {
+    direction: ltr;
+    justify-content: space-between;
+    gap: 5px;
+    min-width: 72px;
+    padding: 1px 8px 1px 5px;
+    font-size: 13px;
+    color: var(--ink);
+    background: var(--cream-2);
+    border: 2px solid var(--cream-3);
+    border-radius: var(--radius-pill);
+}
+
+#homeScreen .coins-display .icon svg,
+#homeScreen .diamonds-display .icon svg { width: 15px; height: 15px; }
 
 .theme-selector {
     display: flex;
@@ -315,76 +501,6 @@ html[data-city="island"] .subtitle {
 .theme-selector select:focus {
     outline: 3px solid var(--blue);
     outline-offset: 3px;
-}
-
-.button-group {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-/* ===== The candy button - the theme's signature control =====
-   A color class sets only --btn-face and --btn-base; this recipe does the
-   rest. The press travels down by exactly what the bevel loses, so the face
-   moves and the ground stays put. */
-.mega-btn {
-    padding: 20px 18px;
-    font-family: var(--font-display);
-    font-size: 1.25em;
-    background: var(--btn-face, var(--green));
-    color: var(--ink-on-color);
-    border: 3px solid var(--wood-dark);
-    border-radius: var(--radius-btn);
-    cursor: pointer;
-    font-weight: 800;
-    letter-spacing: 0.3px;
-    text-shadow: 0 2px 0 rgba(78, 49, 22, 0.45);
-    box-shadow: var(--bevel);
-    position: relative;
-    overflow: hidden; /* clips the shine sweep and the gloss cap */
-    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
-                box-shadow 0.15s ease;
-}
-
-/* the gloss cap over the top third, so the face reads as domed */
-.mega-btn::before {
-    content: '';
-    position: absolute;
-    inset: 0 0 auto;
-    height: 42%;
-    background: linear-gradient(rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0));
-    pointer-events: none;
-}
-
-/* diagonal light sweep that glides across the button on hover */
-.mega-btn::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -80%;
-    width: 55%;
-    height: 100%;
-    background: linear-gradient(105deg,
-        transparent, rgba(255, 255, 255, 0.28), transparent);
-    transform: skewX(-20deg);
-    pointer-events: none;
-    transition: left 0.5s ease;
-}
-
-.mega-btn:hover::after {
-    left: 130%;
-}
-
-.mega-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--bevel-lg);
-}
-
-/* The sink - the primary tactile signal on touch devices, where :hover
-   never really fires */
-.mega-btn:active {
-    transform: translateY(4px);
-    box-shadow: var(--sink);
 }
 
 /* ===== Color identities =====
@@ -2585,18 +2701,19 @@ html[data-city="island"] .subtitle {
    a composed, game-menu feel instead of everything blinking in at once.
    Only runs when the screen (re)gains .active (display toggles re-trigger it). */
 #homeScreen.active .main-title,
-#homeScreen.active .subtitle,
 #homeScreen.active .player-card,
-#homeScreen.active .arena-banner,
-#homeScreen.active .button-group,
+#homeScreen.active .sign-plank,
 #homeScreen.active .theme-selector {
     animation: homeRise 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
-#homeScreen.active .subtitle       { animation-delay: 0.06s; }
-#homeScreen.active .player-card    { animation-delay: 0.12s; }
-#homeScreen.active .arena-banner   { animation-delay: 0.18s; }
-#homeScreen.active .button-group   { animation-delay: 0.24s; }
+#homeScreen.active .player-card    { animation-delay: 0.08s; }
+/* the planks go up one after another, top sign first */
+#homeScreen.active .sign-plank:nth-child(2) { animation-delay: 0.16s; }
+#homeScreen.active .sign-plank:nth-child(3) { animation-delay: 0.22s; }
+#homeScreen.active .sign-plank:nth-child(4) { animation-delay: 0.28s; }
+#homeScreen.active .sign-plank:nth-child(5) { animation-delay: 0.34s; }
+#homeScreen.active .sign-plank:nth-child(6) { animation-delay: 0.40s; }
 #homeScreen.active .theme-selector { animation-delay: 0.30s; }
 
 @keyframes homeRise {
@@ -2611,18 +2728,11 @@ html[data-city="island"] .subtitle {
     #homeScreen::after,
     .main-title,
     .player-avatar,
-    .arena-banner-motif,
     #homeScreen.active .main-title,
-    #homeScreen.active .subtitle,
     #homeScreen.active .player-card,
-    #homeScreen.active .arena-banner,
-    #homeScreen.active .button-group,
+    #homeScreen.active .sign-plank,
     #homeScreen.active .theme-selector {
         animation: none;
-    }
-
-    .mega-btn::after {
-        display: none;
     }
 }
 
@@ -2810,7 +2920,7 @@ html[data-city="island"] .subtitle {
    Diamonds (premium currency) + Daily login reward
    ========================================================================= */
 
-/* Home stat: blue diamonds next to coins/trophies */
+/* Home stat: blue diamonds under the coins */
 .diamonds-display {
     display: flex;
     align-items: center;
@@ -3029,14 +3139,6 @@ body:not(.on-home) .daily-fab { display: none; }
     color: var(--ink);
 }
 
-.arena-banner {
-    width: 100%;
-    font: inherit;
-    text-align: inherit;
-    cursor: pointer;
-    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
-}
-
 @keyframes auroraDrift {
     from { transform: translate(0, 0) scale(1); }
     to   { transform: translate(40px, 30px) scale(1.15); }
@@ -3050,16 +3152,6 @@ body:not(.on-home) .daily-fab { display: none; }
 .player-name .rename-btn {
     font-size: 0.7em;
     padding: 0;
-}
-
-.arena-banner:hover  { transform: translateY(-2px); box-shadow: var(--shadow-depth-md); }
-
-.arena-banner:active { transform: scale(0.97); }
-
-.arena-banner-chevron {
-    font-size: 1.4em;
-    color: var(--text-secondary);
-    margin-inline-start: auto;
 }
 
 /* Arena picker screen - swipeable card carousel over the ARENAS table
@@ -3218,15 +3310,6 @@ body:not(.on-home) .daily-fab { display: none; }
         transition: none;
     }
 }
-
-/* Richer two-tone gradients + hairline top highlight, scoped to the home
-   screen's mega buttons only - other screens keep the flat matte fills */
-/* The old dark-theme .mega-btn colour variants lived here (per-button
-   gradients plus a coloured hover halo). They are gone on purpose: the
-   island skin colours every control through the generic .green-btn /
-   .gold-btn / .blue-btn / .purple-btn classes above, which set --btn-face
-   and --btn-base so the shared bevel and sink work. A .mega-btn.<colour>
-   rule would out-specify those and knock the button back out of the theme. */
 
 .current-avatar img {
     width: 100%;
